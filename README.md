@@ -4,6 +4,7 @@
 ![Swift](https://img.shields.io/badge/Swift%205.9%2B-orange?logo=swift&logoColor=white)
 ![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-blue)
 ![Tests](https://img.shields.io/badge/tests-83%20unit%20%2B%2014%20UI-brightgreen)
+[![iOS CI](https://github.com/DayIight/PetPal/actions/workflows/ios-ci.yml/badge.svg)](https://github.com/DayIight/PetPal/actions/workflows/ios-ci.yml)
 
 以宠物为中心的本地生活记录工具：档案管理、日常记录、重复提醒、成长看板，
 外加 Mock 实现的宠友社交信息流与桌面小组件。数据默认只存本地 Core Data，隐私优先。

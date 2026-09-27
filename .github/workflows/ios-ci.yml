@@ -1,0 +1,71 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      full_suite:
+        description: '手动触发时是否跑全量（含 UI 测试）'
+        type: boolean
+        default: false
+
+# 同一分支的新 push 取消在跑的旧 run，节省 macOS 分钟数
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: 单元测试
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 记录 Xcode 版本
+        run: xcodebuild -version
+
+      - name: 单元测试（PetPalTests）
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ { print $2; exit }')
+          echo "使用模拟器：$DEVICE_ID"
+          xcodebuild -project PetPal.xcodeproj -scheme PetPal -configuration Debug \
+            -destination "id=$DEVICE_ID" -derivedDataPath build/CIDerivedData \
+            -only-testing:PetPalTests test
+
+      - name: 失败时上传 xcresult
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: build/CIDerivedData/Logs/Test/*.xcresult
+          if-no-files-found: ignore
+
+  ui-tests:
+    name: 全量测试（含 UI）
+    # push 到 main 全量跑；PR 只跑单元；手动触发可选全量
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.full_suite)
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 全量测试（单元 + UI）
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ { print $2; exit }')
+          echo "使用模拟器：$DEVICE_ID"
+          xcodebuild -project PetPal.xcodeproj -scheme PetPal -configuration Debug \
+            -destination "id=$DEVICE_ID" -derivedDataPath build/CIDerivedData test
+
+      - name: 失败时上传 xcresult
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: build/CIDerivedData/Logs/Test/*.xcresult
+          if-no-files-found: ignore
