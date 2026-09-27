@@ -250,3 +250,13 @@ final class TimelineViewModelOwnershipTests: XCTestCase {
         XCTAssertEqual(vm.sections.count, 1, "VM 必须持有 repo，否则 repo 释放后广播观察者被移除")
     }
 }
+
+// MARK: - 记录类型图标（「bowl.fill」并非真实 SF Symbol 导致喂食无图标的回归防护）
+final class RecordKindSymbolTests: XCTestCase {
+    func test_allKinds_symbolNameResolvesToRealImage() {
+        for kind in RecordKind.allCases {
+            XCTAssertNotNil(UIImage(systemName: kind.symbolName),
+                            "\(kind) 的 \(kind.symbolName) 不是有效的 SF Symbol")
+        }
+    }
+}

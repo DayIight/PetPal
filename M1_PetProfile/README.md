@@ -34,10 +34,11 @@ pending 通知撤销由 App 层经 `PetListViewModel.reminderCleanup` 钩子在�
 ```
 PetListView（排序 segmented：添加时间/昵称）
  └─ NavigationLink → PetDetailView
+      ├─ 头部头像可点击 → AvatarPickerView（拍照/相册/移除，即时保存）
       ├─ 编辑 → PetFormView（编辑/新建共用）
       └─ 删除 → confirmationDialog 二次确认
 PetFormView
- ├─ PhotosPicker / 相机（头像 → AvatarStore 压缩落盘）
+ ├─ AvatarPickerView（头像 → AvatarStore 压缩落盘，保存时生效）
  ├─ DatePicker(in: ...Date()) 生日/领养日
  └─ 错误高亮：errors[field] 非空时红框 + 文案，禁止提交
 ```
@@ -50,7 +51,9 @@ PetFormView
 - 所有 ViewModel 标注 `@MainActor`，Repository 在后台 context 写、主线程发发布。
 
 ## 关键交互逻辑（输出形式：代码骨架，见 PetProfileSkeleton.swift）
-1. 头像：`PhotosPicker` 取图 → `AvatarStore.save` 等比压缩至 ≤1080px、JPEG 0.8 → 存 Documents。
+1. 头像：`AvatarPickerView`（拍照 / `PhotosPicker` 相册 / 移除）→ `AvatarStore.save` 等比压缩至 ≤1080px、
+   JPEG 0.8 → 存 Documents。表单内在 `save()` 时落盘并写库（失败回滚新文件，成功清理被替换的旧文件）；
+   详情页点头像即时保存。
 2. 提交：`save()` → `PetValidator.errors` → 空则 create/update，非空则逐字段红框高亮。
 3. 删除：详情页 `confirmationDialog` → `repo.delete` → 预留 `onPetDeleted` 钩子（M4 联动清理提醒）。
 

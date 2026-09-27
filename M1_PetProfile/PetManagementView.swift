@@ -210,6 +210,7 @@ struct PetDetailView: View {
     @State private var pet: Pet?
     @State private var showEdit = false
     @State private var confirmDelete = false
+    @State private var avatarError: String?
     @State private var bag = Set<AnyCancellable>()
     @ObservedObject private var petListVM: PetListViewModel
     @ObservedObject private var currentPet: CurrentPetStore
@@ -232,7 +233,11 @@ struct PetDetailView: View {
                 Form {
                     Section {
                         HStack(spacing: DS.Spacing.md) {
-                            PetAvatarThumb(pet: pet, diameter: 64)
+                            AvatarPickerView(nickname: pet.nickname,
+                                             avatarFileName: pet.avatarFileName,
+                                             diameter: 64,
+                                             onPick: { changeAvatar(pet, image: $0) },
+                                             onRemove: { changeAvatar(pet, image: nil) })
                             VStack(alignment: .leading, spacing: DS.Spacing.xs) {
                                 Text(pet.nickname).font(.title3)
                                 if pet.id == currentPet.current?.id {
@@ -280,6 +285,12 @@ struct PetDetailView: View {
                     Button("删除（含全部记录与提醒）", role: .destructive) { delete(pet) }
                     Button("取消", role: .cancel) {}
                 }
+                .alert("操作失败", isPresented: .init(get: { avatarError != nil },
+                                                      set: { if !$0 { avatarError = nil } })) {
+                    Button("知道了", role: .cancel) {}
+                } message: {
+                    Text(avatarError ?? "")
+                }
             } else {
                 // iOS 16 无 ContentUnavailableView，等效自绘
                 VStack(spacing: DS.Spacing.sm) {
@@ -301,5 +312,27 @@ struct PetDetailView: View {
     private func delete(_ pet: Pet) {
         petListVM.delete(pet)
         if !router.path.isEmpty { router.path.removeLast() }
+    }
+
+    /// 详情页点头像即时更换/移除：压缩落盘 → 写库 → 成功后清理旧文件；失败回滚新文件并提示
+    private func changeAvatar(_ pet: Pet, image: UIImage?) {
+        var updated = pet
+        var newFile: String?
+        if let image {
+            guard let name = AvatarStore.save(image) else {
+                avatarError = "头像保存失败，请重试"; return
+            }
+            newFile = name
+            updated.avatarFileName = name
+        } else {
+            updated.avatarFileName = nil
+        }
+        do {
+            try repo.update(updated)
+            if let old = pet.avatarFileName, old != newFile { AvatarStore.delete(fileName: old) }
+        } catch {
+            if let newFile { AvatarStore.delete(fileName: newFile) }
+            avatarError = "头像更新失败，请重试"
+        }
     }
 }

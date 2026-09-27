@@ -193,6 +193,10 @@ enum AvatarStore {
         guard let data = try? Data(contentsOf: url) else { return nil }
         return UIImage(data: data)
     }
+    /// 已落盘图片的完整 file URL（M3 动态图片经 Kingfisher 按 URL 加载用）
+    static func url(for fileName: String) -> URL {
+        directory.appendingPathComponent(fileName)
+    }
     /// 删除已落盘的头像/附件文件；文件不存在视为成功（幂等）
     static func delete(fileName: String) {
         guard !fileName.isEmpty else { return }
@@ -230,15 +234,39 @@ enum AvatarStore {
 
 @MainActor final class PetFormViewModel: ObservableObject {
     @Published var draft: Pet
+    @Published private(set) var pickedAvatar: UIImage?   // 新选头像，保存时才落盘
+    @Published private(set) var avatarRemoved = false    // 标记移除，保存时才清文件
     @Published private(set) var errors: [PetField: String] = [:]
     private let repo: PetRepository, isEditing: Bool
+    private let originalAvatarFileName: String?
     init(repo: PetRepository, editing: Pet? = nil) {
         self.repo = repo; isEditing = editing != nil; draft = editing ?? Pet()
+        originalAvatarFileName = editing?.avatarFileName
     }
+    func pickAvatar(_ image: UIImage) { pickedAvatar = image; avatarRemoved = false }
+    func removeAvatar() { pickedAvatar = nil; avatarRemoved = true }
     @discardableResult func save() -> Bool {
         errors = PetValidator.errors(for: draft)          // 非空：View 高亮并阻止提交
         guard errors.isEmpty else { return false }
-        do { isEditing ? try repo.update(draft) : try repo.create(draft); return true }
-        catch { return false }
+        var newFile: String?
+        if let pickedAvatar {
+            guard let name = AvatarStore.save(pickedAvatar) else { return false }  // 落盘失败不提交
+            newFile = name
+            draft.avatarFileName = name
+        } else if avatarRemoved {
+            draft.avatarFileName = nil
+        }
+        do {
+            isEditing ? try repo.update(draft) : try repo.create(draft)
+        } catch {
+            if let newFile { AvatarStore.delete(fileName: newFile) }   // 回滚，避免孤儿文件
+            draft.avatarFileName = originalAvatarFileName
+            return false
+        }
+        // 写库成功后清理被替换/移除的旧头像文件
+        if (newFile != nil || avatarRemoved), let old = originalAvatarFileName, old != newFile {
+            AvatarStore.delete(fileName: old)
+        }
+        return true
     }
 }

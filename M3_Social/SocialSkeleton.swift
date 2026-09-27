@@ -55,6 +55,8 @@ struct InteractionMessage: Identifiable, Equatable {
 // MARK: - Repository 边界（未来 RemoteSocialRepository 替换 Mock，上层零改动）
 protocol SocialRepository: AnyObject {
     var feedPublisher: AnyPublisher<[Post], Never> { get }
+    /// 已收藏动态全集（不受信息流分页影响；Mock 为内存过滤，未来由远端/本地库实现）
+    var favoritesPublisher: AnyPublisher<[Post], Never> { get }
     func refreshFeed() async throws     // 下拉刷新，重置到第1页
     func loadNextPage() async throws    // 每页20条
     func publish(text: String, petID: UUID, imageURLs: [URL], visibility: Visibility) async throws
@@ -73,8 +75,10 @@ final class MockSocialRepository: SocialRepository {
     private var messages: [InteractionMessage] = []
     private var loadedPages = 1
     private let feedSubject = CurrentValueSubject<[Post], Never>([])
+    private let favoritesSubject = CurrentValueSubject<[Post], Never>([])
     private var commentSubjects: [UUID: CurrentValueSubject<[Comment], Never>] = [:]
     var feedPublisher: AnyPublisher<[Post], Never> { feedSubject.eraseToAnyPublisher() }
+    var favoritesPublisher: AnyPublisher<[Post], Never> { favoritesSubject.eraseToAnyPublisher() }
     init() { seed() }
 
     private func seed() {
@@ -123,7 +127,10 @@ final class MockSocialRepository: SocialRepository {
 
     /// 消息 tab 数据源（演示数据一次性快照；接真实后端时换 publisher）
     func interactionMessages() -> [InteractionMessage] { messages }
-    private func emit() { feedSubject.send(Array(posts.prefix(loadedPages * Self.pageSize))) }
+    private func emit() {
+        feedSubject.send(Array(posts.prefix(loadedPages * Self.pageSize)))
+        favoritesSubject.send(posts.filter(\.isFavorited))
+    }
     private func latency() async throws { try await Task.sleep(nanoseconds: 150_000_000) }
 
     func refreshFeed() async throws { try await latency(); loadedPages = 1; emit() }

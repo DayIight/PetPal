@@ -7,6 +7,21 @@ struct PetFormView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: DS.Spacing.xs) {
+                            AvatarPickerView(nickname: vm.draft.nickname,
+                                             avatarFileName: vm.avatarRemoved ? nil : vm.draft.avatarFileName,
+                                             pickedImage: vm.pickedAvatar,
+                                             onPick: { vm.pickAvatar($0) },
+                                             onRemove: { vm.removeAvatar() })
+                            Text("设置头像").font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+                }
                 Picker("物种", selection: $vm.draft.species) {
                     ForEach(PetSpecies.allCases) { Text($0.rawValue).tag($0) }
                 }

@@ -228,7 +228,7 @@ private struct TimelineRecordsView: View {
 extension RecordKind {
     var symbolName: String {
         switch self {
-        case .feeding: return "bowl.fill"
+        case .feeding: return "fork.knife"
         case .walking: return "figure.walk"
         case .training: return "target"
         case .deworming: return "pill.fill"

@@ -5,6 +5,7 @@ import Kingfisher
 // MARK: - 信息流 ViewModel（订阅 repo.feedPublisher；未来 RemoteSocialRepository 替换 Mock 时零改动）
 @MainActor final class FeedViewModel: ObservableObject {
     @Published private(set) var posts: [Post] = []
+    @Published private(set) var favorites: [Post] = []   // 收藏列表页数据源
     @Published private(set) var isLoadingMore = false
     @Published var errorMessage: String?
     let repo: SocialRepository
@@ -14,6 +15,9 @@ import Kingfisher
         self.repo = repo
         repo.feedPublisher.receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.posts = $0 }
+            .store(in: &bag)
+        repo.favoritesPublisher.receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.favorites = $0 }
             .store(in: &bag)
     }
 
@@ -83,7 +87,7 @@ struct FeedView: View {
     var body: some View {
         NavigationStack {
             List(Array(vm.posts.enumerated()), id: \.element.id) { index, post in
-                postCard(index: index, post: post)
+                PostCardView(index: index, post: post, vm: vm)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: DS.Spacing.xs, leading: DS.Spacing.md,
@@ -93,6 +97,15 @@ struct FeedView: View {
             .background(Color.pageBackground)
             .navigationTitle("宠友信息流")
             .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    NavigationLink {
+                        FavoritesView(vm: vm)
+                    } label: {
+                        Image(systemName: "bookmark")
+                    }
+                    .a11y("我的收藏", hint: "查看全部已收藏的动态")
+                    .accessibilityIdentifier("feed.favorites")
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     NavigationLink {
                         PublishFormView(vm: vm)
@@ -110,9 +123,49 @@ struct FeedView: View {
             } message: { Text(vm.errorMessage ?? "") }
         }
     }
+}
 
-    // MARK: 动态卡片
-    private func postCard(index: Int, post: Post) -> some View {
+// MARK: - 我的收藏（收藏动态的落点；卡片与信息流一致，可直接取消收藏/进评论）
+struct FavoritesView: View {
+    @ObservedObject var vm: FeedViewModel
+
+    var body: some View {
+        Group {
+            if vm.favorites.isEmpty {
+                VStack(spacing: DS.Spacing.md) {
+                    Image(systemName: "bookmark")
+                        .font(.system(size: 48)).foregroundStyle(.secondary)
+                    Text("还没有收藏的动态").font(.headline)
+                    Text("在信息流点动态右下角的书签即可收藏")
+                        .font(.body).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityIdentifier("favorites.empty")
+            } else {
+                List(Array(vm.favorites.enumerated()), id: \.element.id) { index, post in
+                    PostCardView(index: index, post: post, vm: vm)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: DS.Spacing.xs, leading: DS.Spacing.md,
+                                                  bottom: DS.Spacing.xs, trailing: DS.Spacing.md))
+                }
+                .listStyle(.plain)
+            }
+        }
+        .background(Color.pageBackground)
+        .navigationTitle("我的收藏")
+        .accessibilityIdentifier("favorites")
+    }
+}
+
+// MARK: - 动态卡片（信息流与收藏页共用；行级锚点由各子控件承担）
+struct PostCardView: View {
+    let index: Int
+    let post: Post
+    @ObservedObject var vm: FeedViewModel
+
+    var body: some View {
         CardContainer {
             VStack(alignment: .leading, spacing: DS.Spacing.sm) {
                 HStack(alignment: .top) {

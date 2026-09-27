@@ -28,6 +28,7 @@ targets:
       - path: M1_PetProfile/PetProfileSkeleton.swift
       - path: M1_PetProfile/PetFormView.swift
       - path: M1_PetProfile/PetManagementView.swift
+      - path: M1_PetProfile/AvatarPickerView.swift
       - path: M2_DailyRecords/DailyRecordSkeleton.swift
       - path: M2_DailyRecords/RecordCalendarView.swift
       - path: M2_DailyRecords/CustomTemplateViews.swift

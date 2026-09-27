@@ -2,7 +2,9 @@
 
 `SocialRepository` 协议即边界，`MockSocialRepository` 驱动信息流/点赞/两级评论的演示与单测；
 UI 已接入（`FeedView` / `PublishFormView` / `CommentListView`），图片经 Kingfisher 加载。
-延后增强：收藏转发、三方分享原生 SDK（协议已预留接口，Mock 提供最小实现）。
+发布动态支持添加照片（≤9 张，拍照或相册多选）：所选图片经 `AvatarStore` 压缩落盘（≤1080px、JPEG 0.8）后以 file URL 传给信息流加载。
+延后增强：转发、三方分享原生 SDK（协议已预留接口，Mock 提供最小实现）。
+收藏已闭环：动态卡片书签切换收藏态，信息流左上角「我的收藏」经 `favoritesPublisher` 展示全部已收藏动态（不受分页影响）。
 
 ## 架构说明（本轮输出形式：架构说明）
 边界划分：健康与档案数据（M1/M2）在 Core Data 本地；云备份走 CloudKit 私有库；

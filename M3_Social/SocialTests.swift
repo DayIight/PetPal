@@ -33,6 +33,21 @@ final class MockSocialRepositoryTests: XCTestCase {
         XCTAssertEqual(currentFeed()[0].likeCount, post.likeCount)
         XCTAssertFalse(currentFeed()[0].isLiked)
     }
+    // 收藏列表：favoritesPublisher 不受分页影响，收藏/取消即时进出
+    func test_toggleFavorite_entersAndLeavesFavoritesList() async throws {
+        func favorites() -> [Post] {
+            var result: [Post] = []
+            let c = repo.favoritesPublisher.sink { result = $0 }
+            defer { c.cancel() }
+            return result
+        }
+        XCTAssertTrue(favorites().isEmpty)
+        let post = currentFeed()[0]
+        try await repo.toggleFavorite(postID: post.id)
+        XCTAssertEqual(favorites().map(\.id), [post.id])
+        try await repo.toggleFavorite(postID: post.id)
+        XCTAssertTrue(favorites().isEmpty)
+    }
     func test_replyToTopLevel_succeeds() async throws {
         let post = currentFeed()[0]
         var comments: [Comment] = []
@@ -75,6 +90,35 @@ final class MockSocialRepositoryTests: XCTestCase {
         }
         XCTAssertTrue(messages.contains(where: { $0.commentID != nil }),
                       "至少一条评论类消息应携带 commentID 用于定位")
+    }
+}
+
+// MARK: - 发布带图（PublishFormView 经 AvatarStore 落盘为 file URL，信息流按 URL 加载）
+final class PublishWithPhotosTests: XCTestCase {
+    private var repo: MockSocialRepository!
+    override func setUp() { repo = MockSocialRepository() }
+
+    private func currentFeed() -> [Post] {
+        var result: [Post] = []
+        let c = repo.feedPublisher.sink { result = $0 }
+        defer { c.cancel() }
+        return result
+    }
+
+    func test_publish_withLocalImageURLs_appearsOnTopWithImages() async throws {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 400, height: 300)).image { ctx in
+            UIColor.systemBlue.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 400, height: 300))
+        }
+        let fileName = try XCTUnwrap(AvatarStore.save(image))
+        defer { AvatarStore.delete(fileName: fileName) }   // 清理测试产物
+        let url = AvatarStore.url(for: fileName)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+
+        try await repo.publish(text: "带图动态", petID: UUID(), imageURLs: [url], visibility: .default)
+        let top = currentFeed().first
+        XCTAssertEqual(top?.text, "带图动态")
+        XCTAssertEqual(top?.imageURLs, [url])
+        XCTAssertEqual(top?.authorName, "我")
     }
 }
 

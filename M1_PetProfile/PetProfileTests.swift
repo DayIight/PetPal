@@ -127,6 +127,16 @@ final class PetViewModelTests: XCTestCase {
 }
 
 final class AvatarStoreTests: XCTestCase {
+    static func makeImage(width: CGFloat = 600, height: CGFloat = 400) -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: width, height: height)).image { ctx in
+            UIColor.orange.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        }
+    }
+    static func fileURL(_ name: String) -> URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(name)
+    }
+
     func test_saveCompressesAndDeleteIsIdempotent() {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 3000, height: 2000)).image { ctx in
             UIColor.orange.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 3000, height: 2000))
@@ -141,6 +151,63 @@ final class AvatarStoreTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
         AvatarStore.delete(fileName: name)   // 幂等：重复删除不崩溃
         AvatarStore.delete(fileName: "")
+    }
+}
+
+// MARK: - 表单头像（新建/编辑共用 PetFormViewModel：保存时落盘，替换/移除清理旧文件）
+final class PetFormAvatarTests: XCTestCase {
+    @MainActor private func makeVM(editing: Pet? = nil) -> PetFormViewModel {
+        PetFormViewModel(repo: CoreDataPetRepository(stack: CoreDataStack(inMemory: true)),
+                         editing: editing)
+    }
+    @MainActor private func fillValid(_ vm: PetFormViewModel) {
+        vm.draft.nickname = "小白"; vm.draft.breed = "柯基"
+    }
+
+    @MainActor func test_newPet_pickAvatar_savePersistsFile() {
+        let vm = makeVM(); fillValid(vm)
+        vm.pickAvatar(AvatarStoreTests.makeImage())
+        XCTAssertTrue(vm.save())
+        let name = vm.draft.avatarFileName
+        XCTAssertNotNil(name)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: AvatarStoreTests.fileURL(name!).path))
+        if let name { AvatarStore.delete(fileName: name) }   // 清理测试产物
+    }
+
+    @MainActor func test_edit_replaceAvatar_deletesOldFile() throws {
+        let oldName = try XCTUnwrap(AvatarStore.save(AvatarStoreTests.makeImage()))
+        var pet = Pet(nickname: "小白", breed: "柯基", birthday: Date(), weightKg: 8.5)
+        pet.avatarFileName = oldName
+        let vm = makeVM(editing: pet)
+        vm.pickAvatar(AvatarStoreTests.makeImage())
+        XCTAssertTrue(vm.save())
+        let newName = try XCTUnwrap(vm.draft.avatarFileName)
+        XCTAssertNotEqual(newName, oldName)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: AvatarStoreTests.fileURL(oldName).path),
+                       "被替换的旧头像文件应删除")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: AvatarStoreTests.fileURL(newName).path))
+        AvatarStore.delete(fileName: newName)
+    }
+
+    @MainActor func test_edit_removeAvatar_clearsFieldAndDeletesFile() throws {
+        let oldName = try XCTUnwrap(AvatarStore.save(AvatarStoreTests.makeImage()))
+        var pet = Pet(nickname: "小白", breed: "柯基", birthday: Date(), weightKg: 8.5)
+        pet.avatarFileName = oldName
+        let vm = makeVM(editing: pet)
+        vm.removeAvatar()
+        XCTAssertTrue(vm.save())
+        XCTAssertNil(vm.draft.avatarFileName)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: AvatarStoreTests.fileURL(oldName).path))
+    }
+
+    @MainActor func test_invalidDraft_avatarFileNotWritten() throws {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let before = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        let vm = makeVM()   // 昵称为空，校验失败
+        vm.pickAvatar(AvatarStoreTests.makeImage())
+        XCTAssertFalse(vm.save())
+        let after = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        XCTAssertEqual(Set(after), Set(before), "校验失败不得落盘头像文件")
     }
 }
 

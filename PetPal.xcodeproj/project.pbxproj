@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0CEF993F05F6BDDEEED3369F /* DashboardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A689F4688B2962236695DEBB /* DashboardTests.swift */; };
+		14C663209B5285D01065D5EA /* AvatarPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 638FA20AFF53D669855AABB4 /* AvatarPickerView.swift */; };
 		17B6D6D96E2CCDD987EDED79 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CB9BB611812E16745808CB0 /* WidgetSnapshot.swift */; };
 		1BBD4287F07A20D418965C7D /* PrototypeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46197EDEEB9B441AB777C91F /* PrototypeApp.swift */; };
 		1C42DCC1D97E41BDB6C8549D /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 513EBDCC5737D81A6C04214C /* Kingfisher */; };
@@ -90,12 +91,13 @@
 		1C21F0F43CDF0C0430E01969 /* PetProfileSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetProfileSkeleton.swift; sourceTree = "<group>"; };
 		2B27015F290B4EFBB8DEB5B1 /* MessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesView.swift; sourceTree = "<group>"; };
 		32FBF3AD85F341F72AE04D11 /* WeightUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightUITests.swift; sourceTree = "<group>"; };
-		36E1E2F657DE2AC0079966CE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		36E1E2F657DE2AC0079966CE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		46197EDEEB9B441AB777C91F /* PrototypeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeApp.swift; sourceTree = "<group>"; };
 		4E0D954C513BB1D6DE8B7C23 /* WeightFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightFormView.swift; sourceTree = "<group>"; };
 		4FFE0D15E947D473CD97A624 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedView.swift; sourceTree = "<group>"; };
 		5107971C455CCBD90CE5B14C /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		514280BD0DC1990D33E47F91 /* PrototypeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeUITests.swift; sourceTree = "<group>"; };
+		638FA20AFF53D669855AABB4 /* AvatarPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarPickerView.swift; sourceTree = "<group>"; };
 		651BDD05196898BBF077D4EF /* CommentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentListView.swift; sourceTree = "<group>"; };
 		6F85A3A6A797D7CA6E00F5AD /* PetPal.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = PetPal.xcdatamodel; sourceTree = "<group>"; };
 		70ADFF6C5DD4685A722827FD /* PetPalTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PetPalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -175,6 +177,7 @@
 		38217B822C944F17059F25F1 /* M1_PetProfile */ = {
 			isa = PBXGroup;
 			children = (
+				638FA20AFF53D669855AABB4 /* AvatarPickerView.swift */,
 				958F6C579A173F555594EE6E /* PetFormView.swift */,
 				0649DDBC131857AC1B21534D /* PetManagementView.swift */,
 				1C21F0F43CDF0C0430E01969 /* PetProfileSkeleton.swift */,
@@ -455,6 +458,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				14C663209B5285D01065D5EA /* AvatarPickerView.swift in Sources */,
 				DA157363BC720DB6519CD388 /* CommentListView.swift in Sources */,
 				311D8991C2E9C04CC9269970 /* CoreDataEntities.swift in Sources */,
 				E81166DDD1AED9A81C7FE950 /* CustomTemplateViews.swift in Sources */,
