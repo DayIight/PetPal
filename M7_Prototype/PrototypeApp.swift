@@ -14,9 +14,16 @@ struct PetPalPrototypeApp: App {
 @MainActor final class DeepLinkRouter: ObservableObject {
     static let shared = DeepLinkRouter()
     @Published var path = NavigationPath()
-    private init() {}
+    init() {}
     /// 点击通知 → 路由至对应宠物详情页（落点在「我的」tab 的 NavigationStack）
     func openPet(id: UUID) { path.append(id) }
+    /// L-01：widget 点击深链 petpal://pet/<uuid>
+    func handle(url: URL) {
+        guard url.scheme == "petpal", url.host == "pet",
+              let raw = url.pathComponents.last,
+              let id = UUID(uuidString: raw) else { return }
+        openPet(id: id)
+    }
 }
 
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -67,7 +74,10 @@ final class UNNotificationScheduler: NotificationScheduling {
     @Published private(set) var pets: [Pet] = []
     private static let defaultsKey = "petpal.currentPetID"
     private var bag = Set<AnyCancellable>()
+    // 必须持有 repo：CoreDataPetRepository deinit 会移除变更观察者，跨实例广播随之断开
+    private let repo: PetRepository
     init(repo: PetRepository) {
+        self.repo = repo
         repo.petsPublisher.receive(on: DispatchQueue.main)
             .sink { [weak self] pets in
                 guard let self else { return }

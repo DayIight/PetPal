@@ -168,3 +168,23 @@ final class CoreDataPetRepositoryTests: XCTestCase {
         XCTAssertEqual(latest.count, 0)
     }
 }
+
+// MARK: - 跨实例一致性（RootTabView 的 petListVM 与 CurrentPetStore 各自实例化 repository）
+final class PetRepositoryCrossInstanceTests: XCTestCase {
+    private var bag = Set<AnyCancellable>()
+
+    // 实例 A（CurrentPetStore）订阅，实例 B（建档表单）写库，A 应在广播后看到新宠物
+    func test_createViaOtherInstance_emitsToSubscriber() throws {
+        let stack = CoreDataStack(inMemory: true)
+        let repoA = CoreDataPetRepository(stack: stack)
+        let repoB = CoreDataPetRepository(stack: stack)
+        var received: [[Pet]] = []
+        repoA.petsPublisher.sink { received.append($0) }.store(in: &bag)
+        try repoB.create(Pet(nickname: "小白", breed: "柯基", birthday: Date(), weightKg: 8.5))
+        let drained = expectation(description: "main 队列投递完成")
+        DispatchQueue.main.async { drained.fulfill() }
+        wait(for: [drained], timeout: 2)
+        XCTAssertEqual(received.last?.count, 1)
+        XCTAssertEqual(received.last?.first?.nickname, "小白")
+    }
+}

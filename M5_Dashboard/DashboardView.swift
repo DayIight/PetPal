@@ -36,8 +36,11 @@ enum RecordAnswerDate {
     @Published private(set) var months: [Date] = []         // 每月 1 日，升序
     @Published var selectedMonth: Date = Date()
     private var bag = Set<AnyCancellable>()
+    // 必须持有 repo：repo deinit 会移除 recordsDidChange 观察者，广播链路随之断开
+    private let repo: RecordRepository
 
     init(repo: RecordRepository, petID: UUID) {
+        self.repo = repo
         repo.recordsPublisher(petID: petID).receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.apply($0) }
             .store(in: &bag)
@@ -88,8 +91,11 @@ struct HealthEvent: Identifiable {
 @MainActor final class HealthTimelineModel: ObservableObject {
     @Published private(set) var events: [HealthEvent] = []
     private var bag = Set<AnyCancellable>()
+    // 必须持有 repo：repo deinit 会移除 recordsDidChange 观察者，广播链路随之断开
+    private let repo: RecordRepository
 
     init(repo: RecordRepository, petID: UUID) {
+        self.repo = repo
         repo.recordsPublisher(petID: petID).receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.apply($0) }
             .store(in: &bag)

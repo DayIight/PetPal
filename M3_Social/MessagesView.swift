@@ -1,37 +1,17 @@
 import SwiftUI
 
-// MARK: - 消息占位页（「消息」tab）
-// 用 Mock 数据做互动消息列表（点赞/评论通知样式）；不接真实逻辑，仅演示视觉与层级。
-
-struct InteractionMessage: Identifiable {
-    let id = UUID()
-    let icon: String
-    let actor: String
-    let action: String
-    let postExcerpt: String
-    let time: String
-    let unread: Bool
-}
+// MARK: - 消息页（「消息」tab）
+// Mock 演示数据，但与信息流种子动态/评论真实关联（同一 MockSocialRepository 实例）：
+// 点击消息跳转对应动态的评论区；评论类消息携带 commentID，落位并高亮该评论。
 
 struct MessageListView: View {
-    /// Mock 演示数据：点赞/评论/回应三类互动通知
-    private let messages: [InteractionMessage] = [
-        .init(icon: "heart.fill", actor: "宠友12", action: "赞了你的动态",
-              postExcerpt: "今天带小白去跑了五公里，累趴了…",
-              time: "5分钟前", unread: true),
-        .init(icon: "bubble.right.fill", actor: "小明", action: "评论了你的动态",
-              postExcerpt: "第 1 条动态",
-              time: "1小时前", unread: true),
-        .init(icon: "face.smiling.fill", actor: "阿花", action: "回应了你的动态",
-              postExcerpt: "第 2 条动态",
-              time: "3小时前", unread: false),
-        .init(icon: "heart.fill", actor: "楼主", action: "赞了你的评论",
-              postExcerpt: "「好可爱！」",
-              time: "昨天", unread: false),
-        .init(icon: "bubble.right.fill", actor: "宠友7", action: "回复了你的评论",
-              postExcerpt: "「求同款粮」",
-              time: "2天前", unread: false)
-    ]
+    let repo: SocialRepository
+    let messages: [InteractionMessage]
+
+    init(repo: SocialRepository, messages: [InteractionMessage]) {
+        self.repo = repo
+        self.messages = messages
+    }
 
     var body: some View {
         NavigationStack {
@@ -39,9 +19,17 @@ struct MessageListView: View {
                 VStack(spacing: DS.Spacing.md) {
                     demoBadge
                     VStack(spacing: DS.Spacing.sm) {
-                        ForEach(Array(messages.enumerated()), id: \.offset) { index, message in
-                            messageCard(message)
-                                .accessibilityIdentifier("message.row.\(index)")
+                        ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+                            NavigationLink {
+                                CommentListView(post: message.post, repo: repo,
+                                                highlightCommentID: message.commentID)
+                            } label: {
+                                messageCard(message)
+                            }
+                            .buttonStyle(.plain)
+                            .a11y("\(message.actor)\(actionText(message.kind))，\(message.excerpt)",
+                                  hint: "点击查看对应\(message.commentID == nil ? "动态" : "评论")")
+                            .accessibilityIdentifier("message.row.\(index)")
                         }
                     }
                 }
@@ -53,11 +41,11 @@ struct MessageListView: View {
         }
     }
 
-    /// 「演示数据」标注：占位页无真实后端，明示用户
+    /// 「演示数据」标注：消息为 Mock 种子数据，明示用户
     private var demoBadge: some View {
         HStack(spacing: DS.Spacing.xs) {
             Image(systemName: "info.circle").font(.caption)
-            Text("演示数据 · 互动通知功能开发中").font(.caption)
+            Text("演示数据 · 点击可跳转对应动态或评论").font(.caption)
         }
         .foregroundStyle(.secondary)
         .padding(.horizontal, DS.Spacing.sm)
@@ -68,23 +56,41 @@ struct MessageListView: View {
         .accessibilityIdentifier("message.demoBadge")
     }
 
-    /// 互动通知卡片：图标圆标 + actor/action（headline）+ 动态摘录（body）+ 时间（辅助）+ 未读点
+    private func iconName(_ kind: InteractionMessage.Kind) -> String {
+        switch kind {
+        case .likePost, .likeComment: return "heart.fill"
+        case .commentPost, .replyComment: return "bubble.right.fill"
+        case .reactPost: return "face.smiling.fill"
+        }
+    }
+
+    private func actionText(_ kind: InteractionMessage.Kind) -> String {
+        switch kind {
+        case .likePost: return "赞了你的动态"
+        case .commentPost: return "评论了你的动态"
+        case .reactPost: return "回应了你的动态"
+        case .likeComment: return "赞了你的评论"
+        case .replyComment: return "回复了你的评论"
+        }
+    }
+
+    /// 互动通知卡片：图标圆标 + actor/action（headline）+ 摘录（body）+ 时间（辅助）+ 未读点
     private func messageCard(_ message: InteractionMessage) -> some View {
         CardContainer {
             HStack(alignment: .top, spacing: DS.Spacing.sm) {
-                Image(systemName: message.icon)
+                Image(systemName: iconName(message.kind))
                     .font(.body)
                     .frame(width: 40, height: 40)
                     .background(Color.groupedBackground, in: Circle())
                     .foregroundStyle(Color.accentColor)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: DS.Spacing.xs) {
-                    Text("\(message.actor) \(message.action)")
+                    Text("\(message.actor) \(actionText(message.kind))")
                         .font(.headline)
-                    Text(message.postExcerpt)
+                    Text(message.excerpt)
                         .font(.body).foregroundStyle(.secondary)
                         .lineLimit(2)
-                    Text(message.time)
+                    Text(feedTime(message.createdAt))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: DS.Spacing.sm)

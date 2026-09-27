@@ -215,33 +215,48 @@ protocol RecordRepository: AnyObject {
 }
 
 // CDRecord：id/petID UUID、kind String、answers/photoFileNames Transformable、note/mood String、createdAt Date
+extension Notification.Name { static let recordsDidChange = Notification.Name("PetPal.recordsDidChange") }
+
 final class CoreDataRecordRepository: RecordRepository {
     private let stack: CoreDataStack
     private var subjects: [UUID: CurrentValueSubject<[Record], Never>] = [:]
-    init(stack: CoreDataStack = .shared) { self.stack = stack }
+    private var changeObserver: NSObjectProtocol?
+    init(stack: CoreDataStack = .shared) {
+        self.stack = stack
+        // 表单/时间轴/日历/看板各自实例化 repository：任一实例写库后广播，其余存活实例重载已订阅的 petID
+        changeObserver = NotificationCenter.default.addObserver(
+            forName: .recordsDidChange, object: nil, queue: .main
+        ) { [weak self] _ in self?.reloadAll() }
+    }
+    deinit { if let o = changeObserver { NotificationCenter.default.removeObserver(o) } }
     private var ctx: NSManagedObjectContext { stack.container.viewContext }
     func recordsPublisher(petID: UUID) -> AnyPublisher<[Record], Never> {
         if subjects[petID] == nil { subjects[petID] = .init([]) }
         reload(petID); return subjects[petID]!.eraseToAnyPublisher()
     }
+    private func reloadAll() { subjects.keys.forEach(reload) }
     private func reload(_ petID: UUID) {
         let r = CDRecord.fetchRequest()
         r.predicate = NSPredicate(format: "petID == %@", petID as CVarArg)
         r.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         subjects[petID]?.send(((try? ctx.fetch(r)) ?? []).map(Record.init))
     }
+    private func saveContext() throws {
+        try ctx.save()
+        NotificationCenter.default.post(name: .recordsDidChange, object: nil)
+    }
     func create(_ record: Record) throws {
-        record.apply(to: stack.insert(CDRecord.self)); try ctx.save(); reload(record.petID)
+        record.apply(to: stack.insert(CDRecord.self)); try saveContext(); reload(record.petID)
     }
     func update(_ record: Record) throws {   // M-01：保留原 createdAt，原位更新
         let r = CDRecord.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", record.id as CVarArg)
         guard let e = try? ctx.fetch(r).first else { return }
-        record.apply(to: e); try ctx.save(); reload(record.petID)
+        record.apply(to: e); try saveContext(); reload(record.petID)
     }
     func delete(id: UUID) throws {
         let r = CDRecord.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         guard let e = try? ctx.fetch(r).first, let petID = e.petID else { return }
-        ctx.delete(e); try ctx.save(); reload(petID)
+        ctx.delete(e); try saveContext(); reload(petID)
     }
 }
 
@@ -263,8 +278,10 @@ private extension Record {   // 值类型 <-> CDRecord 映射
 // MARK: - ViewModel
 @MainActor final class TimelineViewModel: ObservableObject {
     @Published private(set) var sections: [(day: Date, items: [Record])] = []
-    private var bag = Set<AnyCancellable>()
+    // 必须持有 repo：repo deinit 会移除 recordsDidChange 观察者，广播链路随之断开
+    private let repo: RecordRepository
     init(repo: RecordRepository, petID: UUID) {
+        self.repo = repo
         repo.recordsPublisher(petID: petID).receive(on: DispatchQueue.main)
             .map(TimelineGrouper.group).assign(to: &$sections)
     }

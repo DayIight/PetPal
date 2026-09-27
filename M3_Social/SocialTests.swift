@@ -57,6 +57,25 @@ final class MockSocialRepositoryTests: XCTestCase {
             try await repo.addComment(postID: post.id, parentID: nil,
                                       text: String(repeating: "字", count: 501)))
     }
+    // 消息点击跳转的前提：每条消息的 post/commentID 必须能在种子数据中找到
+    func test_interactionMessages_referenceRealPostsAndComments() {
+        let messages = repo.interactionMessages()
+        XCTAssertFalse(messages.isEmpty)
+        let feed = currentFeed()
+        for m in messages {
+            XCTAssertTrue(feed.contains(where: { $0.id == m.post.id }),
+                          "消息关联的动态必须存在于信息流")
+            if let commentID = m.commentID {
+                var comments: [Comment] = []
+                let c = repo.commentsPublisher(postID: m.post.id).sink { comments = $0 }
+                XCTAssertTrue(comments.contains(where: { $0.id == commentID }),
+                              "评论类消息的 commentID 必须存在于该动态的评论里")
+                c.cancel()
+            }
+        }
+        XCTAssertTrue(messages.contains(where: { $0.commentID != nil }),
+                      "至少一条评论类消息应携带 commentID 用于定位")
+    }
 }
 
 // async 断言辅助

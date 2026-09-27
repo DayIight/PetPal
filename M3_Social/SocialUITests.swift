@@ -164,6 +164,28 @@ final class SocialUITests: XCTestCase {
         XCTAssertTrue(app.buttons["comment.reply.0"].exists, "一级评论应有回复按钮（对照）")
     }
 
+    // 消息跳转：评论/回复类消息 → 评论区并定位目标评论；动态类消息 → 该动态评论区
+    func test_tapMessage_opensLinkedPostAndComment() {
+        app.tabBars.buttons["消息"].tap()
+
+        // 回复类消息（宠友7 回复了你的评论「求同款粮」）→ 评论区定位到该评论
+        let replyRow = a11y("message.row.4")
+        XCTAssertTrue(replyRow.waitForExistence(timeout: 3), "消息列表应展示演示消息")
+        replyRow.tap()
+        XCTAssertTrue(a11y("comment.input").waitForExistence(timeout: 5), "应进入对应动态的评论区")
+        XCTAssertTrue(app.staticTexts["求同款粮"].waitForExistence(timeout: 3),
+                      "回复目标评论应定位可见")
+
+        // 动态类消息（宠友12 赞了你的动态）→ 该动态的评论区
+        app.buttons["BackButton"].tap()
+        let likeRow = a11y("message.row.0")
+        XCTAssertTrue(likeRow.waitForExistence(timeout: 3))
+        likeRow.tap()
+        XCTAssertTrue(a11y("comment.input").waitForExistence(timeout: 5),
+                      "动态类消息应进入该动态的评论区")
+        XCTAssertTrue(app.staticTexts["好可爱！"].waitForExistence(timeout: 3))
+    }
+
     // 发布关键路径：信息流 → feed.publish → 填文本（宠物默认当前宠物、可见性默认仅粉丝）→ 发布后顶部可见
     func test_publish_appearsOnTopOfFeed() {
         createPetIfNeeded()

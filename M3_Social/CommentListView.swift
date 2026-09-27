@@ -46,26 +46,35 @@ import Combine
 // MARK: - 评论页：一级评论列表，二级回复缩进显示在一级之下
 struct CommentListView: View {
     @StateObject private var vm: CommentListViewModel
+    /// 消息页跳转落点：非 nil 时滚动定位并高亮该评论
+    private let highlightCommentID: UUID?
 
-    init(post: Post, repo: SocialRepository) {
+    init(post: Post, repo: SocialRepository, highlightCommentID: UUID? = nil) {
         _vm = StateObject(wrappedValue: CommentListViewModel(post: post, repo: repo))
+        self.highlightCommentID = highlightCommentID
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            List {
-                ForEach(Array(vm.tops.enumerated()), id: \.element.id) { index, top in
-                    commentRow(top, index: index, isChild: false)
-                    ForEach(Array((vm.children[top.id] ?? []).enumerated()),
-                            id: \.element.id) { childIndex, child in
-                        commentRow(child, index: childIndex, isChild: true)
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(Array(vm.tops.enumerated()), id: \.element.id) { index, top in
+                        commentRow(top, index: index, isChild: false)
+                            .id(top.id)
+                        ForEach(Array((vm.children[top.id] ?? []).enumerated()),
+                                id: \.element.id) { childIndex, child in
+                            commentRow(child, index: childIndex, isChild: true)
+                                .id(child.id)
+                        }
                     }
                 }
+                .listStyle(.plain)
+                .background(Color.pageBackground)
+                // 注意：List/行容器不设 accessibilityIdentifier——iOS 27 下容器 identifier
+                // 会覆盖全部子元素（实测），行级锚点由各叶子控件（comment.reply 等）承担
+                .onAppear { scrollToHighlighted(proxy) }
+                .onChange(of: vm.tops.count) { _ in scrollToHighlighted(proxy) }
             }
-            .listStyle(.plain)
-            .background(Color.pageBackground)
-            // 注意：List/行容器不设 accessibilityIdentifier——iOS 27 下容器 identifier
-            // 会覆盖全部子元素（实测），行级锚点由各叶子控件（comment.reply 等）承担
             inputBar
         }
         .navigationTitle("评论")
@@ -76,6 +85,12 @@ struct CommentListView: View {
                                               set: { if !$0 { vm.errorMessage = nil } })) {
             Button("好", role: .cancel) {}
         } message: { Text(vm.errorMessage ?? "") }
+    }
+
+    /// 评论数据已同步回放（Mock），onAppear 即可落位；onChange 兜底后续异步来源
+    private func scrollToHighlighted(_ proxy: ScrollViewProxy) {
+        guard let highlightCommentID else { return }
+        proxy.scrollTo(highlightCommentID, anchor: .center)
     }
 
     // MARK: 单条评论（二级缩进；仅一级有「回复」按钮）
@@ -96,7 +111,9 @@ struct CommentListView: View {
         }
         .padding(.leading, isChild ? DS.Spacing.xl : 0)
         .padding(DS.Spacing.sm)
-        .background(Color.cardBackground,
+        .background(comment.id == highlightCommentID
+                    ? Color.accentColor.opacity(0.15)   // 消息跳转落点高亮
+                    : Color.cardBackground,
                     in: RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous))
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)

@@ -32,6 +32,7 @@ MVVM + Repository / Core Data（本地）。
 已完成：M1（M1_PetProfile/）、M2（M2_DailyRecords/）、M3（M3_Social/，仅协议+Mock）、
 M4（M4_Reminders/）、M5（M5_Dashboard/）、M6（M6_Design/，横切规范，无单测，清单验收）。
 M7（M7_Prototype/，可运行原型闭环 + UI 自动化脚本）。
+M8（M8_Widget/ + PetPalWidget/，WidgetKit 今日提醒小组件，App Group 快照共享，深链 petpal://pet/<uuid>）。
 
 全部七轮交付完毕。组装步骤见 M7_Prototype/README.md。
 

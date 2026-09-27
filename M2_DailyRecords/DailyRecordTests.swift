@@ -191,3 +191,62 @@ final class CoreDataRecordRepositoryTests: XCTestCase {
         XCTAssertEqual(records.first?.createdAt, originalDate)
     }
 }
+
+// MARK: - 跨实例一致性（表单/时间轴/日历各自实例化 repository，写库后广播重载）
+final class RecordRepositoryCrossInstanceTests: XCTestCase {
+    private var bag = Set<AnyCancellable>()
+
+    // 复现「记一条后要切换界面才出现」：实例 A 订阅时间轴，实例 B（表单）写库，
+    // A 的订阅者应在广播后收到最新数据（.main 队列异步投递，需让 runloop 转一圈）
+    func test_createViaOtherInstance_emitsToSubscriber() throws {
+        let stack = CoreDataStack(inMemory: true)
+        let repoA = CoreDataRecordRepository(stack: stack)   // 时间轴侧（存活订阅）
+        let repoB = CoreDataRecordRepository(stack: stack)   // 表单侧（写入）
+        let pet = UUID()
+        var received: [[PetPal.Record]] = []
+        repoA.recordsPublisher(petID: pet).sink { received.append($0) }.store(in: &bag)
+        try repoB.create(PetPal.Record(petID: pet, kind: .feeding))
+        let drained = expectation(description: "main 队列投递完成")
+        DispatchQueue.main.async { drained.fulfill() }
+        wait(for: [drained], timeout: 2)
+        XCTAssertEqual(received.last?.count, 1)
+        XCTAssertEqual(received.last?.first?.kind, .feeding)
+    }
+}
+
+// MARK: - 时间轴 VM 级联验证（UI 复现后的链路定位：repo 广播 → TimelineViewModel.sections）
+final class TimelineViewModelCrossInstanceTests: XCTestCase {
+    @MainActor func test_otherInstanceCreate_updatesSections() throws {
+        let stack = CoreDataStack(inMemory: true)
+        let repoA = CoreDataRecordRepository(stack: stack)   // 时间轴侧
+        let repoB = CoreDataRecordRepository(stack: stack)   // 表单侧
+        let pet = UUID()
+        let vm = TimelineViewModel(repo: repoA, petID: pet)
+        XCTAssertTrue(vm.sections.isEmpty)
+        try repoB.create(PetPal.Record(petID: pet, kind: .training, answers: ["subject": "随行"]))
+        let drained = expectation(description: "main 队列投递完成")
+        DispatchQueue.main.async { drained.fulfill() }
+        wait(for: [drained], timeout: 2)
+        XCTAssertEqual(vm.sections.count, 1, "表单侧写库后时间轴 VM 应立即拿到新分组")
+        XCTAssertEqual(vm.sections.first?.items.first?.kind, .training)
+    }
+}
+
+// MARK: - repo 生命周期回归（「记一条后需切换界面才显示」的真复现：
+// 上方跨实例测试把 repoA 存在局部变量里活到测试结束，掩盖了 VM 不持有 repo 的问题；
+// 这里时间轴侧 repo 仅由 VM 引用，VM 若不持有，repo 在 init 语句结束后即释放、
+// recordsDidChange 观察者被移除，表单侧写库的广播无人接收，sections 永不更新）
+final class TimelineViewModelOwnershipTests: XCTestCase {
+    @MainActor func test_repoOnlyHeldByVM_otherInstanceCreate_updatesSections() throws {
+        let stack = CoreDataStack(inMemory: true)
+        let repoB = CoreDataRecordRepository(stack: stack)   // 表单侧（写入）
+        let pet = UUID()
+        let vm = TimelineViewModel(repo: CoreDataRecordRepository(stack: stack), petID: pet)
+        XCTAssertTrue(vm.sections.isEmpty)
+        try repoB.create(PetPal.Record(petID: pet, kind: .training, answers: ["subject": "随行"]))
+        let drained = expectation(description: "main 队列投递完成")
+        DispatchQueue.main.async { drained.fulfill() }
+        wait(for: [drained], timeout: 2)
+        XCTAssertEqual(vm.sections.count, 1, "VM 必须持有 repo，否则 repo 释放后广播观察者被移除")
+    }
+}

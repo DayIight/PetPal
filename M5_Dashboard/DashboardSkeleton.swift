@@ -10,6 +10,12 @@ struct WeightSample: Identifiable, Equatable {
     var date: Date
 }
 
+/// 体重合法范围（Stepper 由 in: 钳制；TextField 直接输入的越界值由保存侧用本校验拦截）
+enum WeightValidator {
+    static let kgRange: ClosedRange<Double> = 0.1...100.0
+    static func isValid(_ kg: Double) -> Bool { kgRange.contains(kg) }
+}
+
 enum Granularity: String, CaseIterable, Identifiable {
     case month = "按月", year = "按年"
     var id: String { rawValue }

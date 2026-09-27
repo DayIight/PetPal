@@ -16,8 +16,16 @@ struct PetFormView: View {
                 breedField
                 DatePicker("生日", selection: $vm.draft.birthday, in: ...Date(),
                            displayedComponents: .date)
-                Stepper("体重 \(vm.draft.weightKg, specifier: "%.1f") kg",
-                        value: $vm.draft.weightKg, in: 0.1...100.0, step: 0.1)
+                // 直接输入 + ±0.1 微调双通道；越界值由 PetValidator 在保存时拦截
+                HStack {
+                    TextField("体重", value: $vm.draft.weightKg, format: .number)
+                        .keyboardType(.decimalPad)
+                        .accessibilityIdentifier("pet.weightInput")
+                    Text("kg").foregroundStyle(.secondary)
+                    Stepper("", value: $vm.draft.weightKg, in: WeightValidator.kgRange, step: 0.1)
+                        .labelsHidden()
+                        .a11y("微调体重", hint: "每次增减0.1kg")
+                }
                 Picker("绝育状态", selection: $vm.draft.neuterStatus) {
                     ForEach(NeuterStatus.allCases) { Text($0.rawValue).tag($0) }
                 }

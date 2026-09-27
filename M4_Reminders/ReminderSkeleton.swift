@@ -171,6 +171,8 @@ private extension Reminder {
     private let repo: ReminderRepository
     private let scheduler: NotificationScheduling
     private var timezoneObserver: NSObjectProtocol?
+    /// L-01：提醒数据变更钩子（WidgetSnapshotSyncer 注入，重建 widget 快照）
+    var onDidChange: (() -> Void)?
     init(repo: ReminderRepository, scheduler: NotificationScheduling) {
         self.repo = repo; self.scheduler = scheduler
         // M-06（PRD §4 要求）：时区变更后按库中配置全量重排，避免提醒漂移
@@ -187,8 +189,9 @@ private extension Reminder {
     func save(_ r: Reminder, petName: String) async throws {
         var reminder = r; reminder.petName = petName
         try repo.save(reminder)
-        guard permission == .granted else { return }
+        guard permission == .granted else { onDidChange?(); return }
         try await schedule(reminder)
+        onDidChange?()
     }
     private func schedule(_ r: Reminder) async throws {
         scheduler.removePending(matchingPrefix: r.id.uuidString)   // 覆盖旧调度
@@ -214,11 +217,13 @@ private extension Reminder {
         guard permission == .granted,
               let all = try? repo.allReminders() else { return }
         for r in all { try? await schedule(r) }
+        onDidChange?()
     }
     func removeAll(petID: UUID) throws {
         for r in try repo.reminders(petID: petID) {   // 先撤销 pending 通知
             scheduler.removePending(matchingPrefix: r.id.uuidString)
         }
         try repo.deleteAll(petID: petID)              // 再清库
+        onDidChange?()
     }
 }

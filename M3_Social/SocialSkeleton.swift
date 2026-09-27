@@ -39,6 +39,19 @@ struct Comment: Identifiable, Equatable {
 
 enum SocialError: Error { case replyToChild, commentTooLong }
 
+// MARK: - 互动消息（消息 tab；与种子动态/评论真实关联，点击可跳转到动态/具体评论）
+struct InteractionMessage: Identifiable, Equatable {
+    enum Kind { case likePost, commentPost, reactPost, likeComment, replyComment }
+    let id: UUID
+    let kind: Kind
+    let actor: String
+    let excerpt: String          // 动态摘录或「评论摘录」
+    let post: Post               // 跳转落点：目标动态快照
+    let commentID: UUID?         // 评论类消息定位到具体评论；动态类为 nil
+    let createdAt: Date
+    var unread: Bool
+}
+
 // MARK: - Repository 边界（未来 RemoteSocialRepository 替换 Mock，上层零改动）
 protocol SocialRepository: AnyObject {
     var feedPublisher: AnyPublisher<[Post], Never> { get }
@@ -57,6 +70,7 @@ final class MockSocialRepository: SocialRepository {
     static let pageSize = 20
     private var posts: [Post] = []
     private var comments: [UUID: [Comment]] = [:]
+    private var messages: [InteractionMessage] = []
     private var loadedPages = 1
     private let feedSubject = CurrentValueSubject<[Post], Never>([])
     private var commentSubjects: [UUID: CurrentValueSubject<[Comment], Never>] = [:]
@@ -83,8 +97,32 @@ final class MockSocialRepository: SocialRepository {
             comments[posts[i].id] = [top1, child, top2]
             posts[i].commentCount = 3
         }
+        seedMessages()
         emit()
     }
+
+    /// 演示消息与种子动态/评论真实关联：post/commentID 均可跳转落位
+    private func seedMessages() {
+        func ago(minutes m: Double) -> Date { Date().addingTimeInterval(-m * 60) }
+        let p0 = posts[0], p1 = posts[1]
+        let top1 = comments[p0.id]![0]   // 小明「好可爱！」
+        let top2 = comments[p0.id]![2]   // 阿花「求同款粮」
+        messages = [
+            InteractionMessage(id: UUID(), kind: .likePost, actor: "宠友12", excerpt: p0.text,
+                               post: p0, commentID: nil, createdAt: ago(minutes: 5), unread: true),
+            InteractionMessage(id: UUID(), kind: .commentPost, actor: "小明", excerpt: p0.text,
+                               post: p0, commentID: top1.id, createdAt: ago(minutes: 60), unread: true),
+            InteractionMessage(id: UUID(), kind: .reactPost, actor: "阿花", excerpt: p1.text,
+                               post: p1, commentID: nil, createdAt: ago(minutes: 180), unread: false),
+            InteractionMessage(id: UUID(), kind: .likeComment, actor: "楼主", excerpt: "「\(top1.text)」",
+                               post: p0, commentID: top1.id, createdAt: ago(minutes: 60 * 24), unread: false),
+            InteractionMessage(id: UUID(), kind: .replyComment, actor: "宠友7", excerpt: "「\(top2.text)」",
+                               post: p0, commentID: top2.id, createdAt: ago(minutes: 60 * 48), unread: false),
+        ]
+    }
+
+    /// 消息 tab 数据源（演示数据一次性快照；接真实后端时换 publisher）
+    func interactionMessages() -> [InteractionMessage] { messages }
     private func emit() { feedSubject.send(Array(posts.prefix(loadedPages * Self.pageSize))) }
     private func latency() async throws { try await Task.sleep(nanoseconds: 150_000_000) }
 

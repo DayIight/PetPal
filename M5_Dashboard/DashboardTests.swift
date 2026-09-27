@@ -94,3 +94,15 @@ final class CoreDataWeightRepositoryTests: XCTestCase {
         XCTAssertEqual(try repo.samples(petID: a).first?.kg, 8.5)
     }
 }
+
+final class WeightValidatorTests: XCTestCase {
+    func test_kgRange_boundaries() {
+        XCTAssertTrue(WeightValidator.isValid(0.1))
+        XCTAssertTrue(WeightValidator.isValid(100.0))
+        XCTAssertTrue(WeightValidator.isValid(12.5))
+        XCTAssertFalse(WeightValidator.isValid(0.09))
+        XCTAssertFalse(WeightValidator.isValid(100.1))
+        XCTAssertFalse(WeightValidator.isValid(0))
+        XCTAssertFalse(WeightValidator.isValid(-5))
+    }
+}

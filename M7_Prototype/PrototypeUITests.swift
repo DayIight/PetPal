@@ -24,12 +24,69 @@ final class PrototypeUITests: XCTestCase {
         app.textFields["record.field.grams"].tap()
         app.typeText("80")
         // 「用餐时段」为必填：必须真正选中，否则校验拦截、保存并未发生（修复假绿）
-        app.buttons["record.field.mealTime"].tap()
-        app.buttons["早"].tap()
+        pickOption("早", field: "record.field.mealTime")
         app.buttons["record.save"].tap()
         // 保存成功 = sheet 真正关闭（record.save 消失），而非背后层级可查到记录页按钮
         XCTAssertTrue(app.buttons["record.save"].waitForNonExistence(timeout: 2))
         XCTAssertTrue(app.buttons["records.add"].waitForExistence(timeout: 2))
+    }
+
+    // 回归：删除全部档案 → 重新建档 → 应能正常记一条（用户报告：重建后无法记录）
+    func test_deleteAllPets_thenRecreate_canLogRecord() {
+        createPetIfNeeded()
+        // 删除全部档案（可能有多只）：详情页删除按钮在屏外，需先上滑
+        app.tabBars.buttons["我的"].tap()
+        let petRows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "pet.row."))
+        for _ in 0..<5 {
+            guard petRows.firstMatch.waitForExistence(timeout: 2) else { break }
+            petRows.firstMatch.tap()
+            app.swipeUp()   // 「删除该宠物档案」在表单底部，离屏单元格不会实例化
+            XCTAssertTrue(app.buttons["pet.delete"].waitForExistence(timeout: 3))
+            app.buttons["pet.delete"].tap()
+            let confirm = app.buttons["删除（含全部记录与提醒）"]
+            XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+            confirm.tap()
+            XCTAssertTrue(app.buttons["pet.add"].waitForExistence(timeout: 3))
+        }
+        XCTAssertTrue(app.staticTexts["pet.emptyGuide"].waitForExistence(timeout: 3),
+                      "删除后应回到空态引导")
+
+        // 重新建档
+        createPetIfNeeded()
+
+        // 直接记一条：按钮应可用，保存后时间轴原地出现
+        app.tabBars.buttons["记录"].tap()
+        XCTAssertTrue(app.staticTexts["records.currentPet"].waitForExistence(timeout: 3),
+                      "重建档案后记录页应显示当前宠物")
+        app.buttons["records.add"].tap()
+        XCTAssertTrue(app.buttons["record.template.训练"].waitForExistence(timeout: 3))
+        app.buttons["record.template.训练"].tap()
+        app.textFields["record.field.subject"].tap()
+        app.typeText("召回")
+        app.buttons["record.save"].tap()
+        XCTAssertTrue(app.buttons["record.save"].waitForNonExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["召回"].waitForExistence(timeout: 3),
+                      "重建档案后应能正常保存并显示记录")
+    }
+
+    // 回归：保存记录后时间轴应「原地」出现新行，无需切换界面（跨实例广播修复的 UI 级验证）
+    func test_timelineShowsNewRecordWithoutSwitchingTabs() {
+        createPetIfNeeded()
+        app.tabBars.buttons["记录"].tap()
+        XCTAssertTrue(app.staticTexts["records.currentPet"].waitForExistence(timeout: 3))
+
+        app.buttons["records.add"].tap()
+        XCTAssertTrue(app.buttons["record.template.训练"].waitForExistence(timeout: 3))
+        app.buttons["record.template.训练"].tap()
+        app.textFields["record.field.subject"].tap()
+        app.typeText("随行")
+        app.buttons["record.save"].tap()
+        XCTAssertTrue(app.buttons["record.save"].waitForNonExistence(timeout: 2))
+
+        // 不切 tab、不滚动：新记录的摘要文案应直接出现在时间轴上
+        // （不能用行数断言：屏幕外的行会被无障碍树裁剪，计数不可靠）
+        XCTAssertTrue(app.staticTexts["随行"].waitForExistence(timeout: 3),
+                      "保存后时间轴应立即显示新记录，无需切换界面")
     }
 
     // 校验拦截：昵称为空时保存失败，错误文案出现且表单 sheet 保持打开
@@ -95,9 +152,7 @@ final class PrototypeUITests: XCTestCase {
         app.typeText("罐头")
         app.textFields["record.field.grams"].tap()
         app.typeText("100")
-        app.buttons["record.field.mealTime"].tap()
-        let lunch = app.buttons["午"].exists ? app.buttons["午"] : app.cells["午"]
-        lunch.tap()
+        pickOption("午", field: "record.field.mealTime")
         app.buttons["record.save"].tap()
         // 校验通过 sheet 才真正关闭
         XCTAssertTrue(app.buttons["records.add"].waitForExistence(timeout: 2))
@@ -137,5 +192,16 @@ final class PrototypeUITests: XCTestCase {
         app.typeText("柯基")
         app.buttons["pet.save"].tap()
         XCTAssertTrue(app.buttons["pet.add"].waitForExistence(timeout: 3), "建档后应回到宠物列表")
+    }
+
+    /// 点选单选 Picker（用餐时段等）的选项：decimalPad 键盘在位时首次点击只收键盘，带重试
+    private func pickOption(_ option: String, field: String) {
+        app.buttons[field].tap()
+        for _ in 0..<3 {
+            let el = app.buttons[option].exists ? app.buttons[option] : app.cells[option]
+            if el.waitForExistence(timeout: 2) { el.tap(); return }
+            app.buttons[field].tap()
+        }
+        XCTFail("字段 \(field) 的选项「\(option)」未出现")
     }
 }

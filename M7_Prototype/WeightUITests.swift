@@ -42,6 +42,23 @@ final class WeightUITests: XCTestCase {
                       "有空数据时不应再显示空态占位")
     }
 
+    // 直输通道：TextField 直接输入 12.5（不点 Stepper）→ 保存 → sheet 关闭
+    func test_logWeight_viaDirectTextInput() {
+        createPetIfNeeded()
+        app.tabBars.buttons["我的"].tap()
+        XCTAssertTrue(app.buttons["profile.addWeight"].waitForExistence(timeout: 3))
+
+        app.buttons["profile.addWeight"].tap()
+        let field = app.textFields["weight.kgInput"]
+        XCTAssertTrue(field.waitForExistence(timeout: 3), "应支持直接输入体重数值")
+        field.tap()
+        field.typeText("\u{8}12.5")   // 先退格清掉默认值，再直接输入
+
+        app.buttons["weight.save"].tap()
+        XCTAssertTrue(app.buttons["weight.save"].waitForNonExistence(timeout: 3),
+                      "合法的直输值应保存成功并关闭表单")
+    }
+
     /// 冷启动无档案时先建一个（与 PrototypeUITests.createPetIfNeeded 等效，私有方法故自持一份）
     private func createPetIfNeeded() {
         app.tabBars.buttons["我的"].tap()

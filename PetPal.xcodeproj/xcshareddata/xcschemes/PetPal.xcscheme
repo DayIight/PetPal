@@ -49,6 +49,20 @@
                ReferencedContainer = "container:PetPal.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "80CD19B19746551BDC781E44"
+               BuildableName = "PetPalWidget.appex"
+               BlueprintName = "PetPalWidget"
+               ReferencedContainer = "container:PetPal.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction

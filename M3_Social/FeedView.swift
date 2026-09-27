@@ -72,7 +72,13 @@ func feedTime(_ date: Date) -> String {
 
 // MARK: - 信息流主视图
 struct FeedView: View {
-    @StateObject private var vm = FeedViewModel(repo: MockSocialRepository())
+    @StateObject private var vm: FeedViewModel
+
+    /// 默认参数仅为兼容测试/预览；生产由 RootTabView 注入全 App 共享实例，
+    /// 保证消息页跳转与发布后的动态都落在同一份数据上
+    init(repo: SocialRepository = MockSocialRepository()) {
+        _vm = StateObject(wrappedValue: FeedViewModel(repo: repo))
+    }
 
     var body: some View {
         NavigationStack {

@@ -99,17 +99,32 @@ final class CoreDataStack {
 }
 
 // CDPet 由 .xcdatamodeld 生成，属性与 Pet 一一对应（allergens 为 Transformable）
+extension Notification.Name { static let petsDidChange = Notification.Name("PetPal.petsDidChange") }
+
 final class CoreDataPetRepository: PetRepository {
     private let stack: CoreDataStack
     private let subject = CurrentValueSubject<[Pet], Never>([])
+    private var changeObserver: NSObjectProtocol?
     var petsPublisher: AnyPublisher<[Pet], Never> { subject.eraseToAnyPublisher() }
-    init(stack: CoreDataStack = .shared) { self.stack = stack; reload() }
+    init(stack: CoreDataStack = .shared) {
+        self.stack = stack
+        reload()
+        // UI 层各自实例化 repository（RootTabView 的 petListVM/currentPet、PetDetailView），
+        // 共享同一底层库：任一实例写库后广播，其余实例重载，避免建档后同进程内其他实例脏读
+        changeObserver = NotificationCenter.default.addObserver(
+            forName: .petsDidChange, object: nil, queue: .main
+        ) { [weak self] _ in self?.reload() }
+    }
+    deinit { if let o = changeObserver { NotificationCenter.default.removeObserver(o) } }
     private var ctx: NSManagedObjectContext { stack.container.viewContext }
     private func reload() {
         let r = CDPet.fetchRequest(); r.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         subject.send(((try? ctx.fetch(r)) ?? []).map(Pet.init))
     }
-    private func save() throws { try ctx.save(); reload() }
+    private func save() throws {
+        try ctx.save(); reload()
+        NotificationCenter.default.post(name: .petsDidChange, object: nil)
+    }
     func create(_ pet: Pet) throws { pet.apply(to: stack.insert(CDPet.self)); try save() }
     func update(_ pet: Pet) throws { guard let e = find(pet.id) else { return }; pet.apply(to: e); try save() }
     // H-02 级联删除：先收集关联文件，再删 CDRecord/CDReminder/CDWeightSample/CDPet，最后清盘

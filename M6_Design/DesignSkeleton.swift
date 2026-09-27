@@ -62,11 +62,18 @@ struct RootTabView: View {
     @State private var showPublish = false
     @State private var recordsPickerRequested = false   // 发布 sheet「记一条日常」→ 记录页弹模板选择
     @State private var storeError: Error?
+    @State private var snapshotSyncer: WidgetSnapshotSyncer   // L-01：widget 快照同步
+    @Environment(\.scenePhase) private var scenePhase
+    /// 全 App 共享一份社交数据：信息流/消息页跳转/发布 sheet 都落在同一实例上
+    private let socialRepo = MockSocialRepository()
 
     enum Tab: Int { case home, records, publish, messages, profile }
 
     init() {
-        _currentPet = StateObject(wrappedValue: CurrentPetStore(repo: CoreDataPetRepository()))
+        let current = CurrentPetStore(repo: CoreDataPetRepository())
+        _currentPet = StateObject(wrappedValue: current)
+        _snapshotSyncer = State(wrappedValue: WidgetSnapshotSyncer(
+            reminderRepo: CoreDataReminderRepository(), currentPet: current))
     }
 
     var body: some View {
@@ -93,7 +100,16 @@ struct RootTabView: View {
             petListVM.reminderCleanup = { [reminderService] id in
                 try reminderService.removeAll(petID: id)
             }
+            // L-01：提醒增删/重排后重建 widget 快照
+            reminderService.onDidChange = { [snapshotSyncer] in snapshotSyncer.sync() }
+            snapshotSyncer.sync()
         }
+        // L-01：回前台刷新快照（跨日/跨时区后 widget 数据保鲜）
+        .onChange(of: scenePhase) { phase in
+            if phase == .active { snapshotSyncer.sync() }
+        }
+        // L-01：widget 点击深链 petpal://pet/<uuid>
+        .onOpenURL { router.handle(url: $0) }
         // H-06：通知点击深链落点在「我的」tab 的导航栈，路径入栈时先切到该 tab
         .onReceive(router.$path) { path in
             if !path.isEmpty { selection = .profile }
@@ -103,7 +119,7 @@ struct RootTabView: View {
     private var tabBar: some View {
         ZStack(alignment: .bottom) {
             TabView(selection: $selection) {
-                FeedView()
+                FeedView(repo: socialRepo)
                     .tabItem { Label("首页动态", systemImage: "house") }.tag(Tab.home)
                 RecordsHomeView(currentPet: currentPet, reminderService: reminderService,
                                 pickerRequested: $recordsPickerRequested)
@@ -111,7 +127,7 @@ struct RootTabView: View {
                 Color.clear
                     .tabItem { Label("发布", systemImage: "plus") }.tag(Tab.publish)
                     .accessibilityHidden(true)   // 占位 tab 不进入读屏焦点，发布由悬浮按钮承担
-                MessageListView()
+                MessageListView(repo: socialRepo, messages: socialRepo.interactionMessages())
                     .tabItem { Label("消息", systemImage: "bell.badge") }.tag(Tab.messages)
                 PetManagementView(petListVM: petListVM, currentPet: currentPet)
                     .tabItem { Label("我的", systemImage: "person") }.tag(Tab.profile)
@@ -143,7 +159,7 @@ struct RootTabView: View {
                 .a11y("记一条日常", hint: "前往记录页选择模板，为当前宠物记一条日常记录")
                 .accessibilityIdentifier("publish.logRecord")
                 NavigationLink {
-                    PublishFormView(vm: FeedViewModel(repo: MockSocialRepository()))
+                    PublishFormView(vm: FeedViewModel(repo: socialRepo))
                 } label: {
                     Label("发一条动态", systemImage: "square.and.pencil")
                 }
