@@ -207,7 +207,10 @@ struct PostCardView: View {
                             Rectangle().fill(Color.secondary.opacity(0.15))
                                 .overlay { ProgressView() }
                         }
-                        .onFailureImage(UIImage(systemName: "photo"))
+                        .onFailureView {
+                            Image(systemName: "photo")
+                                .foregroundStyle(.secondary)
+                        }
                         .fade(duration: 0.2)
                         .resizable()
                         .scaledToFill()
