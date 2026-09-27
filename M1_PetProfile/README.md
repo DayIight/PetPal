@@ -40,6 +40,7 @@ PetListView（排序 segmented：添加时间/昵称）
 PetFormView
  ├─ AvatarPickerView（头像 → AvatarStore 压缩落盘，保存时生效）
  ├─ DatePicker(in: ...Date()) 生日/领养日
+ ├─ 其他信息（选填）：芯片号/兽医/兽医电话，空串存 nil，格式由 PetValidator 保存时拦截
  └─ 错误高亮：errors[field] 非空时红框 + 文案，禁止提交
 ```
 

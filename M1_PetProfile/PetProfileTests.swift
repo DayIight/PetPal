@@ -124,6 +124,26 @@ final class PetViewModelTests: XCTestCase {
         XCTAssertEqual(latest.count, 1)
         _ = bag
     }
+
+    // 「其他信息」选填字段：合法值随保存入库，非法芯片号/电话被 PetValidator 拦截
+    @MainActor func test_formSave_optionalInfo_persistsAndValidates() throws {
+        let repo = CoreDataPetRepository(stack: CoreDataStack(inMemory: true))
+        let vm = PetFormViewModel(repo: repo)
+        vm.draft.nickname = "小白"; vm.draft.breed = "柯基"
+        vm.draft.chipNumber = "12345"                   // 非15位：拦截
+        XCTAssertFalse(vm.save())
+        XCTAssertNotNil(vm.errors[.chip])
+        vm.draft.chipNumber = "123456789012345"
+        vm.draft.vetName = "王医生"; vm.draft.vetPhone = "138-0000-0000"
+        XCTAssertTrue(vm.save())
+        var latest: [Pet] = []
+        var bag = Set<AnyCancellable>()
+        repo.petsPublisher.sink { latest = $0 }.store(in: &bag)
+        XCTAssertEqual(latest.first?.chipNumber, "123456789012345")
+        XCTAssertEqual(latest.first?.vetName, "王医生")
+        XCTAssertEqual(latest.first?.vetPhone, "138-0000-0000")
+        _ = bag
+    }
 }
 
 final class AvatarStoreTests: XCTestCase {

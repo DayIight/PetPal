@@ -44,6 +44,16 @@ struct PetFormView: View {
                 Picker("绝育状态", selection: $vm.draft.neuterStatus) {
                     ForEach(NeuterStatus.allCases) { Text($0.rawValue).tag($0) }
                 }
+                Section("其他信息（选填）") {
+                    TextField("芯片号（15位数字）", text: optionalText(\.chipNumber))
+                        .keyboardType(.numberPad)
+                        .accessibilityIdentifier("pet.chipNumber")
+                    TextField("兽医", text: optionalText(\.vetName))
+                        .accessibilityIdentifier("pet.vetName")
+                    TextField("兽医电话", text: optionalText(\.vetPhone))
+                        .keyboardType(.phonePad)
+                        .accessibilityIdentifier("pet.vetPhone")
+                }
                 ForEach(Array(vm.errors.values), id: \.self) {
                     Text($0).font(.footnote).foregroundStyle(.red)
                 }
@@ -67,5 +77,11 @@ struct PetFormView: View {
         }
         TextField("品种（可选择预设或自定义）", text: $vm.draft.breed)
             .accessibilityIdentifier("pet.breed")
+    }
+
+    /// 选填字段绑定桥：空串视为 nil（不污染可选字段），格式校验由 PetValidator 保存时拦截
+    private func optionalText(_ keyPath: WritableKeyPath<Pet, String?>) -> Binding<String> {
+        Binding(get: { vm.draft[keyPath: keyPath] ?? "" },
+                set: { vm.draft[keyPath: keyPath] = $0.isEmpty ? nil : $0 })
     }
 }
