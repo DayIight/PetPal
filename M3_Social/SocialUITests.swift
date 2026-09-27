@@ -60,6 +60,12 @@ final class SocialUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
+    /// 导航返回按钮：identifier 随 iOS 版本/系统语言漂移（"Back"/"BackButton"/"返回"），
+    /// 统一按位置锚定导航栏第一个按钮（本地 iOS 26 与 CI runner 实测不一致，2026-09）
+    private var navBackButton: XCUIElement {
+        app.navigationBars.firstMatch.buttons.firstMatch
+    }
+
     /// 冷启动无档案时先建一个（「我的」tab → 空态创建），建完回到首页动态 tab
     private func createPetIfNeeded() {
         app.tabBars.buttons["我的"].tap()
@@ -118,8 +124,8 @@ final class SocialUITests: XCTestCase {
         // 此时键盘收起、列表在顶部，新行在首屏内可直接断言
         typeInto(input, text: "UI自动化一级评论")
         app.buttons["comment.send"].tap()
-        XCTAssertTrue(app.buttons["BackButton"].waitForExistence(timeout: 3))
-        app.buttons["BackButton"].tap()
+        XCTAssertTrue(navBackButton.waitForExistence(timeout: 3))
+        navBackButton.tap()
         XCTAssertTrue(app.buttons["feed.comment.0"].waitForExistence(timeout: 5))
         app.buttons["feed.comment.0"].tap()
         XCTAssertTrue(input.waitForExistence(timeout: 5))
@@ -177,7 +183,7 @@ final class SocialUITests: XCTestCase {
                       "回复目标评论应定位可见")
 
         // 动态类消息（宠友12 赞了你的动态）→ 该动态的评论区
-        app.buttons["BackButton"].tap()
+        navBackButton.tap()
         let likeRow = a11y("message.row.0")
         XCTAssertTrue(likeRow.waitForExistence(timeout: 3))
         likeRow.tap()
