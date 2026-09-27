@@ -25,8 +25,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 记录 Xcode 版本
-        run: xcodebuild -version
+      # runner 默认 Xcode 16.4（Swift tools 6.1），而 Kingfisher 8.13 要求 6.2；
+      # 选镜像里最新的 Xcode，与本地开发环境保持一致
+      - name: 选择最新 Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)/Contents/Developer"
+          xcodebuild -version
 
       - name: 单元测试（PetPalTests）
         run: |
@@ -54,6 +58,11 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
+      - name: 选择最新 Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)/Contents/Developer"
+          xcodebuild -version
 
       - name: 全量测试（单元 + UI）
         run: |
