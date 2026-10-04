@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 浅色背景预览：iOS 连续圆角遮罩（约 22.37%）+ 60×60 小尺寸示意 -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 900 640" width="900" height="640">
+  <defs>
+    <clipPath id="iosMaskLarge"><rect x="0" y="0" width="448" height="448" rx="100"/></clipPath>
+    <clipPath id="iosMaskSmall"><rect x="0" y="0" width="60" height="60" rx="13.4"/></clipPath>
+  </defs>
+  <rect width="900" height="640" fill="#F2F2F7"/>
+  <g transform="translate(70,90)" clip-path="url(#iosMaskLarge)">
+    <image xlink:href="AppIcon.svg" href="AppIcon.svg" width="448" height="448"/>
+  </g>
+  <g transform="translate(640,150)" clip-path="url(#iosMaskSmall)">
+    <image xlink:href="AppIcon.svg" href="AppIcon.svg" width="60" height="60"/>
+  </g>
+  <text x="294" y="580" font-family="system-ui, sans-serif" font-size="20" fill="#3A3A3C" text-anchor="middle">1024×1024 主图 · iOS 圆角预览（浅色背景）</text>
+  <text x="670" y="250" font-family="system-ui, sans-serif" font-size="16" fill="#3A3A3C" text-anchor="middle">60×60</text>
+</svg>

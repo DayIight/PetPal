@@ -1,0 +1,924 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0CEF993F05F6BDDEEED3369F /* DashboardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A689F4688B2962236695DEBB /* DashboardTests.swift */; };
+		14C663209B5285D01065D5EA /* AvatarPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 638FA20AFF53D669855AABB4 /* AvatarPickerView.swift */; };
+		17B6D6D96E2CCDD987EDED79 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CB9BB611812E16745808CB0 /* WidgetSnapshot.swift */; };
+		197C99160E1B36455B6C29F6 /* DashboardHealthTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F723769C5954A630E18C99 /* DashboardHealthTimeline.swift */; };
+		1BBD4287F07A20D418965C7D /* PrototypeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46197EDEEB9B441AB777C91F /* PrototypeApp.swift */; };
+		1C42DCC1D97E41BDB6C8549D /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 513EBDCC5737D81A6C04214C /* Kingfisher */; };
+		1DA64933DD35F42173B19289 /* WeightFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E0D954C513BB1D6DE8B7C23 /* WeightFormView.swift */; };
+		212B388B7703C84A16ABDB71 /* PetProfileSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C21F0F43CDF0C0430E01969 /* PetProfileSkeleton.swift */; };
+		23209D76BEF78E7B27C8626A /* DatabaseBackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EEA6E5FB5C6B6E10C1D418D /* DatabaseBackupManager.swift */; };
+		2B6287357F04B6D3710735BA /* ReminderSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A47EB955B85E196682B3EA9C /* ReminderSkeleton.swift */; };
+		311D8991C2E9C04CC9269970 /* CoreDataEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0305E31F2AD66A0E96335B6 /* CoreDataEntities.swift */; };
+		31A4A7E7EB21FFC65F87F9E4 /* PresetRecordFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D973295CF3382B4F15F21CCB /* PresetRecordFormView.swift */; };
+		3B236A6FB5CBCC86F0AA54BF /* SocialUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40042023430C04766DAA7E7 /* SocialUITests.swift */; };
+		3BBA2611DEB73FEA092AB762 /* RecordPhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81ECAB97E483399B52FBAEF2 /* RecordPhotoPicker.swift */; };
+		3DF0ECCC24C5E5688B72113E /* DailyRecordTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C23A0D052F0B5A5C31C2B290 /* DailyRecordTests.swift */; };
+		46447655F428F060811BC07C /* DashboardCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614FEEDCE9B4F0F53903033B /* DashboardCharts.swift */; };
+		4E3CFE01BDB0319A1F6937A2 /* ReminderFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1F057C078BFB07E5B81C25 /* ReminderFormView.swift */; };
+		565FD8F1C1279895E14740EE /* FeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FFE0D15E947D473CD97A624 /* FeedView.swift */; };
+		58F42671478340C3C2297E4C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1455F5DA037FC0F79B8720D9 /* Assets.xcassets */; };
+		60575D06A98522EA76235052 /* ReminderListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C69716F59C3ED03ED3E6845A /* ReminderListView.swift */; };
+		64C257077947ED98AEA7B232 /* WidgetSnapshotSyncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36A66C873B7051E3AC7C421 /* WidgetSnapshotSyncer.swift */; };
+		6FCE2EC2FE44878E4E853762 /* SocialTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E85D5115989EB05CDCF89321 /* SocialTests.swift */; };
+		74D3F004A346D36CC03D1136 /* PublishFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EFEF10F1BF86B14DFC27675 /* PublishFormView.swift */; };
+		76C7347974A0B4E088001AEB /* MoodPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC9798564C3F1B615D1DD0FC /* MoodPicker.swift */; };
+		8BA20D6D782910E72EA65029 /* PrototypeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514280BD0DC1990D33E47F91 /* PrototypeUITests.swift */; };
+		8D658E8E5702F97F4823B591 /* ReminderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AF695281430122AC6C5CDB0 /* ReminderTests.swift */; };
+		96B00EC79DEEF5A4A036287A /* WidgetSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD8A854CB49467B0FB4D804 /* WidgetSnapshotTests.swift */; };
+		993C71EFE86F679D24B96FE1 /* RecordsHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3C32D44F582D8D1B4F76522 /* RecordsHomeView.swift */; };
+		9B2D0BAC60818E05E77C6F7F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 36E1E2F657DE2AC0079966CE /* PrivacyInfo.xcprivacy */; };
+		9E1E4C00BF420D7323B626C9 /* WeightUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32FBF3AD85F341F72AE04D11 /* WeightUITests.swift */; };
+		A8014D081D786A8517083849 /* PetPal.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 7A475C7DCF4F5D2651ED771E /* PetPal.xcdatamodeld */; };
+		A8AD2DFFD47B2362263F3BFB /* DashboardPDF.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652C82DC03DB39748919918F /* DashboardPDF.swift */; };
+		B28C661163D7E257E0D8DBA3 /* PetFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 958F6C579A173F555594EE6E /* PetFormView.swift */; };
+		B64DE1B12D78D93A4E975B34 /* PetProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CFCFB4238402245EA584FB3 /* PetProfileTests.swift */; };
+		BC7C0F1C967A900961BACA8D /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CB9BB611812E16745808CB0 /* WidgetSnapshot.swift */; };
+		BFE7FACCC09847413729522F /* DesignSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B3F913B76568DA44CA203C /* DesignSkeleton.swift */; };
+		C7F8BD2DE1C7894FD1312C98 /* PetPalWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E865EEEFEC8FF4CFEEA25FF9 /* PetPalWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CE1258296DACEF7A1C89C8D3 /* PetPalWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8860B53A8CC4318ABB10963A /* PetPalWidget.swift */; };
+		CE465F73432CB0AEB1906079 /* MessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B27015F290B4EFBB8DEB5B1 /* MessagesView.swift */; };
+		CEA6BEC89B33409E1F96906F /* SocialSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = C417EF966B5EFA3A0624E0B6 /* SocialSkeleton.swift */; };
+		D1AD010CBCE485C2F7B8F0BF /* RecordTemplatePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD61F5B1C0BFDE1DB7FD61BC /* RecordTemplatePickerView.swift */; };
+		DA157363BC720DB6519CD388 /* CommentListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 651BDD05196898BBF077D4EF /* CommentListView.swift */; };
+		DF36CC2204BC51019B5120A7 /* DailyRecordSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C4AC5B6D6CF0E52BD922895 /* DailyRecordSkeleton.swift */; };
+		E10A42A3EEA5E300F231171E /* DashboardSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA805538E1D91758540E5791 /* DashboardSkeleton.swift */; };
+		E2FC5B0A614136653CDDB921 /* RecordCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969BB8C2A81440E13248D107 /* RecordCalendarView.swift */; };
+		E81166DDD1AED9A81C7FE950 /* CustomTemplateViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95E1C208BFD299769C5A0659 /* CustomTemplateViews.swift */; };
+		F4EBA71490C24B057BC7482F /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5107971C455CCBD90CE5B14C /* DashboardView.swift */; };
+		F6AC0A5AFFDEDCE6B1C22B6D /* PetManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0649DDBC131857AC1B21534D /* PetManagementView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		42DC1142FD3EE00F6C5C1A15 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0EF7E7DF67EF14B4457E9D9E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F70FAE0041AB1BC95CE2EA61;
+			remoteInfo = PetPal;
+		};
+		6D0C65AE80FA4C6943EEAA67 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0EF7E7DF67EF14B4457E9D9E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F70FAE0041AB1BC95CE2EA61;
+			remoteInfo = PetPal;
+		};
+		DBDA4FF79210D2C9F00042A1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0EF7E7DF67EF14B4457E9D9E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 80CD19B19746551BDC781E44;
+			remoteInfo = PetPalWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		9FD558AFCD3F13CD4E536BBA /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C7F8BD2DE1C7894FD1312C98 /* PetPalWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		0649DDBC131857AC1B21534D /* PetManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetManagementView.swift; sourceTree = "<group>"; };
+		0EFEF10F1BF86B14DFC27675 /* PublishFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublishFormView.swift; sourceTree = "<group>"; };
+		1455F5DA037FC0F79B8720D9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		1C21F0F43CDF0C0430E01969 /* PetProfileSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetProfileSkeleton.swift; sourceTree = "<group>"; };
+		1EEA6E5FB5C6B6E10C1D418D /* DatabaseBackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseBackupManager.swift; sourceTree = "<group>"; };
+		2B27015F290B4EFBB8DEB5B1 /* MessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesView.swift; sourceTree = "<group>"; };
+		32FBF3AD85F341F72AE04D11 /* WeightUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightUITests.swift; sourceTree = "<group>"; };
+		36E1E2F657DE2AC0079966CE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		46197EDEEB9B441AB777C91F /* PrototypeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeApp.swift; sourceTree = "<group>"; };
+		4E0D954C513BB1D6DE8B7C23 /* WeightFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightFormView.swift; sourceTree = "<group>"; };
+		4FFE0D15E947D473CD97A624 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedView.swift; sourceTree = "<group>"; };
+		5107971C455CCBD90CE5B14C /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		514280BD0DC1990D33E47F91 /* PrototypeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeUITests.swift; sourceTree = "<group>"; };
+		614FEEDCE9B4F0F53903033B /* DashboardCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCharts.swift; sourceTree = "<group>"; };
+		638FA20AFF53D669855AABB4 /* AvatarPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarPickerView.swift; sourceTree = "<group>"; };
+		651BDD05196898BBF077D4EF /* CommentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentListView.swift; sourceTree = "<group>"; };
+		652C82DC03DB39748919918F /* DashboardPDF.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardPDF.swift; sourceTree = "<group>"; };
+		6F85A3A6A797D7CA6E00F5AD /* PetPal.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = PetPal.xcdatamodel; sourceTree = "<group>"; };
+		70ADFF6C5DD4685A722827FD /* PetPalTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PetPalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7AF695281430122AC6C5CDB0 /* ReminderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderTests.swift; sourceTree = "<group>"; };
+		7CB9BB611812E16745808CB0 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
+		7CFCFB4238402245EA584FB3 /* PetProfileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetProfileTests.swift; sourceTree = "<group>"; };
+		81ECAB97E483399B52FBAEF2 /* RecordPhotoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordPhotoPicker.swift; sourceTree = "<group>"; };
+		8860B53A8CC4318ABB10963A /* PetPalWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetPalWidget.swift; sourceTree = "<group>"; };
+		8C4AC5B6D6CF0E52BD922895 /* DailyRecordSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyRecordSkeleton.swift; sourceTree = "<group>"; };
+		958F6C579A173F555594EE6E /* PetFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetFormView.swift; sourceTree = "<group>"; };
+		95E1C208BFD299769C5A0659 /* CustomTemplateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomTemplateViews.swift; sourceTree = "<group>"; };
+		969BB8C2A81440E13248D107 /* RecordCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordCalendarView.swift; sourceTree = "<group>"; };
+		A47EB955B85E196682B3EA9C /* ReminderSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderSkeleton.swift; sourceTree = "<group>"; };
+		A689F4688B2962236695DEBB /* DashboardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardTests.swift; sourceTree = "<group>"; };
+		AD0849DB35EEE7631A9BED42 /* PetPal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PetPal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B3B3F913B76568DA44CA203C /* DesignSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSkeleton.swift; sourceTree = "<group>"; };
+		B4F723769C5954A630E18C99 /* DashboardHealthTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardHealthTimeline.swift; sourceTree = "<group>"; };
+		BB6BA6E92B626506746EBEF0 /* PetPalUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PetPalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BC9798564C3F1B615D1DD0FC /* MoodPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodPicker.swift; sourceTree = "<group>"; };
+		C23A0D052F0B5A5C31C2B290 /* DailyRecordTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyRecordTests.swift; sourceTree = "<group>"; };
+		C36A66C873B7051E3AC7C421 /* WidgetSnapshotSyncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotSyncer.swift; sourceTree = "<group>"; };
+		C3C32D44F582D8D1B4F76522 /* RecordsHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsHomeView.swift; sourceTree = "<group>"; };
+		C417EF966B5EFA3A0624E0B6 /* SocialSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialSkeleton.swift; sourceTree = "<group>"; };
+		C69716F59C3ED03ED3E6845A /* ReminderListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderListView.swift; sourceTree = "<group>"; };
+		D973295CF3382B4F15F21CCB /* PresetRecordFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetRecordFormView.swift; sourceTree = "<group>"; };
+		DC1F057C078BFB07E5B81C25 /* ReminderFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderFormView.swift; sourceTree = "<group>"; };
+		DCD8A854CB49467B0FB4D804 /* WidgetSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotTests.swift; sourceTree = "<group>"; };
+		E85D5115989EB05CDCF89321 /* SocialTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialTests.swift; sourceTree = "<group>"; };
+		E865EEEFEC8FF4CFEEA25FF9 /* PetPalWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PetPalWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F0305E31F2AD66A0E96335B6 /* CoreDataEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataEntities.swift; sourceTree = "<group>"; };
+		F40042023430C04766DAA7E7 /* SocialUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialUITests.swift; sourceTree = "<group>"; };
+		FA805538E1D91758540E5791 /* DashboardSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardSkeleton.swift; sourceTree = "<group>"; };
+		FD61F5B1C0BFDE1DB7FD61BC /* RecordTemplatePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordTemplatePickerView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1A1FD892A0B60DEAA998C6B4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1C42DCC1D97E41BDB6C8549D /* Kingfisher in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0AAB6978A5C55EC3148509F2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AD0849DB35EEE7631A9BED42 /* PetPal.app */,
+				70ADFF6C5DD4685A722827FD /* PetPalTests.xctest */,
+				BB6BA6E92B626506746EBEF0 /* PetPalUITests.xctest */,
+				E865EEEFEC8FF4CFEEA25FF9 /* PetPalWidget.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		17D753419DE02F3824307A6C /* M4_Reminders */ = {
+			isa = PBXGroup;
+			children = (
+				DC1F057C078BFB07E5B81C25 /* ReminderFormView.swift */,
+				C69716F59C3ED03ED3E6845A /* ReminderListView.swift */,
+				A47EB955B85E196682B3EA9C /* ReminderSkeleton.swift */,
+				7AF695281430122AC6C5CDB0 /* ReminderTests.swift */,
+			);
+			path = M4_Reminders;
+			sourceTree = "<group>";
+		};
+		2E80B310AEB964521222325E /* M3_Social */ = {
+			isa = PBXGroup;
+			children = (
+				651BDD05196898BBF077D4EF /* CommentListView.swift */,
+				4FFE0D15E947D473CD97A624 /* FeedView.swift */,
+				2B27015F290B4EFBB8DEB5B1 /* MessagesView.swift */,
+				0EFEF10F1BF86B14DFC27675 /* PublishFormView.swift */,
+				C417EF966B5EFA3A0624E0B6 /* SocialSkeleton.swift */,
+				E85D5115989EB05CDCF89321 /* SocialTests.swift */,
+				F40042023430C04766DAA7E7 /* SocialUITests.swift */,
+			);
+			path = M3_Social;
+			sourceTree = "<group>";
+		};
+		38217B822C944F17059F25F1 /* M1_PetProfile */ = {
+			isa = PBXGroup;
+			children = (
+				638FA20AFF53D669855AABB4 /* AvatarPickerView.swift */,
+				1EEA6E5FB5C6B6E10C1D418D /* DatabaseBackupManager.swift */,
+				958F6C579A173F555594EE6E /* PetFormView.swift */,
+				0649DDBC131857AC1B21534D /* PetManagementView.swift */,
+				1C21F0F43CDF0C0430E01969 /* PetProfileSkeleton.swift */,
+				7CFCFB4238402245EA584FB3 /* PetProfileTests.swift */,
+			);
+			path = M1_PetProfile;
+			sourceTree = "<group>";
+		};
+		3CB8FCDC58C557A371D3CF09 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				7A475C7DCF4F5D2651ED771E /* PetPal.xcdatamodeld */,
+				F0305E31F2AD66A0E96335B6 /* CoreDataEntities.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		4449376F51275880F5E921A3 /* M7_Prototype */ = {
+			isa = PBXGroup;
+			children = (
+				46197EDEEB9B441AB777C91F /* PrototypeApp.swift */,
+				514280BD0DC1990D33E47F91 /* PrototypeUITests.swift */,
+				4E0D954C513BB1D6DE8B7C23 /* WeightFormView.swift */,
+				32FBF3AD85F341F72AE04D11 /* WeightUITests.swift */,
+			);
+			path = M7_Prototype;
+			sourceTree = "<group>";
+		};
+		45DDFCA032145323E52CDB48 /* PetPal */ = {
+			isa = PBXGroup;
+			children = (
+				3CB8FCDC58C557A371D3CF09 /* Models */,
+				499D47544DF3090095BCE5FF /* Supporting */,
+				1455F5DA037FC0F79B8720D9 /* Assets.xcassets */,
+			);
+			path = PetPal;
+			sourceTree = "<group>";
+		};
+		499D47544DF3090095BCE5FF /* Supporting */ = {
+			isa = PBXGroup;
+			children = (
+				36E1E2F657DE2AC0079966CE /* PrivacyInfo.xcprivacy */,
+			);
+			path = Supporting;
+			sourceTree = "<group>";
+		};
+		793829723E6FA99965F7D360 /* M5_Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				614FEEDCE9B4F0F53903033B /* DashboardCharts.swift */,
+				B4F723769C5954A630E18C99 /* DashboardHealthTimeline.swift */,
+				652C82DC03DB39748919918F /* DashboardPDF.swift */,
+				FA805538E1D91758540E5791 /* DashboardSkeleton.swift */,
+				A689F4688B2962236695DEBB /* DashboardTests.swift */,
+				5107971C455CCBD90CE5B14C /* DashboardView.swift */,
+			);
+			path = M5_Dashboard;
+			sourceTree = "<group>";
+		};
+		8ACB1E082C37739940F34E98 /* M2_DailyRecords */ = {
+			isa = PBXGroup;
+			children = (
+				95E1C208BFD299769C5A0659 /* CustomTemplateViews.swift */,
+				8C4AC5B6D6CF0E52BD922895 /* DailyRecordSkeleton.swift */,
+				C23A0D052F0B5A5C31C2B290 /* DailyRecordTests.swift */,
+				BC9798564C3F1B615D1DD0FC /* MoodPicker.swift */,
+				D973295CF3382B4F15F21CCB /* PresetRecordFormView.swift */,
+				969BB8C2A81440E13248D107 /* RecordCalendarView.swift */,
+				81ECAB97E483399B52FBAEF2 /* RecordPhotoPicker.swift */,
+				C3C32D44F582D8D1B4F76522 /* RecordsHomeView.swift */,
+				FD61F5B1C0BFDE1DB7FD61BC /* RecordTemplatePickerView.swift */,
+			);
+			path = M2_DailyRecords;
+			sourceTree = "<group>";
+		};
+		98C78BAAAED7C39F14856E54 /* M8_Widget */ = {
+			isa = PBXGroup;
+			children = (
+				7CB9BB611812E16745808CB0 /* WidgetSnapshot.swift */,
+				C36A66C873B7051E3AC7C421 /* WidgetSnapshotSyncer.swift */,
+				DCD8A854CB49467B0FB4D804 /* WidgetSnapshotTests.swift */,
+			);
+			path = M8_Widget;
+			sourceTree = "<group>";
+		};
+		CF94DC7C0C4C68FEDC69EF59 = {
+			isa = PBXGroup;
+			children = (
+				38217B822C944F17059F25F1 /* M1_PetProfile */,
+				8ACB1E082C37739940F34E98 /* M2_DailyRecords */,
+				2E80B310AEB964521222325E /* M3_Social */,
+				17D753419DE02F3824307A6C /* M4_Reminders */,
+				793829723E6FA99965F7D360 /* M5_Dashboard */,
+				DB988F08C448B02E8DF4AC76 /* M6_Design */,
+				4449376F51275880F5E921A3 /* M7_Prototype */,
+				98C78BAAAED7C39F14856E54 /* M8_Widget */,
+				45DDFCA032145323E52CDB48 /* PetPal */,
+				DE518D016EFBA9EA43E4ED04 /* PetPalWidget */,
+				0AAB6978A5C55EC3148509F2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DB988F08C448B02E8DF4AC76 /* M6_Design */ = {
+			isa = PBXGroup;
+			children = (
+				B3B3F913B76568DA44CA203C /* DesignSkeleton.swift */,
+			);
+			path = M6_Design;
+			sourceTree = "<group>";
+		};
+		DE518D016EFBA9EA43E4ED04 /* PetPalWidget */ = {
+			isa = PBXGroup;
+			children = (
+				8860B53A8CC4318ABB10963A /* PetPalWidget.swift */,
+			);
+			path = PetPalWidget;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1C8E020C33C3B8DAE0120F65 /* PetPalUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4192A38B621A3FE0420A07F6 /* Build configuration list for PBXNativeTarget "PetPalUITests" */;
+			buildPhases = (
+				65C6150473A6B04F6CF4B67E /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B3DEE3349E7D144F2BFDCFD2 /* PBXTargetDependency */,
+			);
+			name = PetPalUITests;
+			packageProductDependencies = (
+			);
+			productName = PetPalUITests;
+			productReference = BB6BA6E92B626506746EBEF0 /* PetPalUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		80CD19B19746551BDC781E44 /* PetPalWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3B9C3B0B83ECEEF852791424 /* Build configuration list for PBXNativeTarget "PetPalWidget" */;
+			buildPhases = (
+				98DBB2D88ECA826EB420FBCF /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PetPalWidget;
+			packageProductDependencies = (
+			);
+			productName = PetPalWidget;
+			productReference = E865EEEFEC8FF4CFEEA25FF9 /* PetPalWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		D3FB9FEF5FD4CC7ECB6F1C6C /* PetPalTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9CB7A30252238EF5F6600D3F /* Build configuration list for PBXNativeTarget "PetPalTests" */;
+			buildPhases = (
+				412F3FD331700C88127DB174 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C230EC40D7D3A4BA537431D9 /* PBXTargetDependency */,
+			);
+			name = PetPalTests;
+			packageProductDependencies = (
+			);
+			productName = PetPalTests;
+			productReference = 70ADFF6C5DD4685A722827FD /* PetPalTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		F70FAE0041AB1BC95CE2EA61 /* PetPal */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 53D51B7A441F110F18C1A32D /* Build configuration list for PBXNativeTarget "PetPal" */;
+			buildPhases = (
+				8269634CDD0BC63804F1A0D2 /* Sources */,
+				D5969D458774C5F8EC0CDC94 /* Resources */,
+				1A1FD892A0B60DEAA998C6B4 /* Frameworks */,
+				9FD558AFCD3F13CD4E536BBA /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				31D636C5E163E58FB21E9E5C /* PBXTargetDependency */,
+			);
+			name = PetPal;
+			packageProductDependencies = (
+				513EBDCC5737D81A6C04214C /* Kingfisher */,
+			);
+			productName = PetPal;
+			productReference = AD0849DB35EEE7631A9BED42 /* PetPal.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0EF7E7DF67EF14B4457E9D9E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					1C8E020C33C3B8DAE0120F65 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+						TestTargetID = F70FAE0041AB1BC95CE2EA61;
+					};
+					80CD19B19746551BDC781E44 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					D3FB9FEF5FD4CC7ECB6F1C6C = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					F70FAE0041AB1BC95CE2EA61 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = CD3F560F4062F25451113B6F /* Build configuration list for PBXProject "PetPal" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = CF94DC7C0C4C68FEDC69EF59;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				86BE99E35AB075301F880963 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 0AAB6978A5C55EC3148509F2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F70FAE0041AB1BC95CE2EA61 /* PetPal */,
+				D3FB9FEF5FD4CC7ECB6F1C6C /* PetPalTests */,
+				1C8E020C33C3B8DAE0120F65 /* PetPalUITests */,
+				80CD19B19746551BDC781E44 /* PetPalWidget */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D5969D458774C5F8EC0CDC94 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				58F42671478340C3C2297E4C /* Assets.xcassets in Resources */,
+				9B2D0BAC60818E05E77C6F7F /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		412F3FD331700C88127DB174 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3DF0ECCC24C5E5688B72113E /* DailyRecordTests.swift in Sources */,
+				0CEF993F05F6BDDEEED3369F /* DashboardTests.swift in Sources */,
+				B64DE1B12D78D93A4E975B34 /* PetProfileTests.swift in Sources */,
+				8D658E8E5702F97F4823B591 /* ReminderTests.swift in Sources */,
+				6FCE2EC2FE44878E4E853762 /* SocialTests.swift in Sources */,
+				96B00EC79DEEF5A4A036287A /* WidgetSnapshotTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		65C6150473A6B04F6CF4B67E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8BA20D6D782910E72EA65029 /* PrototypeUITests.swift in Sources */,
+				3B236A6FB5CBCC86F0AA54BF /* SocialUITests.swift in Sources */,
+				9E1E4C00BF420D7323B626C9 /* WeightUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8269634CDD0BC63804F1A0D2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				14C663209B5285D01065D5EA /* AvatarPickerView.swift in Sources */,
+				DA157363BC720DB6519CD388 /* CommentListView.swift in Sources */,
+				311D8991C2E9C04CC9269970 /* CoreDataEntities.swift in Sources */,
+				E81166DDD1AED9A81C7FE950 /* CustomTemplateViews.swift in Sources */,
+				DF36CC2204BC51019B5120A7 /* DailyRecordSkeleton.swift in Sources */,
+				46447655F428F060811BC07C /* DashboardCharts.swift in Sources */,
+				197C99160E1B36455B6C29F6 /* DashboardHealthTimeline.swift in Sources */,
+				A8AD2DFFD47B2362263F3BFB /* DashboardPDF.swift in Sources */,
+				E10A42A3EEA5E300F231171E /* DashboardSkeleton.swift in Sources */,
+				F4EBA71490C24B057BC7482F /* DashboardView.swift in Sources */,
+				23209D76BEF78E7B27C8626A /* DatabaseBackupManager.swift in Sources */,
+				BFE7FACCC09847413729522F /* DesignSkeleton.swift in Sources */,
+				565FD8F1C1279895E14740EE /* FeedView.swift in Sources */,
+				CE465F73432CB0AEB1906079 /* MessagesView.swift in Sources */,
+				76C7347974A0B4E088001AEB /* MoodPicker.swift in Sources */,
+				B28C661163D7E257E0D8DBA3 /* PetFormView.swift in Sources */,
+				F6AC0A5AFFDEDCE6B1C22B6D /* PetManagementView.swift in Sources */,
+				A8014D081D786A8517083849 /* PetPal.xcdatamodeld in Sources */,
+				212B388B7703C84A16ABDB71 /* PetProfileSkeleton.swift in Sources */,
+				31A4A7E7EB21FFC65F87F9E4 /* PresetRecordFormView.swift in Sources */,
+				1BBD4287F07A20D418965C7D /* PrototypeApp.swift in Sources */,
+				74D3F004A346D36CC03D1136 /* PublishFormView.swift in Sources */,
+				E2FC5B0A614136653CDDB921 /* RecordCalendarView.swift in Sources */,
+				3BBA2611DEB73FEA092AB762 /* RecordPhotoPicker.swift in Sources */,
+				D1AD010CBCE485C2F7B8F0BF /* RecordTemplatePickerView.swift in Sources */,
+				993C71EFE86F679D24B96FE1 /* RecordsHomeView.swift in Sources */,
+				4E3CFE01BDB0319A1F6937A2 /* ReminderFormView.swift in Sources */,
+				60575D06A98522EA76235052 /* ReminderListView.swift in Sources */,
+				2B6287357F04B6D3710735BA /* ReminderSkeleton.swift in Sources */,
+				CEA6BEC89B33409E1F96906F /* SocialSkeleton.swift in Sources */,
+				1DA64933DD35F42173B19289 /* WeightFormView.swift in Sources */,
+				BC7C0F1C967A900961BACA8D /* WidgetSnapshot.swift in Sources */,
+				64C257077947ED98AEA7B232 /* WidgetSnapshotSyncer.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98DBB2D88ECA826EB420FBCF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE1258296DACEF7A1C89C8D3 /* PetPalWidget.swift in Sources */,
+				17B6D6D96E2CCDD987EDED79 /* WidgetSnapshot.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		31D636C5E163E58FB21E9E5C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 80CD19B19746551BDC781E44 /* PetPalWidget */;
+			targetProxy = DBDA4FF79210D2C9F00042A1 /* PBXContainerItemProxy */;
+		};
+		B3DEE3349E7D144F2BFDCFD2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F70FAE0041AB1BC95CE2EA61 /* PetPal */;
+			targetProxy = 6D0C65AE80FA4C6943EEAA67 /* PBXContainerItemProxy */;
+		};
+		C230EC40D7D3A4BA537431D9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F70FAE0041AB1BC95CE2EA61 /* PetPal */;
+			targetProxy = 42DC1142FD3EE00F6C5C1A15 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		232D2A1A716410826750223B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.petpal.prototype.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PetPal;
+			};
+			name = Debug;
+		};
+		308145B0BA74CC997398C387 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.petpal.prototype.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PetPal.app/PetPal";
+			};
+			name = Debug;
+		};
+		50CA191137C7130C48C920EA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PetPalWidget/PetPalWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PetPalWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.petpal.prototype.widget;
+				PRODUCT_NAME = PetPalWidget;
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		5F4FEB69350E463F1280905F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		68046258CA2B325E94BD500C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.petpal.prototype.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PetPal.app/PetPal";
+			};
+			name = Release;
+		};
+		6B12B1C92C5DBBBEA56453ED /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PetPal/Supporting/PetPal.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PetPal/Supporting/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.petpal.prototype;
+				PRODUCT_NAME = PetPal;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6B40900C3735022D3A8BA884 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PetPal/Supporting/PetPal.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PetPal/Supporting/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.petpal.prototype;
+				PRODUCT_NAME = PetPal;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		893E5AF081DEFB2663FADAD1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E314AA84B834B4CD2E5D7E32 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.petpal.prototype.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PetPal;
+			};
+			name = Release;
+		};
+		F804849B1DF27776C3856B67 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PetPalWidget/PetPalWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PetPalWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.petpal.prototype.widget;
+				PRODUCT_NAME = PetPalWidget;
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3B9C3B0B83ECEEF852791424 /* Build configuration list for PBXNativeTarget "PetPalWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F804849B1DF27776C3856B67 /* Debug */,
+				50CA191137C7130C48C920EA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		4192A38B621A3FE0420A07F6 /* Build configuration list for PBXNativeTarget "PetPalUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				232D2A1A716410826750223B /* Debug */,
+				E314AA84B834B4CD2E5D7E32 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		53D51B7A441F110F18C1A32D /* Build configuration list for PBXNativeTarget "PetPal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6B12B1C92C5DBBBEA56453ED /* Debug */,
+				6B40900C3735022D3A8BA884 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9CB7A30252238EF5F6600D3F /* Build configuration list for PBXNativeTarget "PetPalTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				308145B0BA74CC997398C387 /* Debug */,
+				68046258CA2B325E94BD500C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CD3F560F4062F25451113B6F /* Build configuration list for PBXProject "PetPal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				893E5AF081DEFB2663FADAD1 /* Debug */,
+				5F4FEB69350E463F1280905F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		86BE99E35AB075301F880963 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		513EBDCC5737D81A6C04214C /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 86BE99E35AB075301F880963 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+/* End XCSwiftPackageProductDependency section */
+
+/* Begin XCVersionGroup section */
+		7A475C7DCF4F5D2651ED771E /* PetPal.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				6F85A3A6A797D7CA6E00F5AD /* PetPal.xcdatamodel */,
+			);
+			currentVersion = 6F85A3A6A797D7CA6E00F5AD /* PetPal.xcdatamodel */;
+			path = PetPal.xcdatamodeld;
+			sourceTree = "<group>";
+			versionGroupType = wrapper.xcdatamodel;
+		};
+/* End XCVersionGroup section */
+	};
+	rootObject = 0EF7E7DF67EF14B4457E9D9E /* Project object */;
+}

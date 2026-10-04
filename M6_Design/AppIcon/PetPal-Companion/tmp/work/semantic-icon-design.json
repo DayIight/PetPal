@@ -1,0 +1,166 @@
+{
+  "version": "semantic-icon-design/v0.1",
+  "route": "direct-authored-package",
+  "app_context": {
+    "app_name": "PetPal",
+    "category": "pet social app",
+    "job_to_be_done": "find companionship and connect with fellow urban pet owners",
+    "tone": "warm, calm, approachable, mature"
+  },
+  "style": {
+    "direction": "custom-flat-two-pet-portrait",
+    "svg_convertibility": "high",
+    "style_notes": "Explicit user direction: flat illustration, only warm orange and cream, gentle local ear gradient."
+  },
+  "icon_intent": {
+    "metaphor": "dog and cat leaning together beneath a loving conversation",
+    "small_size_readability": "60 and 64 px silhouette and species recognition",
+    "must_feel_like": [
+      "companionship",
+      "warm community",
+      "trust"
+    ],
+    "must_not_feel_like": [
+      "baby toy",
+      "corporate badge",
+      "3D render"
+    ]
+  },
+  "layering_policy": {
+    "negative_space_strategy": "overlay-fill-layer",
+    "cutouts_are_layers": true,
+    "description": "Facial details are opaque colored overlays; rounded clip is preview-only."
+  },
+  "canvas": {
+    "size": 1024,
+    "composition_anchor": "center",
+    "safe_area": {
+      "x": [
+        102.4,
+        921.6
+      ],
+      "y": [
+        102.4,
+        921.6
+      ]
+    },
+    "alignment": "two faces balanced around center"
+  },
+  "background": {
+    "type": "solid",
+    "color": "#E9AC7D",
+    "composer_fill_target": {
+      "solid": "extended-srgb:0.913725,0.674510,0.490196,1"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "order": 0,
+      "role": "background",
+      "format_target": "svg",
+      "shape_model": "filled rectangle",
+      "description": "solid warm orange field",
+      "fill": [
+        "#E9AC7D",
+        "#FFF4E6"
+      ],
+      "geometry_constraints": [
+        "crisp boundaries",
+        "no texture",
+        "no shadows",
+        "opaque geometry"
+      ],
+      "must_preserve": [
+        "only two color families",
+        "center 80% safe area"
+      ],
+      "must_not_add": [
+        "text",
+        "numbers",
+        "props",
+        "clothes",
+        "3D material"
+      ]
+    },
+    {
+      "id": "animals",
+      "order": 1,
+      "role": "animals",
+      "format_target": "svg",
+      "shape_model": "overlapping organic paths",
+      "description": "natural dog and cat heads, simple facial overlays",
+      "fill": [
+        "#E9AC7D",
+        "#FFF4E6",
+        "#F5D2AF"
+      ],
+      "geometry_constraints": [
+        "crisp boundaries",
+        "no texture",
+        "no shadows",
+        "opaque geometry"
+      ],
+      "must_preserve": [
+        "only two color families",
+        "center 80% safe area"
+      ],
+      "must_not_add": [
+        "text",
+        "numbers",
+        "props",
+        "clothes",
+        "3D material"
+      ]
+    },
+    {
+      "id": "social-symbol",
+      "order": 2,
+      "role": "social-symbol",
+      "format_target": "svg",
+      "shape_model": "overlapping organic paths",
+      "description": "cream chat bubble with orange heart",
+      "fill": [
+        "#E9AC7D",
+        "#FFF4E6"
+      ],
+      "geometry_constraints": [
+        "crisp boundaries",
+        "no texture",
+        "no shadows",
+        "opaque geometry"
+      ],
+      "must_preserve": [
+        "only two color families",
+        "center 80% safe area"
+      ],
+      "must_not_add": [
+        "text",
+        "numbers",
+        "props",
+        "clothes",
+        "3D material"
+      ]
+    }
+  ],
+  "conversion_constraints": {
+    "target_layer_count": "3",
+    "svg_first": true,
+    "allowed_svg_primitives": [
+      "path",
+      "rect",
+      "ellipse",
+      "circle",
+      "linearGradient"
+    ],
+    "forbidden_in_svg_assets": [
+      "text",
+      "image",
+      "filter",
+      "shadow",
+      "glow",
+      "bevel"
+    ],
+    "png_fallback_allowed_only_for": []
+  }
+}

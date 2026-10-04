@@ -1,0 +1,396 @@
+{
+  "schema_version": 1,
+  "input": "/Users/benyanzhou/Documents/Codex/app/PetPal/M6_Design/AppIcon/PetPal-Companion/layers/02-animals.svg",
+  "status": "ok",
+  "canvas": {
+    "width": 1024,
+    "height": 1024,
+    "viewBox": "0 0 1024 1024"
+  },
+  "parameters": {
+    "micro_segment_threshold_px": 2,
+    "high_line_ratio": 0.7,
+    "max_command_count": 140,
+    "fragment_gap_px": 1.5,
+    "flatten_tolerance_px": 0.5
+  },
+  "path_count": 11,
+  "paths": [
+    {
+      "index": 0,
+      "fill": "#FFF4E6",
+      "class_name": "Path",
+      "child_count": 1,
+      "command_counts": {
+        "M": 1,
+        "L": 4,
+        "Q": 5,
+        "C": 2,
+        "Z": 1
+      },
+      "command_count": 13,
+      "drawing_command_count": 11,
+      "line_command_count": 4,
+      "curve_command_count": 7,
+      "line_command_ratio": 0.3636,
+      "path_length_px": 1368.1597,
+      "flattened_segment_count": 68,
+      "micro_segment_count": 0,
+      "micro_segment_ratio": 0,
+      "shortest_segment_px": 2.5265,
+      "bounds": {
+        "min_x": 493.1724,
+        "min_y": 337.8788,
+        "max_x": 846.9231,
+        "max_y": 746.1275,
+        "width": 353.7507,
+        "height": 408.2487
+      }
+    },
+    {
+      "index": 1,
+      "fill": "#E9AC7D",
+      "class_name": "CompoundPath",
+      "child_count": 2,
+      "command_counts": {
+        "M": 2,
+        "L": 4,
+        "Z": 2
+      },
+      "command_count": 8,
+      "drawing_command_count": 4,
+      "line_command_count": 4,
+      "curve_command_count": 0,
+      "line_command_ratio": 1,
+      "path_length_px": 332.2419,
+      "flattened_segment_count": 6,
+      "micro_segment_count": 0,
+      "micro_segment_ratio": 0,
+      "shortest_segment_px": 45.6508,
+      "bounds": {
+        "min_x": 530,
+        "min_y": 389,
+        "max_x": 779,
+        "max_y": 452,
+        "width": 249,
+        "height": 63
+      }
+    },
+    {
+      "index": 2,
+      "fill": "none",
+      "class_name": "CompoundPath",
+      "child_count": 2,
+      "command_counts": {
+        "M": 2,
+        "Q": 2
+      },
+      "command_count": 4,
+      "drawing_command_count": 2,
+      "line_command_count": 0,
+      "curve_command_count": 2,
+      "line_command_ratio": 0,
+      "path_length_px": 98.6104,
+      "flattened_segment_count": 16,
+      "micro_segment_count": 0,
+      "micro_segment_ratio": 0,
+      "shortest_segment_px": 5.299,
+      "bounds": {
+        "min_x": 607,
+        "min_y": 533.5,
+        "max_x": 764,
+        "max_y": 545,
+        "width": 157,
+        "height": 11.5
+      }
+    },
+    {
+      "index": 3,
+      "fill": "#E9AC7D",
+      "class_name": "Path",
+      "child_count": 1,
+      "command_counts": {
+        "M": 1,
+        "Q": 3,
+        "L": 2,
+        "Z": 1
+      },
+      "command_count": 7,
+      "drawing_command_count": 5,
+      "line_command_count": 2,
+      "curve_command_count": 3,
+      "line_command_ratio": 0.4,
+      "path_length_px": 122.3856,
+      "flattened_segment_count": 14,
+      "micro_segment_count": 0,
+      "micro_segment_ratio": 0,
+      "shortest_segment_px": 3.5625,
+      "bounds": {
+        "min_x": 660.2778,
+        "min_y": 578,
+        "max_x": 707.25,
+        "max_y": 611,
+        "width": 46.9722,
+        "height": 33
+      }
+    },
+    {
+      "index": 4,
+      "fill": "none",
+      "class_name": "CompoundPath",
+      "child_count": 2,
+      "command_counts": {
+        "M": 2,
+        "V": 1,
+        "Q": 2
+      },
+      "command_count": 5,
+      "drawing_command_count": 3,
+      "line_command_count": 1,
+      "curve_command_count": 2,
+      "line_command_ratio": 0.3333,
+      "path_length_px": 98.607,
+      "flattened_segment_count": 17,
+      "micro_segment_count": 0,
+      "micro_segment_ratio": 0,
+      "shortest_segment_px": 4.4746,
+      "bounds": {
+        "min_x": 649,
+        "min_y": 608,
+        "max_x": 719,
+        "max_y": 637.4444,
+        "width": 70,
+        "height": 29.4444
+      }
+    },
+    {
+      "index": 5,
+      "fill": "none",
+      "class_name": "CompoundPath",
+      "child_count": 2,
+      "command_counts": {
+        "M": 2,
+        "L": 2
+      },
+      "command_count": 4,
+      "drawing_command_count": 2,
+      "line_command_count": 2,
+      "curve_command_count": 0,
+      "line_command_ratio": 1,
+      "path_length_px": 72.0296,
+      "flattened_segment_count": 2,
+      "micro_segment_count": 0,
+      "micro_segment_ratio": 0,
+      "shortest_segment_px": 35.3553,
+      "bounds": {
+        "min_x": 771,
+        "min_y": 582,
+        "max_x": 808,
+        "max_y": 626,
+        "width": 37,
+        "height": 44
+      }
+    },
+    {
+      "index": 6,
+      "fill": "url(#ear-gradient)",
+      "class_name": "Path",
+      "child_count": 1,
+      "command_counts": {
+        "M": 1,
+        "C": 3,
+        "Z": 1
+      },
+      "command_count": 5,
+      "drawing_command_count": 3,
+      "line_command_count": 0,
+      "curve_command_count": 3,
+      "line_command_ratio": 0,
+      "path_length_px": 536.2231,
+      "flattened_segment_count": 32,
+      "micro_segment_count": 0,
+      "micro_segment_ratio": 0,
+      "shortest_segment_px": 4.8654,
+      "bounds": {
+        "min_x": 490,
+        "min_y": 442.1037,
+        "max_x": 595.1505,
+        "max_y": 660.1802,
+        "width": 105.1505,
+        "height": 218.0765
+      }
+    },
+    {
+      "index": 7,
+      "fill": "#FFF4E6",
+      "class_name": "Path",
+      "child_count": 1,
+      "command_counts": {
+        "M": 1,
+        "C": 5,
+        "L": 1,
+        "Z": 1
+      },
+      "command_count": 8,
+      "drawing_command_count": 6,
+      "line_command_count": 1,
+      "curve_command_count": 5,
+      "line_command_ratio": 0.1667,
+      "path_length_px": 1202.9612,
+      "flattened_segment_count": 71,
+      "micro_segment_count": 0,
+      "micro_segment_ratio": 0,
+      "shortest_segment_px": 10.8499,
+      "bounds": {
+        "min_x": 220.8131,
+        "min_y": 414.4792,
+        "max_x": 560.0975,
+        "max_y": 815.3314,
+        "width": 339.2843,
+        "height": 400.8523
+      }
+    },
+    {
+      "index": 8,
+      "fill": "url(#ear-gradient)",
+      "class_name": "Path",
+      "child_count": 1,
+      "command_counts": {
+        "M": 1,
+        "C": 3,
+        "L": 1,
+        "Q": 1,
+        "Z": 1
+      },
+      "command_count": 7,
+      "drawing_command_count": 5,
+      "line_command_count": 1,
+      "curve_command_count": 4,
+      "line_command_ratio": 0.2,
+      "path_length_px": 550.6452,
+      "flattened_segment_count": 36,
+      "micro_segment_count": 0,
+      "micro_segment_ratio": 0,
+      "shortest_segment_px": 4.774,
+      "bounds": {
+        "min_x": 174.0875,
+        "min_y": 443.6841,
+        "max_x": 283.1364,
+        "max_y": 671.6703,
+        "width": 109.0489,
+        "height": 227.9862
+      }
+    },
+    {
+      "index": 9,
+      "fill": "#E9AC7D",
+      "class_name": "Path",
+      "child_count": 1,
+      "command_counts": {
+        "M": 1,
+        "Q": 1,
+        "C": 2,
+        "Z": 1
+      },
+      "command_count": 5,
+      "drawing_command_count": 3,
+      "line_command_count": 0,
+      "curve_command_count": 3,
+      "line_command_ratio": 0,
+      "path_length_px": 187.9138,
+      "flattened_segment_count": 21,
+      "micro_segment_count": 0,
+      "micro_segment_ratio": 0,
+      "shortest_segment_px": 2.5964,
+      "bounds": {
+        "min_x": 353.565,
+        "min_y": 640,
+        "max_x": 427.452,
+        "max_y": 685,
+        "width": 73.887,
+        "height": 45
+      }
+    },
+    {
+      "index": 10,
+      "fill": "none",
+      "class_name": "CompoundPath",
+      "child_count": 2,
+      "command_counts": {
+        "M": 2,
+        "V": 1,
+        "Q": 1
+      },
+      "command_count": 4,
+      "drawing_command_count": 2,
+      "line_command_count": 1,
+      "curve_command_count": 1,
+      "line_command_ratio": 0.5,
+      "path_length_px": 111.5348,
+      "flattened_segment_count": 9,
+      "micro_segment_count": 0,
+      "micro_segment_ratio": 0,
+      "shortest_segment_px": 10.5475,
+      "bounds": {
+        "min_x": 350,
+        "min_y": 684,
+        "max_x": 434,
+        "max_y": 723,
+        "width": 84,
+        "height": 39
+      }
+    }
+  ],
+  "warnings": [
+    {
+      "code": "compound_path_detected",
+      "severity": "info",
+      "path_index": 1,
+      "message": "compound path detected; verify that holes and negative space are intentional"
+    },
+    {
+      "code": "compound_path_detected",
+      "severity": "info",
+      "path_index": 2,
+      "message": "compound path detected; verify that holes and negative space are intentional"
+    },
+    {
+      "code": "compound_path_detected",
+      "severity": "info",
+      "path_index": 4,
+      "message": "compound path detected; verify that holes and negative space are intentional"
+    },
+    {
+      "code": "compound_path_detected",
+      "severity": "info",
+      "path_index": 5,
+      "message": "compound path detected; verify that holes and negative space are intentional"
+    },
+    {
+      "code": "compound_path_detected",
+      "severity": "info",
+      "path_index": 10,
+      "message": "compound path detected; verify that holes and negative space are intentional"
+    },
+    {
+      "code": "possible_fragmented_contour",
+      "severity": "info",
+      "pairs": [
+        {
+          "path_indexes": [
+            0,
+            7
+          ],
+          "fill": "#FFF4E6",
+          "bbox_gap_px": 0
+        }
+      ],
+      "message": "same-fill path bounds touch or overlap; verify this is intentional disconnected geometry rather than a split continuous mark"
+    }
+  ],
+  "recommended_methods": [
+    "negative-space-review",
+    "single-foreground-path-review"
+  ],
+  "semantic_note": "This is a geometry audit, not approval or repair. Use it to choose a route, then regenerate from the JSON spec and run verify."
+}

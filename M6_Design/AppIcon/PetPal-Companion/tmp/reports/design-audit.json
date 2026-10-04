@@ -1,0 +1,43 @@
+{
+  "bounds": [
+    165,
+    121,
+    846,
+    827
+  ],
+  "max_radius": 406.88573334537057,
+  "center_80_percent_safe": true,
+  "android_scale": 0.75,
+  "android_radius": 305.1643000090279,
+  "android_safe_radius": 312.8888888888889,
+  "colors": [
+    "#E9AC7D",
+    "#FFF4E6",
+    "#F5D2AF"
+  ],
+  "area_percent": {
+    "cream": 20.076847076416016,
+    "orange": 77.54907608032227,
+    "gradient_and_antialias": 2.3740768432617188
+  },
+  "lightness": {
+    "metric": "HSL L",
+    "minimum": 70.19607843137254,
+    "average": 75.37992196835019,
+    "gradient_light": 82.3529411764706,
+    "gradient_dark": 70.19607843137254,
+    "gradient_delta_percentage_points": 12.156862745098053
+  },
+  "contrast": {
+    "orange_on_white": 1.9696355610091671,
+    "orange_on_black": 10.66187086368424,
+    "cream_on_orange": 1.8134629383093175
+  },
+  "minimum_stroke": 18,
+  "forbidden_checks": {
+    "text_elements": true,
+    "embedded_images": true,
+    "filters_textures_3d": true,
+    "two_color_families": true
+  }
+}

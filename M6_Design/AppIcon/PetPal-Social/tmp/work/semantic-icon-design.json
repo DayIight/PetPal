@@ -1,0 +1,217 @@
+{
+  "version": "semantic-icon-design/v0.1",
+  "route": "direct-authored-package",
+  "app_context": {
+    "app_name": "PetPal",
+    "category": "宠物日常分享与宠友社交",
+    "job_to_be_done": "让养宠人分享宠物日常并与宠友建立联系",
+    "tone": "温暖、亲近、轻松"
+  },
+  "style": {
+    "direction": "organic-blob-mark",
+    "svg_convertibility": "high",
+    "style_notes": "Warm flat organic silhouettes. Interlocking conversational cat and dog shapes; cream foreground, terracotta rear subject, apricot field."
+  },
+  "icon_intent": {
+    "metaphor": "猫狗本身就是互相交流的聊天气泡",
+    "small_size_readability": "64px retains two animal silhouettes, both speech tails and simple facial features",
+    "must_feel_like": [
+      "宠物社区",
+      "友善",
+      "陪伴"
+    ],
+    "must_not_feel_like": [
+      "宠物医院",
+      "复杂插画",
+      "工具面板"
+    ]
+  },
+  "layering_policy": {
+    "negative_space_strategy": "overlay-fill-layer",
+    "cutouts_are_layers": true,
+    "description": "Facial details are separate opaque fills above solid silhouettes; no holes or masks in source layers."
+  },
+  "canvas": {
+    "size": 1024,
+    "composition_anchor": "center",
+    "subject_scale": {
+      "width_pct": [
+        0.58,
+        0.64
+      ],
+      "height_pct": [
+        0.55,
+        0.61
+      ]
+    },
+    "safe_area": {
+      "x": [
+        190,
+        834
+      ],
+      "y": [
+        200,
+        820
+      ]
+    },
+    "alignment": "optically centered diagonal pair"
+  },
+  "background": {
+    "type": "solid",
+    "color": "#EFA26F",
+    "gradient_stops": [],
+    "gradient_policy": {
+      "applies": false,
+      "reason": "Flat brand color for clean reproduction"
+    },
+    "composer_fill_target": {
+      "solid": "extended-srgb:0.937255,0.635294,0.435294,1"
+    }
+  },
+  "layers": [
+    {
+      "id": "cat-conversation",
+      "order": 1,
+      "role": "rear cat and outgoing speech bubble",
+      "format_target": "svg",
+      "shape_model": "filled organic paths and ellipses",
+      "description": "rear cat and outgoing speech bubble",
+      "fill": "#A65339",
+      "bounds": {
+        "x": [
+          420,
+          816
+        ],
+        "y": [
+          211,
+          663
+        ]
+      },
+      "geometry_constraints": [
+        "fully opaque fill",
+        "crisp boundary",
+        "no stroke",
+        "no shadow"
+      ],
+      "must_preserve": [
+        "two distinct species",
+        "clear speech tails",
+        "simple large facial features"
+      ],
+      "must_not_add": [
+        "text",
+        "heart badge",
+        "decorative frame",
+        "fur texture"
+      ]
+    },
+    {
+      "id": "dog-conversation",
+      "order": 2,
+      "role": "front puppy and incoming speech bubble",
+      "format_target": "svg",
+      "shape_model": "filled organic paths and ellipses",
+      "description": "front puppy and incoming speech bubble",
+      "fill": "#FFF6E8",
+      "bounds": {
+        "x": [
+          204,
+          620
+        ],
+        "y": [
+          389,
+          805
+        ]
+      },
+      "geometry_constraints": [
+        "fully opaque fill",
+        "crisp boundary",
+        "no stroke",
+        "no shadow"
+      ],
+      "must_preserve": [
+        "two distinct species",
+        "clear speech tails",
+        "simple large facial features"
+      ],
+      "must_not_add": [
+        "text",
+        "heart badge",
+        "decorative frame",
+        "fur texture"
+      ]
+    },
+    {
+      "id": "friendly-expressions",
+      "order": 3,
+      "role": "cat and dog facial details and floppy ear",
+      "format_target": "svg",
+      "shape_model": "filled organic paths and ellipses",
+      "description": "cat and dog facial details and floppy ear",
+      "fill": [
+        "#FFF6E8",
+        "#673F32",
+        "#E4AE82"
+      ],
+      "bounds": {
+        "x": [
+          229,
+          716
+        ],
+        "y": [
+          371,
+          691
+        ]
+      },
+      "geometry_constraints": [
+        "fully opaque fill",
+        "crisp boundary",
+        "no stroke",
+        "no shadow"
+      ],
+      "must_preserve": [
+        "two distinct species",
+        "clear speech tails",
+        "simple large facial features"
+      ],
+      "must_not_add": [
+        "text",
+        "heart badge",
+        "decorative frame",
+        "fur texture"
+      ]
+    }
+  ],
+  "conversion_constraints": {
+    "target_layer_count": "4",
+    "svg_first": true,
+    "allowed_svg_primitives": [
+      "filled path",
+      "ellipse",
+      "rect"
+    ],
+    "forbidden_in_svg_assets": [
+      "text",
+      "image",
+      "filter",
+      "clipPath",
+      "mask",
+      "stroke",
+      "opacity",
+      "shadow",
+      "glow",
+      "bevel"
+    ],
+    "png_fallback_allowed_only_for": []
+  },
+  "image_generation_constraints": {
+    "priority": "Direct semantic vector authoring",
+    "avoid": [
+      "photorealism",
+      "3D render",
+      "fur detail",
+      "tiny UI details",
+      "drop shadow"
+    ]
+  }
+}

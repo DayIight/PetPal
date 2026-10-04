@@ -1,0 +1,63 @@
+{
+  "mode": "icon-spec-authoring",
+  "layout": "delivery",
+  "spec": "/Users/benyanzhou/Documents/Codex/app/PetPal/M6_Design/AppIcon/PetPal-Companion/tmp/work/spec.json",
+  "work_spec": "tmp/work/spec.json",
+  "name": "PetPalCompanion",
+  "canvas": 1024,
+  "target_platforms": [
+    "iOS",
+    "Android"
+  ],
+  "deliverable_type": "source-package",
+  "source_reference": "",
+  "brief": "Original warm orange and cream dog-and-cat companionship icon, natural heads with a heart chat bubble. iOS primary; Android adaptation guidance. User-requested gentle localized ear gradient and readable strokes.",
+  "renderer": "@resvg/resvg-js",
+  "generated_files": [
+    "petpal-companion.preview.svg",
+    "petpal-companion.preview.png",
+    "petpal-companion.svg",
+    "petpal-companion.png",
+    "layers/01-background.svg",
+    "layers/02-animals.svg",
+    "layers/03-social-symbol.svg",
+    "tmp/README.md",
+    "tmp/reports/style-report.json",
+    "tmp/reports/package-verification.json",
+    "tmp/reports/reference-diff.png",
+    "tmp/reports/reference-overlay.png",
+    "tmp/reports/reference-side-by-side.png",
+    "tmp/reports/visual-review.json"
+  ],
+  "generated_directories": [
+    "tmp/reports",
+    "layers",
+    "tmp"
+  ],
+  "preview_svg": "petpal-companion.preview.svg",
+  "preview_png": "petpal-companion.preview.png",
+  "app_svg": "petpal-companion.svg",
+  "app_png": "petpal-companion.png",
+  "layers": [
+    "layers/01-background.svg",
+    "layers/02-animals.svg",
+    "layers/03-social-symbol.svg"
+  ],
+  "apple_adapter": null,
+  "preview_background_layers": [
+    {
+      "layer": "background",
+      "source_layer": "layers/01-background.svg",
+      "role": "preview-only-simple-fill"
+    }
+  ],
+  "icon_composer_layer_decisions": [],
+  "background_mode": "spec",
+  "warnings": [],
+  "claims": [
+    "spec-driven reusable cross-platform icon source package",
+    "semantic source layers retained",
+    "rounded preview PNG rendered by @resvg/resvg-js",
+    "unrounded app/source canvas outputs retained separately from preview masking"
+  ]
+}
