@@ -9,30 +9,8 @@
       "hidden": false,
       "layers": [
         {
-          "image-name": "03-friendly-expressions.svg",
-          "name": "friendly-expressions",
-          "position": {
-            "scale": 1,
-            "translation-in-points": [
-              0,
-              0
-            ]
-          }
-        },
-        {
-          "image-name": "02-dog-conversation.svg",
-          "name": "dog-conversation",
-          "position": {
-            "scale": 1,
-            "translation-in-points": [
-              0,
-              0
-            ]
-          }
-        },
-        {
-          "image-name": "01-cat-conversation.svg",
-          "name": "cat-conversation",
+          "image-name": "monet-icon.png",
+          "name": "monet-painting",
           "position": {
             "scale": 1,
             "translation-in-points": [
