@@ -1,5 +1,7 @@
 # PetPal — 宠物生活方式记录与分享（iOS / SwiftUI）
 
+<img src="M6_Design/AppIcon/AppIcon-Monet-1024.png" alt="PetPal App Icon" width="120" align="right">
+
 ![Platform](https://img.shields.io/badge/platform-iOS%2016.0%2B-lightgrey)
 ![Swift](https://img.shields.io/badge/Swift%205.9%2B-orange?logo=swift&logoColor=white)
 ![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-blue)
@@ -38,11 +40,20 @@
 | M3 社交 | `M3_Social/` | 信息流、评论、消息跳转、发布表单（Mock） |
 | M4 提醒 | `M4_Reminders/` | 通知调度、重复规则、深链路由 |
 | M5 看板 | `M5_Dashboard/` | 体重曲线、热力图、健康时间线、PDF 导出 |
-| M6 设计规范 | `M6_Design/` | 设计 Token、语义化颜色、无障碍约定、根导航 |
+| M6 设计规范 | `M6_Design/` | 设计 Token、语义化颜色、无障碍约定、根导航、应用图标资产 |
 | M7 原型 | `M7_Prototype/` | App 入口、五标签栏、体重录入、UI 自动化 |
 | M8 小组件 | `M8_Widget/` + `PetPalWidget/` | WidgetKit 快照同步与今日提醒卡片 |
 
-## 最近更新（2026-09-27）
+## 最近更新（2026-10-04）
+
+- 应用图标焕新为**莫奈印象派油画风格**：奶油白垂耳狗与橘猫闭眼相依，头顶爱心
+  对话气泡，暖橙 × 雾蓝破碎笔触，高明度治愈基调（母版与深浅背景预览见
+  `M6_Design/AppIcon/`，设计说明见该目录《AppIcon设计规范.md》）
+- 图标双通道同步更新：Icon Studio 合成图标 `PetPalSocial.icon`（iOS 26+ 实际
+  生效通道）与 `PetPalSocial.appiconset` 均已替换，构建产物验证通过
+- 清理旧图标方案的历史导出与中间稿，旧版本可从 git 历史恢复
+
+## 历史更新（2026-09-27）
 
 - 消息页支持点击跳转到对应动态的评论区，评论类消息定位并高亮目标评论
 - 记体重 / 宠物档案的体重支持数字键盘直接输入（保留 ±0.1 微调，越界保存前拦截）
