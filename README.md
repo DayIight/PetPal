@@ -1,6 +1,6 @@
 # PetPal — 宠物生活方式记录与分享（iOS / SwiftUI）
 
-<img src="M6_Design/AppIcon/AppIcon-Monet-1024.png" alt="PetPal App Icon" width="120" align="right">
+<img src="M6_Design/AppIcon/AppIcon-Monet-v2.png" alt="PetPal App Icon" width="120" align="right">
 
 ![Platform](https://img.shields.io/badge/platform-iOS%2016.0%2B-lightgrey)
 ![Swift](https://img.shields.io/badge/Swift%205.9%2B-orange?logo=swift&logoColor=white)
@@ -44,7 +44,13 @@
 | M7 原型 | `M7_Prototype/` | App 入口、五标签栏、体重录入、UI 自动化 |
 | M8 小组件 | `M8_Widget/` + `PetPalWidget/` | WidgetKit 快照同步与今日提醒卡片 |
 
-## 最近更新（2026-10-04）
+## 最近更新（2026-10-05）
+
+- 应用图标切换为莫奈简洁版 **V2（奶油白）**：仅白狗橘猫大头像贴脸，无气泡无风景，
+  象牙白主调；同批归档 5 个候选变体（`AppIcon-Monet-v1~v5.png`），原版带爱心气泡
+  的 `AppIcon-Monet-1024.png` 保留可随时回切
+
+## 历史更新（2026-10-04）
 
 - 应用图标焕新为**莫奈印象派油画风格**：奶油白垂耳狗与橘猫闭眼相依，头顶爱心
   对话气泡，暖橙 × 雾蓝破碎笔触，高明度治愈基调（母版与深浅背景预览见
