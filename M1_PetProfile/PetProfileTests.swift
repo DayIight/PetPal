@@ -1,5 +1,6 @@
 import XCTest
 import Combine
+import CoreData
 @testable import PetPal
 
 // MARK: - 校验逻辑（目标：PetValidator 行覆盖 100%）
@@ -81,16 +82,17 @@ final class PetCascadeDeleteTests: XCTestCase {
         _ = bag
     }
 
-    @MainActor func test_viewModelDelete_invokesReminderCleanupBeforeRepo() throws {
+    @MainActor func test_viewModelDelete_invokesReminderCleanupAfterCommit() async throws {
         let stack = CoreDataStack(inMemory: true)
         let repo = CoreDataPetRepository(stack: stack)
         let vm = PetListViewModel(repo: repo)
         var cleanedIDs: [UUID] = []
-        vm.reminderCleanup = { cleanedIDs.append($0) }
+        vm.reminderIDs = { [$0] }
+        vm.reminderCleanup = { cleanedIDs.append(contentsOf: $0) }
         let pet = Pet(nickname: "豆豆", breed: "金毛", birthday: Date(), weightKg: 20)
         try repo.create(pet)
-        vm.delete(pet)
-        XCTAssertEqual(cleanedIDs, [pet.id], "删除宠物必须先触发提醒清理钩子")
+        await vm.delete(pet)
+        XCTAssertEqual(cleanedIDs, [pet.id], "删除提交成功后应触发提醒清理钩子")
         XCTAssertEqual(vm.pets.count, 0)
     }
 }
@@ -157,11 +159,11 @@ final class AvatarStoreTests: XCTestCase {
             .appendingPathComponent(name)
     }
 
-    func test_saveCompressesAndDeleteIsIdempotent() {
+    func test_saveCompressesAndDeleteIsIdempotent() throws {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 3000, height: 2000)).image { ctx in
             UIColor.orange.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 3000, height: 2000))
         }
-        guard let name = AvatarStore.save(image) else { XCTFail("保存失败"); return }
+        let name = try AvatarStore.save(image)
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent(name)
         XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
@@ -176,16 +178,17 @@ final class AvatarStoreTests: XCTestCase {
 
 // MARK: - 表单头像（新建/编辑共用 PetFormViewModel：保存时落盘，替换/移除清理旧文件）
 final class PetFormAvatarTests: XCTestCase {
-    @MainActor private func makeVM(editing: Pet? = nil) -> PetFormViewModel {
-        PetFormViewModel(repo: CoreDataPetRepository(stack: CoreDataStack(inMemory: true)),
-                         editing: editing)
+    @MainActor private func makeVM(editing: Pet? = nil) throws -> PetFormViewModel {
+        let repo = CoreDataPetRepository(stack: CoreDataStack(inMemory: true))
+        if let editing { try repo.create(editing) }
+        return PetFormViewModel(repo: repo, editing: editing)
     }
     @MainActor private func fillValid(_ vm: PetFormViewModel) {
         vm.draft.nickname = "小白"; vm.draft.breed = "柯基"
     }
 
-    @MainActor func test_newPet_pickAvatar_savePersistsFile() {
-        let vm = makeVM(); fillValid(vm)
+    @MainActor func test_newPet_pickAvatar_savePersistsFile() throws {
+        let vm = try makeVM(); fillValid(vm)
         vm.pickAvatar(AvatarStoreTests.makeImage())
         XCTAssertTrue(vm.save())
         let name = vm.draft.avatarFileName
@@ -195,10 +198,10 @@ final class PetFormAvatarTests: XCTestCase {
     }
 
     @MainActor func test_edit_replaceAvatar_deletesOldFile() throws {
-        let oldName = try XCTUnwrap(AvatarStore.save(AvatarStoreTests.makeImage()))
+        let oldName = try AvatarStore.save(AvatarStoreTests.makeImage())
         var pet = Pet(nickname: "小白", breed: "柯基", birthday: Date(), weightKg: 8.5)
         pet.avatarFileName = oldName
-        let vm = makeVM(editing: pet)
+        let vm = try makeVM(editing: pet)
         vm.pickAvatar(AvatarStoreTests.makeImage())
         XCTAssertTrue(vm.save())
         let newName = try XCTUnwrap(vm.draft.avatarFileName)
@@ -210,10 +213,10 @@ final class PetFormAvatarTests: XCTestCase {
     }
 
     @MainActor func test_edit_removeAvatar_clearsFieldAndDeletesFile() throws {
-        let oldName = try XCTUnwrap(AvatarStore.save(AvatarStoreTests.makeImage()))
+        let oldName = try AvatarStore.save(AvatarStoreTests.makeImage())
         var pet = Pet(nickname: "小白", breed: "柯基", birthday: Date(), weightKg: 8.5)
         pet.avatarFileName = oldName
-        let vm = makeVM(editing: pet)
+        let vm = try makeVM(editing: pet)
         vm.removeAvatar()
         XCTAssertTrue(vm.save())
         XCTAssertNil(vm.draft.avatarFileName)
@@ -223,7 +226,7 @@ final class PetFormAvatarTests: XCTestCase {
     @MainActor func test_invalidDraft_avatarFileNotWritten() throws {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let before = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
-        let vm = makeVM()   // 昵称为空，校验失败
+        let vm = try makeVM()   // 昵称为空，校验失败
         vm.pickAvatar(AvatarStoreTests.makeImage())
         XCTAssertFalse(vm.save())
         let after = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
@@ -273,5 +276,127 @@ final class PetRepositoryCrossInstanceTests: XCTestCase {
         wait(for: [drained], timeout: 2)
         XCTAssertEqual(received.last?.count, 1)
         XCTAssertEqual(received.last?.first?.nickname, "小白")
+    }
+}
+
+final class StorageFailureRegressionTests: XCTestCase {
+    func test_avatarWriteFailure_throwsInsteadOfReturningMissingFile() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try Data([1]).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        XCTAssertThrowsError(try AvatarStore.save(AvatarStoreTests.makeImage(), to: file))
+        XCTAssertEqual(try Data(contentsOf: file), Data([1]))
+    }
+
+    @MainActor func test_failedAvatarWrite_preservesExistingProfileAndFile() throws {
+        let stack = CoreDataStack(inMemory: true)
+        let repo = CoreDataPetRepository(stack: stack)
+        let oldName = try AvatarStore.save(AvatarStoreTests.makeImage())
+        defer { AvatarStore.delete(fileName: oldName) }
+        let pet = Pet(nickname: "小白", breed: "柯基", avatarFileName: oldName)
+        try repo.create(pet)
+        let vm = PetFormViewModel(repo: repo, editing: pet, saveAvatar: { _ in
+            throw CocoaError(.fileWriteOutOfSpace)
+        })
+        vm.pickAvatar(AvatarStoreTests.makeImage())
+        vm.draft.nickname = "新名字"
+        XCTAssertFalse(vm.save())
+        XCTAssertNotNil(vm.saveError)
+        XCTAssertEqual(vm.draft.avatarFileName, oldName)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: AvatarStoreTests.fileURL(oldName).path))
+        XCTAssertEqual(try stack.container.viewContext.fetch(CDPet.fetchRequest()).first?.nickname, "小白")
+    }
+
+    @MainActor func test_failedDatabaseUpdate_rollsBackProfile_andRemovesOnlyNewAvatar() throws {
+        var failWrites = false
+        let stack = CoreDataStack(inMemory: true, saveContext: { context in
+            if failWrites { throw CocoaError(.fileWriteOutOfSpace) }
+            try context.save()
+        })
+        let repo = CoreDataPetRepository(stack: stack)
+        let oldName = try AvatarStore.save(AvatarStoreTests.makeImage())
+        defer { AvatarStore.delete(fileName: oldName) }
+        let pet = Pet(nickname: "小白", breed: "柯基", avatarFileName: oldName)
+        try repo.create(pet)
+        var newName: String?
+        let vm = PetFormViewModel(repo: repo, editing: pet, saveAvatar: { image in
+            let name = try AvatarStore.save(image)
+            newName = name
+            return name
+        })
+        vm.draft.nickname = "不应落库"
+        vm.pickAvatar(AvatarStoreTests.makeImage())
+        failWrites = true
+        XCTAssertFalse(vm.save())
+        XCTAssertNotNil(vm.saveError)
+        XCTAssertFalse(stack.container.viewContext.hasChanges)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: AvatarStoreTests.fileURL(oldName).path))
+        let written = try XCTUnwrap(newName)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: AvatarStoreTests.fileURL(written).path))
+        failWrites = false
+        try CoreDataWeightRepository(stack: stack).add(WeightSample(petID: pet.id, kg: 5, date: Date()))
+        let stored = try XCTUnwrap(stack.container.viewContext.fetch(CDPet.fetchRequest()).first)
+        XCTAssertEqual(stored.nickname, "小白", "后续保存不能把之前失败的更新一并落库")
+        XCTAssertEqual(stored.avatarFileName, oldName)
+    }
+
+    @MainActor func test_allRepositories_discardFailedInsertsBeforeAnotherWrite() throws {
+        var failWrites = true
+        let stack = CoreDataStack(inMemory: true, saveContext: { context in
+            if failWrites { throw CocoaError(.fileWriteOutOfSpace) }
+            try context.save()
+        })
+        let petID = UUID()
+        XCTAssertThrowsError(try CoreDataPetRepository(stack: stack).create(Pet(nickname: "失败", breed: "柯基")))
+        XCTAssertThrowsError(try CoreDataRecordRepository(stack: stack).create(PetPal.Record(petID: petID)))
+        XCTAssertThrowsError(try CoreDataReminderRepository(stack: stack).save(
+            Reminder(petID: petID, type: .feeding, hour: 8, minute: 0)))
+        XCTAssertThrowsError(try CoreDataWeightRepository(stack: stack).add(
+            WeightSample(petID: petID, kg: 5, date: Date())))
+        XCTAssertThrowsError(try CoreDataCustomTemplateRepository(stack: stack).save(
+            CustomTemplate(name: "失败模板", fields: [.init(title: "字段", type: .text)])))
+        XCTAssertFalse(stack.container.viewContext.hasChanges)
+        failWrites = false
+        try CoreDataWeightRepository(stack: stack).add(WeightSample(petID: petID, kg: 6, date: Date()))
+        let context = stack.container.viewContext
+        XCTAssertTrue(try context.fetch(CDPet.fetchRequest()).isEmpty)
+        XCTAssertTrue(try context.fetch(CDRecord.fetchRequest()).isEmpty)
+        XCTAssertTrue(try context.fetch(CDReminder.fetchRequest()).isEmpty)
+        XCTAssertTrue(try context.fetch(CDCustomTemplate.fetchRequest()).isEmpty)
+        XCTAssertEqual(try context.fetch(CDWeightSample.fetchRequest()).map(\.kg), [6])
+    }
+
+    @MainActor func test_failedPetDeletion_preservesDataFilesAndNotificationCleanup() async throws {
+        var failWrites = false
+        let stack = CoreDataStack(inMemory: true, saveContext: { context in
+            if failWrites { throw CocoaError(.fileWriteOutOfSpace) }
+            try context.save()
+        })
+        let repo = CoreDataPetRepository(stack: stack)
+        let reminderRepo = CoreDataReminderRepository(stack: stack)
+        let oldName = try AvatarStore.save(AvatarStoreTests.makeImage())
+        defer { AvatarStore.delete(fileName: oldName) }
+        let pet = Pet(nickname: "小白", breed: "柯基", avatarFileName: oldName)
+        try repo.create(pet)
+        try CoreDataRecordRepository(stack: stack).create(PetPal.Record(petID: pet.id))
+        try CoreDataWeightRepository(stack: stack).add(WeightSample(petID: pet.id, kg: 5, date: Date()))
+        let reminder = Reminder(petID: pet.id, type: .feeding, hour: 8, minute: 0)
+        try reminderRepo.save(reminder)
+        let vm = PetListViewModel(repo: repo)
+        vm.reminderIDs = { id in try reminderRepo.reminders(petID: id).map(\.id) }
+        var cancelled: [UUID] = []
+        vm.reminderCleanup = { cancelled.append(contentsOf: $0) }
+        failWrites = true
+        let deleted = await vm.delete(pet)
+        XCTAssertFalse(deleted)
+        XCTAssertNotNil(vm.toast)
+        XCTAssertTrue(cancelled.isEmpty)
+        let context = stack.container.viewContext
+        XCTAssertEqual(try context.fetch(CDPet.fetchRequest()).count, 1)
+        XCTAssertEqual(try context.fetch(CDRecord.fetchRequest()).count, 1)
+        XCTAssertEqual(try context.fetch(CDWeightSample.fetchRequest()).count, 1)
+        XCTAssertEqual(try reminderRepo.allReminders().map(\.id), [reminder.id])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: AvatarStoreTests.fileURL(oldName).path))
+        XCTAssertFalse(context.hasChanges)
     }
 }

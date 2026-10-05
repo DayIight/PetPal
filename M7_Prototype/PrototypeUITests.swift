@@ -15,7 +15,7 @@ final class PrototypeUITests: XCTestCase {
         createPetIfNeeded()
 
         app.tabBars.buttons["记录"].tap()
-        XCTAssertTrue(app.staticTexts["records.currentPet"].waitForExistence(timeout: 3))
+        assertHasCurrentPet()
         app.buttons["records.add"].tap()
         XCTAssertTrue(app.buttons["record.template.喂食"].waitForExistence(timeout: 3))
         app.buttons["record.template.喂食"].tap()
@@ -56,8 +56,7 @@ final class PrototypeUITests: XCTestCase {
 
         // 直接记一条：按钮应可用，保存后时间轴原地出现
         app.tabBars.buttons["记录"].tap()
-        XCTAssertTrue(app.staticTexts["records.currentPet"].waitForExistence(timeout: 3),
-                      "重建档案后记录页应显示当前宠物")
+        assertHasCurrentPet()
         app.buttons["records.add"].tap()
         XCTAssertTrue(app.buttons["record.template.训练"].waitForExistence(timeout: 3))
         app.buttons["record.template.训练"].tap()
@@ -73,7 +72,7 @@ final class PrototypeUITests: XCTestCase {
     func test_timelineShowsNewRecordWithoutSwitchingTabs() {
         createPetIfNeeded()
         app.tabBars.buttons["记录"].tap()
-        XCTAssertTrue(app.staticTexts["records.currentPet"].waitForExistence(timeout: 3))
+        assertHasCurrentPet()
 
         app.buttons["records.add"].tap()
         XCTAssertTrue(app.buttons["record.template.训练"].waitForExistence(timeout: 3))
@@ -115,9 +114,28 @@ final class PrototypeUITests: XCTestCase {
         app.buttons["reminder.save"].tap()
         app.tap()   // 触发 interruption monitor 消费弹窗
         // 授权后保存成功回记录页；若曾拒绝则出现引导 Alert
-        let backRecords = app.buttons["records.reminder"].waitForExistence(timeout: 3)
+        let backRecords = app.buttons["reminder.save"].waitForNonExistence(timeout: 5)
         let deniedAlert = app.alerts["通知权限未开启"].exists
         XCTAssertTrue(backRecords || deniedAlert)
+    }
+
+    // 无效重复规则不能触发保存或关闭表单，用户可以原地修改后重试。
+    func test_emptyWeeklySelection_keepsReminderFormOpen() {
+        createPetIfNeeded()
+        app.tabBars.buttons["记录"].tap()
+        app.buttons["records.reminder"].tap()
+        app.buttons["reminder.repeat"].tap()
+        app.buttons["每周"].tap()
+        let monday = app.switches["reminder.weekday.2"]
+        XCTAssertTrue(monday.waitForExistence(timeout: 3))
+        toggleWeekday(monday)
+        XCTAssertEqual(monday.value as? String, "0")
+        app.buttons["reminder.save"].tap()
+        XCTAssertTrue(app.staticTexts["reminder.error"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["reminder.save"].exists, "校验失败后应保留表单")
+        XCTAssertEqual(monday.value as? String, "0", "不能把空星期改为默认重复规则")
+        toggleWeekday(monday)
+        XCTAssertEqual(monday.value as? String, "1", "校验失败后应仍可编辑")
     }
 
     // ③ 导出 PDF：建档案 → 我的 tab → 成长看板 → 导出 → 系统分享面板出现
@@ -192,6 +210,25 @@ final class PrototypeUITests: XCTestCase {
         app.typeText("柯基")
         app.buttons["pet.save"].tap()
         XCTAssertTrue(app.buttons["pet.add"].waitForExistence(timeout: 3), "建档后应回到宠物列表")
+    }
+
+    private func assertHasCurrentPet() {
+        let hasPet = NSPredicate { [app] _, _ in
+            app!.staticTexts["records.currentPet"].exists || app!.buttons["records.petSwitcher"].exists
+        }
+        let expectation = XCTNSPredicateExpectation(predicate: hasPet, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 3), .completed,
+                       "单宠或多宠模式都应显示当前宠物")
+    }
+
+    private func toggleWeekday(_ row: XCUIElement) {
+        let control = row.switches.firstMatch
+        if control.exists {
+            control.tap()
+        } else {
+            // SwiftUI 可把整行暴露为 Switch；真正的拨动控件在行的右侧。
+            row.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        }
     }
 
     /// 点选单选 Picker（用餐时段等）的选项：decimalPad 键盘在位时首次点击只收键盘，带重试

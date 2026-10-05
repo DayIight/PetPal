@@ -69,16 +69,17 @@ final class CoreDataCustomTemplateRepository: CustomTemplateRepository {
         return try ctx.fetch(r).compactMap(Self.decode)
     }
     func save(_ template: CustomTemplate) throws {
-        if try find(template.id) == nil, try all().count >= Self.maxCount {
-            throw CustomTemplateError.limitExceeded
+        try stack.transaction {
+            if try find(template.id) == nil, try all().count >= Self.maxCount {
+                throw CustomTemplateError.limitExceeded
+            }
+            let e = try find(template.id) ?? stack.insert(CDCustomTemplate.self)
+            e.id = template.id; e.name = template.name; e.createdAt = template.createdAt
+            e.payload = String(data: try JSONEncoder().encode(template), encoding: .utf8)
         }
-        let e = try find(template.id) ?? stack.insert(CDCustomTemplate.self)
-        e.id = template.id; e.name = template.name; e.createdAt = template.createdAt
-        e.payload = String(data: try JSONEncoder().encode(template), encoding: .utf8)
-        try ctx.save()
     }
     func delete(id: UUID) throws {
-        if let e = try find(id) { ctx.delete(e); try ctx.save() }
+        try stack.transaction { if let e = try find(id) { ctx.delete(e) } }
     }
     private func find(_ id: UUID) throws -> CDCustomTemplate? {
         let r = CDCustomTemplate.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -241,22 +242,31 @@ final class CoreDataRecordRepository: RecordRepository {
         r.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         subjects[petID]?.send(((try? ctx.fetch(r)) ?? []).map(Record.init))
     }
-    private func saveContext() throws {
-        try ctx.save()
+    private func saveContext(_ changes: () throws -> Void) throws {
+        try stack.transaction(changes)
         NotificationCenter.default.post(name: .recordsDidChange, object: nil)
     }
     func create(_ record: Record) throws {
-        record.apply(to: stack.insert(CDRecord.self)); try saveContext(); reload(record.petID)
+        try saveContext { record.apply(to: stack.insert(CDRecord.self)) }
+        reload(record.petID)
     }
     func update(_ record: Record) throws {   // M-01：保留原 createdAt，原位更新
         let r = CDRecord.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", record.id as CVarArg)
-        guard let e = try? ctx.fetch(r).first else { return }
-        record.apply(to: e); try saveContext(); reload(record.petID)
+        try saveContext {
+            guard let e = try ctx.fetch(r).first else { throw RepositoryError.notFound }
+            record.apply(to: e)
+        }
+        reload(record.petID)
     }
     func delete(id: UUID) throws {
         let r = CDRecord.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        guard let e = try? ctx.fetch(r).first, let petID = e.petID else { return }
-        ctx.delete(e); try saveContext(); reload(petID)
+        var petID: UUID?
+        try saveContext {
+            guard let e = try ctx.fetch(r).first else { return }
+            petID = e.petID
+            ctx.delete(e)
+        }
+        if let petID { reload(petID) }
     }
 }
 

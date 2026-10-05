@@ -14,6 +14,9 @@ struct ReminderFormView: View {
     @State private var yearDay = 1                     // 每年几日
     @State private var advance: AdvanceOption = .none
     @State private var showDeniedAlert = false
+    @State private var reminderID = UUID()
+    @State private var isSaving = false
+    @State private var saveError: String?
     @Environment(\.dismiss) private var dismiss
 
     /// 重复规则选择器选项（RepeatRule 是关联值枚举，不适合直接进 Picker）
@@ -66,9 +69,20 @@ struct ReminderFormView: View {
                 }
                 .accessibilityIdentifier("reminder.advance")
             }
+            .disabled(isSaving)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if let saveError {
+                    Text(saveError).font(.footnote).foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .accessibilityIdentifier("reminder.error")
+                }
+            }
             .navigationTitle("提醒")
             .toolbar { ToolbarItem(placement: .confirmationAction) {
-                Button("保存") { save() }.accessibilityIdentifier("reminder.save")
+                Button(isSaving ? "保存中…" : "保存") { save() }
+                    .disabled(isSaving).accessibilityIdentifier("reminder.save")
             } }
             .alert("通知权限未开启", isPresented: $showDeniedAlert) {
                 Button("去设置") {
@@ -79,6 +93,7 @@ struct ReminderFormView: View {
             } message: {
                 Text("提醒已保存，但需要允许通知才能准时送达。可在系统设置中随时开启。")
             }
+            .interactiveDismissDisabled(isSaving)
         }
     }
 
@@ -90,26 +105,37 @@ struct ReminderFormView: View {
             })
     }
 
-    /// 保存时组装 RepeatRule；每周至少选一天，否则回退每日（UI 已默认勾选周一，兜底不丢配置）
+    /// 保留用户实际选择，由表单与 Service 校验，不把空星期改成每日。
     private var repeatRule: RepeatRule {
         switch repeatMode {
         case .daily: return .daily
-        case .weekly: return weekdays.isEmpty ? .daily : .weekly(weekdays)
+        case .weekly: return .weekly(weekdays)
         case .monthly: return .monthly(day: monthDay)
         case .yearly: return .yearly(month: yearMonth, day: yearDay)
         }
     }
 
     private func save() {
+        guard !isSaving else { return }
+        saveError = nil
+        let c = Calendar.current.dateComponents([.hour, .minute], from: time)
+        let reminder = Reminder(id: reminderID, petID: pet.id, type: type,
+                                hour: c.hour ?? 8, minute: c.minute ?? 0,
+                                repeatRule: repeatRule, advance: advance)
+        guard reminder.repeatRule.isValid else {
+            saveError = ReminderServiceError.invalidConfiguration.errorDescription
+            return
+        }
+        isSaving = true
         Task {
-            await service.requestPermission()
-            let c = Calendar.current.dateComponents([.hour, .minute], from: time)
-            // 先落库（service 内部权限不足时仅跳过调度），再按权限状态决定去向
-            try? await service.save(
-                Reminder(petID: pet.id, type: type, hour: c.hour ?? 8, minute: c.minute ?? 0,
-                         repeatRule: repeatRule, advance: advance),
-                petName: pet.nickname)
-            if service.permission == .granted { dismiss() } else { showDeniedAlert = true }
+            defer { isSaving = false }
+            do {
+                try await service.requestPermission()
+                try await service.save(reminder, petName: pet.nickname)
+                if service.permission == .granted { dismiss() } else { showDeniedAlert = true }
+            } catch {
+                saveError = (error as? ReminderServiceError)?.errorDescription ?? "保存失败，请重试。"
+            }
         }
     }
 }

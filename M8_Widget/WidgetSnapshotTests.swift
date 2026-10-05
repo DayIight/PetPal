@@ -1,4 +1,5 @@
 import XCTest
+import Combine
 @testable import PetPal
 
 final class WidgetSnapshotStoreTests: XCTestCase {
@@ -138,14 +139,14 @@ final class ReminderServiceOnDidChangeTests: XCTestCase {
     @MainActor func test_save_removeAll_rescheduleAll_triggerOnDidChange() async throws {
         var calls = 0
         service.onDidChange = { calls += 1 }
-        await service.requestPermission()
+        try await service.requestPermission()
         let pet = UUID()
         try await service.save(Reminder(petID: pet, type: .feeding, hour: 8, minute: 0),
                                petName: "小白")
         XCTAssertEqual(calls, 1, "save 后应触发快照重建钩子")
         await service.rescheduleAll()
         XCTAssertEqual(calls, 2, "rescheduleAll 后应触发快照重建钩子")
-        try service.removeAll(petID: pet)
+        try await service.removeAll(petID: pet)
         XCTAssertEqual(calls, 3, "removeAll 后应触发快照重建钩子")
     }
 
@@ -153,7 +154,7 @@ final class ReminderServiceOnDidChangeTests: XCTestCase {
         scheduler.authorized = false
         var calls = 0
         service.onDidChange = { calls += 1 }
-        await service.requestPermission()
+        try await service.requestPermission()
         try await service.save(Reminder(petID: UUID(), type: .feeding, hour: 8, minute: 0),
                                petName: "小白")
         XCTAssertEqual(calls, 1, "权限被拒只影响调度，快照钩子仍应触发")
@@ -174,5 +175,158 @@ final class DeepLinkRouterTests: XCTestCase {
         router.handle(url: URL(string: "petpal://other/\(UUID().uuidString)")!)
         router.handle(url: URL(string: "petpal://pet/not-a-uuid")!)
         XCTAssertEqual(router.path.count, 0)
+    }
+}
+
+final class WidgetTimelineRegressionTests: XCTestCase {
+    private let petID = UUID()
+    private var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+        return calendar
+    }
+    private func date(_ month: Int, _ day: Int, hour: Int = 0) -> Date {
+        calendar.date(from: DateComponents(year: 2026, month: month, day: day, hour: hour))!
+    }
+    private func snapshot(_ reminders: [WidgetSnapshot.ReminderEntry]) -> WidgetSnapshot {
+        .init(generatedAt: date(10, 4, hour: 8), currentPetID: petID,
+              pets: [.init(id: petID, nickname: "小白", species: "狗")], reminders: reminders)
+    }
+    private func reminder(rule: RepeatRule?, hour: Int = 9) -> WidgetSnapshot.ReminderEntry {
+        .init(id: UUID(), petID: petID, petName: "小白", type: "喂食", hour: hour, minute: 0, repeatRule: rule)
+    }
+
+    func test_timeline_removesReminderAtItsTime_withoutAppRefresh() throws {
+        let r = reminder(rule: .daily)
+        let plan = WidgetSnapshotQueries.timeline(in: snapshot([r]), now: date(10, 4, hour: 8), calendar: calendar)
+        XCTAssertEqual(plan.states.first?.remaining.map(\.id), [r.id])
+        let after = try XCTUnwrap(plan.states.first { $0.date == date(10, 4, hour: 9) })
+        XCTAssertTrue(after.remaining.isEmpty)
+        XCTAssertEqual(plan.states.map(\.date), plan.states.map(\.date).sorted())
+    }
+
+    func test_midnight_changesWeeklyRules_usingSameSnapshot() throws {
+        let sunday = reminder(rule: .weekly([1]))
+        let monday = reminder(rule: .weekly([2]))
+        let plan = WidgetSnapshotQueries.timeline(in: snapshot([sunday, monday]),
+            now: date(10, 4, hour: 23), calendar: calendar)
+        let midnight = try XCTUnwrap(plan.states.first { $0.date == date(10, 5) })
+        XCTAssertEqual(midnight.remaining.map(\.id), [monday.id])
+        XCTAssertEqual(plan.refreshAfter, date(10, 11))
+    }
+
+    func test_oldSnapshot_rulesStillWorkInAnotherMonth() {
+        let monthly = reminder(rule: .monthly(day: 1))
+        let yearly = reminder(rule: .yearly(month: 11, day: 1), hour: 10)
+        let result = WidgetSnapshotQueries.remainingReminders(in: snapshot([monthly, yearly]),
+            now: date(11, 1, hour: 8), calendar: calendar)
+        XCTAssertEqual(result.map(\.id), [monthly.id, yearly.id])
+        XCTAssertTrue(WidgetSnapshotQueries.remainingReminders(in: snapshot([monthly, yearly]),
+            now: date(11, 2, hour: 8), calendar: calendar).isEmpty)
+    }
+
+    func test_legacySnapshot_expiresInsteadOfReusingYesterday() {
+        let r = reminder(rule: nil)
+        XCTAssertEqual(WidgetSnapshotQueries.remainingReminders(in: snapshot([r]),
+            now: date(10, 4, hour: 8), calendar: calendar).count, 1)
+        XCTAssertTrue(WidgetSnapshotQueries.remainingReminders(in: snapshot([r]),
+            now: date(10, 5, hour: 8), calendar: calendar).isEmpty)
+    }
+
+    func test_legacyJSON_withoutRepeatRule_isStillDecodable() throws {
+        let data = Data("""
+        {"generatedAt":0,"pets":[],"reminders":[{"id":"\(UUID())","petID":"\(petID)","petName":"小白","type":"喂食","hour":8,"minute":0}]}
+        """.utf8)
+        let snapshot = try JSONDecoder().decode(WidgetSnapshot.self, from: data)
+        XCTAssertEqual(snapshot.reminders.count, 1)
+        XCTAssertNil(snapshot.reminders[0].repeatRule)
+    }
+}
+
+final class WidgetSyncerRegressionTests: XCTestCase {
+    private final class FailingReminderRepository: ReminderRepository {
+        func reminders(petID: UUID) throws -> [Reminder] { [] }
+        func allReminders() throws -> [Reminder] { throw CocoaError(.fileReadUnknown) }
+        func save(_ reminder: Reminder) throws { }
+        func deleteAll(petID: UUID) throws { }
+    }
+
+    private func temporaryDirectory() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    @MainActor func test_syncer_preservesRulesForFutureDays() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let stack = CoreDataStack(inMemory: true)
+        let repo = CoreDataReminderRepository(stack: stack)
+        let nextWeekday = Calendar.current.component(.weekday, from: Date()) % 7 + 1
+        let r = Reminder(petID: UUID(), type: .feeding, hour: 8, minute: 0, repeatRule: .weekly([nextWeekday]))
+        try repo.save(r)
+        let current = CurrentPetStore(repo: CoreDataPetRepository(stack: stack))
+        let syncer = WidgetSnapshotSyncer(reminderRepo: repo, currentPet: current, directory: { directory })
+        syncer.reloadTimelines = { }
+        syncer.sync()
+        let snapshot = try XCTUnwrap(WidgetSnapshotStore.read(from: directory))
+        XCTAssertEqual(snapshot.reminders.map(\.id), [r.id])
+        XCTAssertEqual(snapshot.reminders.first?.repeatRule, .weekly([nextWeekday]))
+    }
+
+    @MainActor func test_failedRead_preservesLastGoodSnapshot_withoutReload() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let original = WidgetSnapshot(generatedAt: Date(), pets: [], reminders: [])
+        try WidgetSnapshotStore.write(original, to: directory)
+        let current = CurrentPetStore(repo: CoreDataPetRepository(stack: CoreDataStack(inMemory: true)))
+        let syncer = WidgetSnapshotSyncer(reminderRepo: FailingReminderRepository(), currentPet: current,
+                                          directory: { directory })
+        var reloads = 0
+        syncer.reloadTimelines = { reloads += 1 }
+        syncer.sync()
+        XCTAssertEqual(WidgetSnapshotStore.read(from: directory), original)
+        XCTAssertEqual(reloads, 0)
+    }
+
+    @MainActor func test_unavailableSharedContainer_doesNotWritePrivateDocumentsOrReload() {
+        let privateSnapshot = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(WidgetSnapshotStore.snapshotFileName)
+        let before = try? Data(contentsOf: privateSnapshot)
+        let stack = CoreDataStack(inMemory: true)
+        let current = CurrentPetStore(repo: CoreDataPetRepository(stack: stack))
+        let syncer = WidgetSnapshotSyncer(reminderRepo: CoreDataReminderRepository(stack: stack),
+                                          currentPet: current, directory: { nil })
+        var reloads = 0
+        syncer.reloadTimelines = { reloads += 1 }
+        syncer.sync()
+        XCTAssertEqual(try? Data(contentsOf: privateSnapshot), before)
+        XCTAssertEqual(reloads, 0, "没有共享容器时不能假装已经同步成功")
+    }
+}
+
+final class ApplicationConfigurationTests: XCTestCase {
+    func test_appBundle_canReadAndWriteRealWidgetSharedContainer() throws {
+        let shared = try XCTUnwrap(WidgetSnapshotStore.sharedDirectory,
+            "App Group 不可用。模拟器构建也需保留签名和 entitlements，不能用 CODE_SIGNING_ALLOWED=NO。")
+        let probe = shared.appendingPathComponent("widget-sharing-test-\(UUID())", isDirectory: true)
+        try FileManager.default.createDirectory(at: probe, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: probe) }
+        let snapshot = WidgetSnapshot(generatedAt: Date(), pets: [], reminders: [])
+        try WidgetSnapshotStore.write(snapshot, to: probe)
+        XCTAssertEqual(WidgetSnapshotStore.read(from: probe), snapshot)
+    }
+
+    func test_appBundle_registersPetPalURLScheme() throws {
+        let types = try XCTUnwrap(Bundle.main.infoDictionary?["CFBundleURLTypes"] as? [[String: Any]])
+        let schemes = types.flatMap { $0["CFBundleURLSchemes"] as? [String] ?? [] }
+        XCTAssertTrue(schemes.contains("petpal"))
+    }
+
+    func test_appBundle_containsCompiledPetPalIcon() throws {
+        let icons = try XCTUnwrap(Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any])
+        let primary = try XCTUnwrap(icons["CFBundlePrimaryIcon"] as? [String: Any])
+        XCTAssertEqual(primary["CFBundleIconName"] as? String, "PetPalSocial")
+        XCTAssertNotNil(Bundle.main.url(forResource: "Assets", withExtension: "car"))
     }
 }

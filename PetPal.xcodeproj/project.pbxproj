@@ -17,11 +17,15 @@
 		2B6287357F04B6D3710735BA /* ReminderSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A47EB955B85E196682B3EA9C /* ReminderSkeleton.swift */; };
 		311D8991C2E9C04CC9269970 /* CoreDataEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0305E31F2AD66A0E96335B6 /* CoreDataEntities.swift */; };
 		3B236A6FB5CBCC86F0AA54BF /* SocialUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40042023430C04766DAA7E7 /* SocialUITests.swift */; };
+		3D53506F74CCC3AB0B8BBFDC /* ReminderSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE9B52C463A804BC9BEF00D /* ReminderSchedule.swift */; };
 		3DF0ECCC24C5E5688B72113E /* DailyRecordTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C23A0D052F0B5A5C31C2B290 /* DailyRecordTests.swift */; };
+		40A3912B6F22F4148154689B /* PetPalSocial.icon in Resources */ = {isa = PBXBuildFile; fileRef = 356CDE184AF9CA1B99B813CE /* PetPalSocial.icon */; };
 		4E3CFE01BDB0319A1F6937A2 /* ReminderFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1F057C078BFB07E5B81C25 /* ReminderFormView.swift */; };
 		565FD8F1C1279895E14740EE /* FeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FFE0D15E947D473CD97A624 /* FeedView.swift */; };
+		58F42671478340C3C2297E4C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1455F5DA037FC0F79B8720D9 /* Assets.xcassets */; };
 		64C257077947ED98AEA7B232 /* WidgetSnapshotSyncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36A66C873B7051E3AC7C421 /* WidgetSnapshotSyncer.swift */; };
 		6FCE2EC2FE44878E4E853762 /* SocialTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E85D5115989EB05CDCF89321 /* SocialTests.swift */; };
+		7109B5A3363839AEF6BB5D8B /* ReminderSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE9B52C463A804BC9BEF00D /* ReminderSchedule.swift */; };
 		74D3F004A346D36CC03D1136 /* PublishFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EFEF10F1BF86B14DFC27675 /* PublishFormView.swift */; };
 		8BA20D6D782910E72EA65029 /* PrototypeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514280BD0DC1990D33E47F91 /* PrototypeUITests.swift */; };
 		8D658E8E5702F97F4823B591 /* ReminderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AF695281430122AC6C5CDB0 /* ReminderTests.swift */; };
@@ -88,9 +92,11 @@
 /* Begin PBXFileReference section */
 		0649DDBC131857AC1B21534D /* PetManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetManagementView.swift; sourceTree = "<group>"; };
 		0EFEF10F1BF86B14DFC27675 /* PublishFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublishFormView.swift; sourceTree = "<group>"; };
+		1455F5DA037FC0F79B8720D9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1C21F0F43CDF0C0430E01969 /* PetProfileSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetProfileSkeleton.swift; sourceTree = "<group>"; };
 		2B27015F290B4EFBB8DEB5B1 /* MessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesView.swift; sourceTree = "<group>"; };
 		32FBF3AD85F341F72AE04D11 /* WeightUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightUITests.swift; sourceTree = "<group>"; };
+		356CDE184AF9CA1B99B813CE /* PetPalSocial.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = PetPalSocial.icon; sourceTree = "<group>"; };
 		36E1E2F657DE2AC0079966CE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		46197EDEEB9B441AB777C91F /* PrototypeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeApp.swift; sourceTree = "<group>"; };
 		4E0D954C513BB1D6DE8B7C23 /* WeightFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightFormView.swift; sourceTree = "<group>"; };
@@ -118,6 +124,7 @@
 		C36A66C873B7051E3AC7C421 /* WidgetSnapshotSyncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotSyncer.swift; sourceTree = "<group>"; };
 		C3C32D44F582D8D1B4F76522 /* RecordsHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsHomeView.swift; sourceTree = "<group>"; };
 		C417EF966B5EFA3A0624E0B6 /* SocialSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialSkeleton.swift; sourceTree = "<group>"; };
+		CFE9B52C463A804BC9BEF00D /* ReminderSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderSchedule.swift; sourceTree = "<group>"; };
 		DC1F057C078BFB07E5B81C25 /* ReminderFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderFormView.swift; sourceTree = "<group>"; };
 		DCD8A854CB49467B0FB4D804 /* WidgetSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotTests.swift; sourceTree = "<group>"; };
 		E85D5115989EB05CDCF89321 /* SocialTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialTests.swift; sourceTree = "<group>"; };
@@ -160,6 +167,14 @@
 			path = M4_Reminders;
 			sourceTree = "<group>";
 		};
+		22C0A4445CA820A413043D71 /* AppIcon */ = {
+			isa = PBXGroup;
+			children = (
+				6F2756F423E52F2AD1DEE189 /* PetPal-Social */,
+			);
+			path = AppIcon;
+			sourceTree = "<group>";
+		};
 		2E80B310AEB964521222325E /* M3_Social */ = {
 			isa = PBXGroup;
 			children = (
@@ -191,6 +206,7 @@
 			children = (
 				7A475C7DCF4F5D2651ED771E /* PetPal.xcdatamodeld */,
 				F0305E31F2AD66A0E96335B6 /* CoreDataEntities.swift */,
+				CFE9B52C463A804BC9BEF00D /* ReminderSchedule.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -211,6 +227,7 @@
 			children = (
 				3CB8FCDC58C557A371D3CF09 /* Models */,
 				499D47544DF3090095BCE5FF /* Supporting */,
+				1455F5DA037FC0F79B8720D9 /* Assets.xcassets */,
 			);
 			path = PetPal;
 			sourceTree = "<group>";
@@ -221,6 +238,14 @@
 				36E1E2F657DE2AC0079966CE /* PrivacyInfo.xcprivacy */,
 			);
 			path = Supporting;
+			sourceTree = "<group>";
+		};
+		6F2756F423E52F2AD1DEE189 /* PetPal-Social */ = {
+			isa = PBXGroup;
+			children = (
+				356CDE184AF9CA1B99B813CE /* PetPalSocial.icon */,
+			);
+			path = "PetPal-Social";
 			sourceTree = "<group>";
 		};
 		793829723E6FA99965F7D360 /* M5_Dashboard */ = {
@@ -275,6 +300,7 @@
 		DB988F08C448B02E8DF4AC76 /* M6_Design */ = {
 			isa = PBXGroup;
 			children = (
+				22C0A4445CA820A413043D71 /* AppIcon */,
 				B3B3F913B76568DA44CA203C /* DesignSkeleton.swift */,
 			);
 			path = M6_Design;
@@ -424,6 +450,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				58F42671478340C3C2297E4C /* Assets.xcassets in Resources */,
+				40A3912B6F22F4148154689B /* PetPalSocial.icon in Resources */,
 				9B2D0BAC60818E05E77C6F7F /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -477,6 +505,7 @@
 				E2FC5B0A614136653CDDB921 /* RecordCalendarView.swift in Sources */,
 				993C71EFE86F679D24B96FE1 /* RecordsHomeView.swift in Sources */,
 				4E3CFE01BDB0319A1F6937A2 /* ReminderFormView.swift in Sources */,
+				3D53506F74CCC3AB0B8BBFDC /* ReminderSchedule.swift in Sources */,
 				2B6287357F04B6D3710735BA /* ReminderSkeleton.swift in Sources */,
 				CEA6BEC89B33409E1F96906F /* SocialSkeleton.swift in Sources */,
 				1DA64933DD35F42173B19289 /* WeightFormView.swift in Sources */,
@@ -490,6 +519,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CE1258296DACEF7A1C89C8D3 /* PetPalWidget.swift in Sources */,
+				7109B5A3363839AEF6BB5D8B /* ReminderSchedule.swift in Sources */,
 				17B6D6D96E2CCDD987EDED79 /* WidgetSnapshot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -567,7 +597,7 @@
 				PRODUCT_NAME = PetPalWidget;
 				SDKROOT = iphoneos;
 				SWIFT_STRICT_CONCURRENCY = targeted;
-				SWIFT_VERSION = 5.9;
+				SWIFT_VERSION = 5;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -605,6 +635,8 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
@@ -627,7 +659,7 @@
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_STRICT_CONCURRENCY = targeted;
-				SWIFT_VERSION = 5.9;
+				SWIFT_VERSION = 5;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -652,7 +684,7 @@
 		6B12B1C92C5DBBBEA56453ED /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = PetPalSocial;
 				CODE_SIGN_ENTITLEMENTS = PetPal/Supporting/PetPal.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
@@ -673,7 +705,7 @@
 		6B40900C3735022D3A8BA884 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = PetPalSocial;
 				CODE_SIGN_ENTITLEMENTS = PetPal/Supporting/PetPal.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
@@ -724,6 +756,8 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -753,7 +787,7 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_STRICT_CONCURRENCY = targeted;
-				SWIFT_VERSION = 5.9;
+				SWIFT_VERSION = 5;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -793,7 +827,7 @@
 				PRODUCT_NAME = PetPalWidget;
 				SDKROOT = iphoneos;
 				SWIFT_STRICT_CONCURRENCY = targeted;
-				SWIFT_VERSION = 5.9;
+				SWIFT_VERSION = 5;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;

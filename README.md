@@ -5,7 +5,7 @@
 ![Platform](https://img.shields.io/badge/platform-iOS%2016.0%2B-lightgrey)
 ![Swift](https://img.shields.io/badge/Swift%205.9%2B-orange?logo=swift&logoColor=white)
 ![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-blue)
-![Tests](https://img.shields.io/badge/tests-83%20unit%20%2B%2014%20UI-brightgreen)
+![Tests](https://img.shields.io/badge/tests-120%20unit%20%2B%2015%20UI-brightgreen)
 [![iOS CI](https://github.com/DayIight/PetPal/actions/workflows/ios-ci.yml/badge.svg)](https://github.com/DayIight/PetPal/actions/workflows/ios-ci.yml)
 
 以宠物为中心的本地生活记录工具：档案管理、日常记录、重复提醒、成长看板，
@@ -15,7 +15,7 @@
 
 - **宠物档案**：增删改查、品种目录、头像压缩、多宠物切换、删除级联清理与二次确认
 - **日常记录**：7 类预设模板 + 自定义模板，时间轴 / 日历双视图，备注与心情，记录编辑
-- **提醒**：每日重复、通知权限申请、点击通知深链到宠物详情、时区变更全量重排
+- **提醒**：每日/每周/每月/每年重复与提前量、通知权限申请与恢复补排、点击通知深链到宠物详情
 - **成长看板**：体重折线图（月/年聚合）、月度打卡热力图、疫苗/体检时间线、A4 PDF 导出分享
 - **宠友社交（Mock）**：信息流分页、点赞、两级评论、表情回应、收藏、系统分享
 - **互动消息**：点赞/评论/回复通知，点击跳转对应动态的评论区并定位高亮目标评论
@@ -46,6 +46,11 @@
 
 ## 最近更新（2026-10-05）
 
+- P1 修复：提醒保存错误反馈与串行调度；月/年提前日期按实际发生日期计算；
+  图片原子写入与数据库失败回滚；小组件保留重复规则并预生成跨日时间线；
+  工程注册 `petpal` URL scheme，统一图标名称与资源配置。边界行为见 M4/M8 README。
+- 修复小组件一直显示建档引导：模拟器构建保留 App Group 权限打包，
+  快照只写入真正的共享容器；同步失败与尚未建档分别显示。
 - 应用图标切换为莫奈简洁版 **V2（奶油白）**：仅白狗橘猫大头像贴脸，无气泡无风景，
   象牙白主调；同批归档 5 个候选变体（`AppIcon-Monet-v1~v5.png`），原版带爱心气泡
   的 `AppIcon-Monet-1024.png` 保留可随时回切
@@ -80,6 +85,9 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 ./scripts/build-ios.sh
 ```
 
+模拟器构建使用 ad-hoc 签名并保留 App Group 权限，无需开发者证书。
+不要使用 `CODE_SIGNING_ALLOWED=NO` 验证小组件，该选项会使实际共享容器不可用。
+
 运行全部单元测试与 UI 测试：
 
 ```sh
@@ -87,6 +95,8 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 ```
 
 如需修改工程配置，请编辑 `project.yml` 后执行 `xcodegen generate`。
+`project.yml` 包含 `Assets.xcassets`、现有 `PetPalSocial.icon`、Widget 共享规则文件与 URL scheme；
+重新生成工程会保留图标和小组件配置。编译 `.icon` 资源需使用支持 Icon Composer 的 Xcode 26+。
 
 ## 里程碑
 

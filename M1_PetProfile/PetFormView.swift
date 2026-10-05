@@ -58,6 +58,15 @@ struct PetFormView: View {
                     Text($0).font(.footnote).foregroundStyle(.red)
                 }
             }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if let saveError = vm.saveError {
+                    Text(saveError).font(.footnote).foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .accessibilityIdentifier("pet.saveError")
+                }
+            }
             .navigationTitle("宠物档案")
             .toolbar { ToolbarItem(placement: .confirmationAction) {
                 Button("保存") { if vm.save() { dismiss() } }

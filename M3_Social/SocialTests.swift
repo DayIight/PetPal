@@ -109,7 +109,7 @@ final class PublishWithPhotosTests: XCTestCase {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 400, height: 300)).image { ctx in
             UIColor.systemBlue.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 400, height: 300))
         }
-        let fileName = try XCTUnwrap(AvatarStore.save(image))
+        let fileName = try AvatarStore.save(image)
         defer { AvatarStore.delete(fileName: fileName) }   // 清理测试产物
         let url = AvatarStore.url(for: fileName)
         XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))

@@ -60,11 +60,16 @@ final class UNNotificationScheduler: NotificationScheduling {
     func add(_ request: UNNotificationRequest) async throws {
         try await center.add(request)
     }
-    func removePending(matchingPrefix prefix: String) {
-        center.getPendingNotificationRequests { reqs in
-            let ids = reqs.filter { $0.identifier.hasPrefix(prefix) }.map(\.identifier)
-            self.center.removePendingNotificationRequests(withIdentifiers: ids)
-        }
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await center.notificationSettings().authorizationStatus
+    }
+    func pendingRequests() async -> [UNNotificationRequest] {
+        await center.pendingNotificationRequests()
+    }
+    func removePending(matchingPrefix prefix: String) async {
+        let requests = await pendingRequests()
+        let ids = requests.filter { $0.identifier.hasPrefix(prefix) }.map(\.identifier)
+        center.removePendingNotificationRequests(withIdentifiers: ids)
     }
 }
 
