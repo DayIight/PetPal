@@ -39,6 +39,7 @@ import os
                           avatarFileName: $0.avatarFileName)
                 },
                 reminders: all
+                    .filter(\.isEnabled)
                     .map { .init(id: $0.id, petID: $0.petID, petName: $0.petName,
                                  type: $0.type.rawValue, hour: $0.hour, minute: $0.minute,
                                  repeatRule: $0.repeatRule) })

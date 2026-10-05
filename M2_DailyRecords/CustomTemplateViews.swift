@@ -8,6 +8,8 @@ struct TemplateListView: View {
     @State private var editing: CustomTemplate?
     @State private var showForm = false
     @State private var loadError = false
+    @State private var operationError: String?
+    @Environment(\.dismiss) private var dismiss
     private let repo = CoreDataCustomTemplateRepository()
 
     var body: some View {
@@ -60,6 +62,9 @@ struct TemplateListView: View {
             .background(Color.pageBackground)
             .navigationTitle("自定义模板")
             .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("完成") { dismiss() }.accessibilityIdentifier("template.done")
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("新建模板") { editing = nil; showForm = true }
                         .a11y("新建模板", hint: "创建新的自定义记录模板")
@@ -70,6 +75,9 @@ struct TemplateListView: View {
                 TemplateFormView(template: editing, onSave: load)
             }
             .onAppear(perform: load)
+            .alert("操作失败", isPresented: Binding(get: { operationError != nil }, set: { if !$0 { operationError = nil } })) {
+                Button("好", role: .cancel) {}
+            } message: { Text(operationError ?? "请重试") }
         }
     }
 
@@ -83,9 +91,8 @@ struct TemplateListView: View {
     }
 
     private func delete(at offsets: IndexSet) {
-        for index in offsets {
-            try? repo.delete(id: templates[index].id)
-        }
+        do { for index in offsets { try repo.delete(id: templates[index].id) } }
+        catch { operationError = "删除失败，原模板已保留，请重试。" }
         load()
     }
 }
@@ -195,150 +202,16 @@ struct TemplateFormView: View {
     }
 }
 
-// MARK: - 按模板动态渲染的记录表单
-// 字段类型映射：text→TextField、multiline→TextEditor、number→decimalPad、
-// single→Picker、multi→多个 Toggle（存逗号串）、toggle→Toggle(存 "true"/"false")、date→DatePicker(存 yyyy-MM-dd)
+// MARK: - 自定义模板表单入口
 struct CustomRecordFormView: View {
     let template: CustomTemplate
     let petID: UUID
-    @State private var answers: [String: String] = [:]
-    @State private var toggles: [String: Bool] = [:]
-    @State private var multiSelections: [String: Set<String>] = [:]
-    @State private var dates: [String: Date] = [:]
-    @State private var note = ""
-    @State private var mood = ""
-    @State private var errors: [String] = []
-    private let repo = CoreDataRecordRepository()
+    var onSaved: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
-
-    private static let dayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
-
     var body: some View {
-        NavigationStack {
-            Form {
-                ForEach(template.fields) { field in
-                    Section(field.title) {
-                        fieldView(field)
-                    }
-                }
-                Section("备注与心情") {
-                    TextField("备注（≤200字）", text: $note)
-                        .accessibilityIdentifier("custom.note")
-                    Picker("心情", selection: $mood) {
-                        ForEach(["😀", "😐", "😢"], id: \.self) { Text($0).tag($0) }
-                    }
-                    .accessibilityIdentifier("custom.mood")
-                }
-                if !errors.isEmpty {
-                    Section {
-                        ForEach(errors, id: \.self) {
-                            Text($0).font(.footnote).foregroundStyle(.red)
-                        }
-                    }
-                    .accessibilityIdentifier("custom.errors")
-                }
-            }
-            .navigationTitle(template.name)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") { save() }
-                        .accessibilityIdentifier("custom.save")
-                }
-            }
-        }
-    }
-
-    @ViewBuilder private func fieldView(_ field: CustomTemplate.Field) -> some View {
-        let key = field.id.uuidString
-        switch field.type {
-        case .text:
-            TextField(field.title, text: textBinding(key))
-                .accessibilityIdentifier("custom.field.\(key)")
-        case .multiline:
-            TextEditor(text: textBinding(key))
-                .frame(minHeight: 80)
-                .accessibilityIdentifier("custom.field.\(key)")
-        case .number:
-            TextField("数字", text: textBinding(key))
-                .keyboardType(.decimalPad)
-                .accessibilityIdentifier("custom.field.\(key)")
-        case .single:
-            Picker(field.title, selection: textBinding(key)) {
-                Text("未选择").tag("")
-                ForEach(field.options, id: \.self) { Text($0).tag($0) }
-            }
-            .accessibilityIdentifier("custom.field.\(key)")
-        case .multi:
-            // 多选：多个 Toggle，选择结果存逗号分隔串（展示/校验与空值判断一致）
-            let selected = multiSelections[key] ?? []
-            ForEach(field.options, id: \.self) { option in
-                Toggle(option, isOn: multiToggleBinding(key, option: option, selected: selected))
-                    .accessibilityIdentifier("custom.field.\(key).\(option)")
-            }
-        case .toggle:
-            Toggle(field.title, isOn: toggleBinding(key))
-                .accessibilityIdentifier("custom.field.\(key)")
-        case .date:
-            DatePicker(field.title, selection: dateBinding(key), displayedComponents: .date)
-                .accessibilityIdentifier("custom.field.\(key)")
-        }
-    }
-
-    private func textBinding(_ key: String) -> Binding<String> {
-        Binding(get: { answers[key] ?? "" }, set: { answers[key] = $0 })
-    }
-
-    private func toggleBinding(_ key: String) -> Binding<Bool> {
-        Binding(get: { toggles[key] ?? false }, set: { toggles[key] = $0 })
-    }
-
-    private func dateBinding(_ key: String) -> Binding<Date> {
-        Binding(get: { dates[key] ?? Date() }, set: { dates[key] = $0 })
-    }
-
-    private func multiToggleBinding(_ key: String, option: String,
-                                    selected: Set<String>) -> Binding<Bool> {
-        Binding(
-            get: { selected.contains(option) },
-            set: { isOn in
-                var s = multiSelections[key] ?? []
-                if isOn { s.insert(option) } else { s.remove(option) }
-                multiSelections[key] = s
-            })
-    }
-
-    private func save() {
-        var record = Record(petID: petID, kind: .custom, note: note, mood: mood)
-        record.templateName = template.name
-        var result: [String: String] = [:]
-        for field in template.fields {
-            let key = field.id.uuidString
-            switch field.type {
-            case .toggle:
-                result[key] = toggles[key] == true ? "true" : "false"
-            case .multi:
-                result[key] = (multiSelections[key] ?? []).sorted().joined(separator: ",")
-            case .date:
-                result[key] = Self.dayFormatter.string(from: dates[key] ?? Date())
-            default:
-                result[key] = answers[key] ?? ""
-            }
-        }
-        record.answers = result
-        // 自定义模板记录的校验：传入模板字段（key 与 answers 一致）
-        errors = RecordValidator.errors(for: record, fields: template.templateFields)
-        guard errors.isEmpty else { return }
-        do {
-            try repo.create(record)
-            dismiss()
-        } catch {
-            errors = ["保存失败，请重试"]
+        RecordEditorView(vm: RecordFormViewModel(repo: CoreDataRecordRepository(), petID: petID,
+                                               kind: .custom, template: template)) {
+            dismiss(); onSaved()
         }
     }
 }

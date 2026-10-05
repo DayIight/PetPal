@@ -2,7 +2,7 @@ import SwiftUI
 import Combine
 
 // MARK: - 记录日历（M2 CalendarGridBuilder 的 UI 落点）
-// 月视图网格 + 左右翻历史月份 + 当日记录列表 + 记录详情（只读）
+// 月视图网格 + 左右翻历史月份 + 当日记录列表 + 记录详情与管理
 
 @MainActor final class RecordCalendarViewModel: ObservableObject {
     @Published private(set) var counts: [Date: Int] = [:]   // startOfDay → 当日记录数
@@ -289,53 +289,5 @@ struct MonthCalendarGrid: View {
         }
         .a11y("\(m)月\(d)日", hint: count > 0 ? "有\(count)条记录" : "无记录")
         .accessibilityIdentifier("calendar.day.\(m)月\(d)日")
-    }
-}
-
-// MARK: - 记录详情（只读）
-// 取舍说明：编辑路径需给 RecordFormViewModel 增加 update 入口（骨架 API 锁定不动），
-// 成本高于收益，本期详情只读展示 answers/note/mood/时间；编辑在后续迭代复用 update(_:)。
-struct RecordDetailView: View {
-    let record: Record
-    private let cal = Calendar.current
-
-    var body: some View {
-        Form {
-            Section("记录") {
-                LabeledContent("类型", value: record.displayKind)
-                LabeledContent("时间", value: timeText)
-            }
-            // 预设模板：按 kind.fields 的标题展示；自定义模板：标题仅存于模板内，
-            // 记录里只有字段 UUID key，无法反解，直接列出原始键值
-            if record.kind != .custom {
-                Section("内容") {
-                    ForEach(record.kind.fields, id: \.key) { field in
-                        LabeledContent(field.title, value: record.answers[field.key].flatMap { $0.isEmpty ? nil : $0 } ?? "—")
-                    }
-                }
-            } else if !record.answers.isEmpty {
-                Section("内容") {
-                    ForEach(record.answers.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
-                        LabeledContent("字段", value: value.isEmpty ? "—" : value)
-                    }
-                }
-            }
-            Section("备注与心情") {
-                LabeledContent("备注", value: record.note.isEmpty ? "—" : record.note)
-                LabeledContent("心情", value: record.mood.isEmpty ? "—" : record.mood)
-            }
-        }
-        .accessibilityIdentifier("calendar.recordDetail")
-        .navigationTitle("记录详情")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private var timeText: String {
-        let m = cal.component(.month, from: record.createdAt)
-        let d = cal.component(.day, from: record.createdAt)
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "HH:mm"
-        return "\(m)月\(d)日 \(f.string(from: record.createdAt))"
     }
 }

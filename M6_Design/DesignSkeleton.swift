@@ -56,7 +56,7 @@ struct RootTabView: View {
     @StateObject private var petListVM = PetListViewModel(repo: CoreDataPetRepository())
     @StateObject private var currentPet: CurrentPetStore
     @StateObject private var reminderService = ReminderService(
-        repo: CoreDataReminderRepository(), scheduler: UNNotificationScheduler())
+        repo: CoreDataReminderRepository(), scheduler: AppNotificationScheduler.make())
     @State private var selection: Tab = .home
     @State private var lastContentTab: Tab = .home   // 最近一个内容 tab，发布拦截后恢复
     @State private var showPublish = false
@@ -73,7 +73,8 @@ struct RootTabView: View {
         let current = CurrentPetStore(repo: CoreDataPetRepository())
         _currentPet = StateObject(wrappedValue: current)
         _snapshotSyncer = State(wrappedValue: WidgetSnapshotSyncer(
-            reminderRepo: CoreDataReminderRepository(), currentPet: current))
+            reminderRepo: CoreDataReminderRepository(), currentPet: current,
+            directory: { CoreDataStack.uiTestDirectory ?? WidgetSnapshotStore.sharedDirectory }))
     }
 
     var body: some View {

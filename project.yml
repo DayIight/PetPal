@@ -35,6 +35,8 @@ targets:
       - path: M2_DailyRecords/RecordCalendarView.swift
       - path: M2_DailyRecords/CustomTemplateViews.swift
       - path: M2_DailyRecords/RecordsHomeView.swift
+      - path: M2_DailyRecords/RecordEditorView.swift
+      - path: M2_DailyRecords/RecordDetailView.swift
       - path: M3_Social/SocialSkeleton.swift
       - path: M3_Social/FeedView.swift
       - path: M3_Social/CommentListView.swift
@@ -42,8 +44,11 @@ targets:
       - path: M3_Social/MessagesView.swift
       - path: M4_Reminders/ReminderSkeleton.swift
       - path: M4_Reminders/ReminderFormView.swift
+      - path: M4_Reminders/ReminderListView.swift
       - path: M5_Dashboard/DashboardSkeleton.swift
       - path: M5_Dashboard/DashboardView.swift
+      - path: M5_Dashboard/DashboardPDFBuilder.swift
+      - path: M5_Dashboard/DashboardPDFPreview.swift
       - path: M6_Design/DesignSkeleton.swift
       - path: M7_Prototype/PrototypeApp.swift
       - path: M7_Prototype/WeightFormView.swift
@@ -98,9 +103,12 @@ targets:
     sources:
       - path: M1_PetProfile/PetProfileTests.swift
       - path: M2_DailyRecords/DailyRecordTests.swift
+      - path: M2_DailyRecords/RecordManagementTests.swift
       - path: M3_Social/SocialTests.swift
       - path: M4_Reminders/ReminderTests.swift
+      - path: M4_Reminders/ReminderManagementTests.swift
       - path: M5_Dashboard/DashboardTests.swift
+      - path: M5_Dashboard/DashboardPDFTests.swift
       - path: M8_Widget/WidgetSnapshotTests.swift
     dependencies:
       - target: PetPal

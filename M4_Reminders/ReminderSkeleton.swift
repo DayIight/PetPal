@@ -19,6 +19,18 @@ struct Reminder: Identifiable, Equatable {
     var minute: Int                     // 0-59
     var repeatRule: RepeatRule = .daily
     var advance: AdvanceOption = .none  // 提前提醒量
+    var isEnabled = true
+    var timeText: String { String(format: "%02d:%02d", hour, minute) }
+    var ruleText: String {
+        switch repeatRule {
+        case .daily: return "每日"
+        case .weekly(let days):
+            let names = [1: "周日", 2: "周一", 3: "周二", 4: "周三", 5: "周四", 6: "周五", 7: "周六"]
+            return [2, 3, 4, 5, 6, 7, 1].filter { days.contains($0) }.compactMap { names[$0] }.joined(separator: "、")
+        case .monthly(let day): return "每月\(day)日"
+        case .yearly(let month, let day): return "每年\(month)月\(day)日"
+        }
+    }
 }
 
 // MARK: - 提前量（PRD §4：5分钟/15分钟/30分钟/1小时/1天/3天）
@@ -121,6 +133,7 @@ protocol ReminderRepository: AnyObject {
     func reminders(petID: UUID) throws -> [Reminder]
     func allReminders() throws -> [Reminder]   // M-06：时区/日历变更后全量重排用
     func save(_ reminder: Reminder) throws
+    func delete(id: UUID) throws
     func deleteAll(petID: UUID) throws
 }
 
@@ -145,6 +158,10 @@ final class CoreDataReminderRepository: ReminderRepository {
         let r = CDReminder.fetchRequest(); r.predicate = NSPredicate(format: "petID == %@", petID as CVarArg)
         try stack.transaction { try ctx.fetch(r).forEach(ctx.delete) }
     }
+    func delete(id: UUID) throws {
+        let r = CDReminder.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        try stack.transaction { try ctx.fetch(r).forEach(ctx.delete) }
+    }
 }
 
 private extension Reminder {
@@ -154,13 +171,14 @@ private extension Reminder {
         self.init(id: e.id ?? UUID(), petID: e.petID ?? UUID(), petName: e.petName ?? "",
                   type: ReminderType(rawValue: e.type ?? "") ?? .feeding,
                   hour: Int(e.hour), minute: Int(e.minute), repeatRule: rule,
-                  advance: AdvanceOption(rawValue: e.advance ?? "") ?? .none)
+                  advance: AdvanceOption(rawValue: e.advance ?? "") ?? .none, isEnabled: e.isEnabled)
     }
     func apply(to e: CDReminder) {
         e.id = id; e.petID = petID; e.petName = petName; e.type = type.rawValue
         e.hour = Int16(hour); e.minute = Int16(minute)
         e.repeatRule = String(data: (try? JSONEncoder().encode(repeatRule)) ?? Data(), encoding: .utf8)
         e.advance = advance.rawValue
+        e.isEnabled = isEnabled
     }
 }
 
@@ -180,6 +198,7 @@ enum ReminderServiceError: LocalizedError {
     enum PermissionState { case unknown, granted, denied }
     @Published private(set) var permission: PermissionState = .unknown
     @Published var errorMessage: String?
+    @Published private(set) var changeVersion = 0
     private let repo: ReminderRepository
     private let scheduler: NotificationScheduling
     private let now: () -> Date
@@ -188,6 +207,7 @@ enum ReminderServiceError: LocalizedError {
     private var timezoneObserver: NSObjectProtocol?
     /// L-01：提醒数据变更钩子（WidgetSnapshotSyncer 注入，重建 widget 快照）
     var onDidChange: (() -> Void)?
+    private func notifyChange() { changeVersion += 1; onDidChange?() }
     init(repo: ReminderRepository, scheduler: NotificationScheduling,
          now: @escaping () -> Date = Date.init,
          calendar: @escaping () -> Calendar = { .current }) {
@@ -229,7 +249,11 @@ enum ReminderServiceError: LocalizedError {
             applyPermission(await scheduler.authorizationStatus())
             try repo.save(saved)
             // 即使调度失败，数据库已经保存，应更新快照而不是让它保持旧状态。
-            defer { onDidChange?() }
+            defer { notifyChange() }
+            if !saved.isEnabled {
+                await scheduler.removePending(matchingPrefix: saved.id.uuidString + "#")
+                return
+            }
             guard permission == .granted else { return }
             try await schedule(saved)
         }
@@ -274,12 +298,15 @@ enum ReminderServiceError: LocalizedError {
         do {
             try await enqueue { [self] in
                 applyPermission(await scheduler.authorizationStatus())
-                guard permission == .granted else { return }
                 let all = try repo.allReminders()
-                defer { onDidChange?() }
+                defer { notifyChange() }
                 var failure: Error?
                 for r in all {
-                    do { try await schedule(r) } catch { failure = failure ?? error }
+                    if !r.isEnabled {
+                        await scheduler.removePending(matchingPrefix: r.id.uuidString + "#")
+                    } else if permission == .granted {
+                        do { try await schedule(r) } catch { failure = failure ?? error }
+                    }
                 }
                 if let failure { throw failure }
             }
@@ -291,10 +318,24 @@ enum ReminderServiceError: LocalizedError {
     func reminderIDs(petID: UUID) throws -> [UUID] {
         try repo.reminders(petID: petID).map(\.id)
     }
+    func reminders(petID: UUID) throws -> [Reminder] {
+        try repo.reminders(petID: petID).sorted {
+            if $0.hour != $1.hour { return $0.hour < $1.hour }
+            if $0.minute != $1.minute { return $0.minute < $1.minute }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+    }
+    func remove(id: UUID) async throws {
+        try await enqueue { [self] in
+            try repo.delete(id: id)
+            await scheduler.removePending(matchingPrefix: id.uuidString + "#")
+            notifyChange()
+        }
+    }
     func cancel(reminderIDs: [UUID]) async {
         try? await enqueue { [self] in
             for id in reminderIDs { await scheduler.removePending(matchingPrefix: id.uuidString + "#") }
-            onDidChange?()
+            notifyChange()
         }
     }
     func removeAll(petID: UUID) async throws {
@@ -302,7 +343,7 @@ enum ReminderServiceError: LocalizedError {
             let ids = try reminderIDs(petID: petID)
             try repo.deleteAll(petID: petID)
             for id in ids { await scheduler.removePending(matchingPrefix: id.uuidString + "#") }
-            onDidChange?()
+            notifyChange()
         }
     }
 }

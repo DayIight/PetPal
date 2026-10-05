@@ -17,6 +17,8 @@ struct ReminderFormView: View {
     @State private var reminderID = UUID()
     @State private var isSaving = false
     @State private var saveError: String?
+    @State private var isEnabled = true
+    private let isEditing: Bool
     @Environment(\.dismiss) private var dismiss
 
     /// 重复规则选择器选项（RepeatRule 是关联值枚举，不适合直接进 Picker）
@@ -30,9 +32,31 @@ struct ReminderFormView: View {
         ("周一", 2), ("周二", 3), ("周三", 4), ("周四", 5), ("周五", 6), ("周六", 7), ("周日", 1)
     ]
 
+    init(pet: Pet, service: ReminderService, editing: Reminder? = nil) {
+        self.pet = pet; self.service = service; isEditing = editing != nil
+        guard let editing else { return }
+        _reminderID = State(initialValue: editing.id)
+        _type = State(initialValue: editing.type)
+        _time = State(initialValue: Calendar.current.date(bySettingHour: editing.hour, minute: editing.minute,
+                                                        second: 0, of: Date()) ?? Date())
+        _advance = State(initialValue: editing.advance)
+        _isEnabled = State(initialValue: editing.isEnabled)
+        switch editing.repeatRule {
+        case .daily: _repeatMode = State(initialValue: .daily)
+        case .weekly(let days):
+            _repeatMode = State(initialValue: .weekly); _weekdays = State(initialValue: days)
+        case .monthly(let day):
+            _repeatMode = State(initialValue: .monthly); _monthDay = State(initialValue: day)
+        case .yearly(let month, let day):
+            _repeatMode = State(initialValue: .yearly)
+            _yearMonth = State(initialValue: month); _yearDay = State(initialValue: day)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
+                Toggle("启用提醒", isOn: $isEnabled).accessibilityIdentifier("reminder.enabled")
                 Picker("提醒类型", selection: $type) {
                     ForEach(ReminderType.allCases) { Text($0.rawValue).tag($0) }
                 }
@@ -79,7 +103,7 @@ struct ReminderFormView: View {
                         .accessibilityIdentifier("reminder.error")
                 }
             }
-            .navigationTitle("提醒")
+            .navigationTitle(isEditing ? "编辑提醒" : "新建提醒")
             .toolbar { ToolbarItem(placement: .confirmationAction) {
                 Button(isSaving ? "保存中…" : "保存") { save() }
                     .disabled(isSaving).accessibilityIdentifier("reminder.save")
@@ -121,7 +145,7 @@ struct ReminderFormView: View {
         let c = Calendar.current.dateComponents([.hour, .minute], from: time)
         let reminder = Reminder(id: reminderID, petID: pet.id, type: type,
                                 hour: c.hour ?? 8, minute: c.minute ?? 0,
-                                repeatRule: repeatRule, advance: advance)
+                                repeatRule: repeatRule, advance: advance, isEnabled: isEnabled)
         guard reminder.repeatRule.isValid else {
             saveError = ReminderServiceError.invalidConfiguration.errorDescription
             return
@@ -130,9 +154,9 @@ struct ReminderFormView: View {
         Task {
             defer { isSaving = false }
             do {
-                try await service.requestPermission()
+                if isEnabled { try await service.requestPermission() }
                 try await service.save(reminder, petName: pet.nickname)
-                if service.permission == .granted { dismiss() } else { showDeniedAlert = true }
+                if !isEnabled || service.permission == .granted { dismiss() } else { showDeniedAlert = true }
             } catch {
                 saveError = (error as? ReminderServiceError)?.errorDescription ?? "保存失败，请重试。"
             }
