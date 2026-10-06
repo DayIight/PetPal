@@ -49,6 +49,8 @@ targets:
       - path: M7_Prototype/PrototypeApp.swift
       - path: M7_Prototype/WeightFormView.swift
       - path: M8_Widget/WidgetSnapshot.swift
+      - path: M8_Widget/WidgetPetPaging.swift
+      - path: M8_Widget/SelectWidgetPetIntent.swift
       - path: M8_Widget/WidgetSnapshotSyncer.swift
       - path: M6_Design/AppIcon/PetPal-Social/PetPalSocial.icon
         type: file
@@ -136,6 +138,8 @@ targets:
     sources:
       - path: PetPalWidget/PetPalWidget.swift
       - path: M8_Widget/WidgetSnapshot.swift
+      - path: M8_Widget/WidgetPetPaging.swift
+      - path: M8_Widget/SelectWidgetPetIntent.swift
       - path: M4_Reminders/ReminderRecurrence.swift
     info:
       path: PetPalWidget/Info.plist

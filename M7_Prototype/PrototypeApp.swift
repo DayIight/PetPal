@@ -13,15 +13,24 @@ struct PetPalPrototypeApp: App {
 @MainActor final class DeepLinkRouter: ObservableObject {
     static let shared = DeepLinkRouter()
     @Published var path = NavigationPath()
+    @Published var recordsPetID: UUID?
     init() {}
     /// 点击通知 → 路由至对应宠物详情页（落点在「我的」tab 的 NavigationStack）
     func openPet(id: UUID) { path.append(id) }
-    /// L-01：widget 点击深链 petpal://pet/<uuid>
+    func openRecords(id: UUID) {
+        path = NavigationPath()
+        recordsPetID = id
+    }
+    /// 档案：petpal://pet/<uuid>；小组件记录入口：petpal://records/<uuid>。
     func handle(url: URL) {
-        guard url.scheme == "petpal", url.host == "pet",
+        guard url.scheme == "petpal", url.pathComponents.count == 2,
               let raw = url.pathComponents.last,
               let id = UUID(uuidString: raw) else { return }
-        openPet(id: id)
+        switch url.host {
+        case "pet": recordsPetID = nil; openPet(id: id)
+        case "records": openRecords(id: id)
+        default: break
+        }
     }
 }
 
@@ -73,6 +82,7 @@ final class UNNotificationScheduler: NotificationScheduling {
 @MainActor final class CurrentPetStore: ObservableObject {
     @Published private(set) var current: Pet?
     @Published private(set) var pets: [Pet] = []
+    @Published private(set) var hasLoadedPets = false
     private static let defaultsKey = "petpal.currentPetID"
     private var bag = Set<AnyCancellable>()
     // 必须持有 repo：CoreDataPetRepository deinit 会移除变更观察者，跨实例广播随之断开
@@ -86,6 +96,7 @@ final class UNNotificationScheduler: NotificationScheduling {
                 let storedID = UserDefaults.standard.string(forKey: Self.defaultsKey).flatMap(UUID.init)
                 // 已删宠物自动回退到列表第一只
                 self.current = pets.first { $0.id == storedID } ?? pets.first
+                self.hasLoadedPets = true
             }
             .store(in: &bag)
     }

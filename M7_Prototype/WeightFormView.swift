@@ -69,6 +69,8 @@ struct WeightFormView: View {
 
 struct WeightHistoryView: View {
     let pet: Pet
+    let pets: [Pet]
+    @State private var selectedPetID: UUID
     @State private var samples: [WeightSample] = []
     @State private var editing: WeightSample?
     @State private var sourceRecord: Record?
@@ -78,17 +80,44 @@ struct WeightHistoryView: View {
     private let repo = CoreDataWeightRepository()
     private let recordRepo = CoreDataRecordRepository()
     @Environment(\.dismiss) private var dismiss
+
+    init(pet: Pet, pets: [Pet]) {
+        self.pet = pet
+        self.pets = pets
+        _selectedPetID = State(initialValue: pet.id)
+    }
+
+    private var availablePets: [Pet] { pets.isEmpty ? [pet] : pets }
+    private var selectedPet: Pet {
+        availablePets.first(where: { $0.id == selectedPetID }) ?? availablePets[0]
+    }
+
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    Picker("宠物", selection: $selectedPetID) {
+                        ForEach(availablePets) { pet in
+                            Text("\(pet.nickname)（\(pet.species.rawValue)）").tag(pet.id)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .disabled(availablePets.count < 2)
+                    .accessibilityIdentifier("weightHistory.petPicker")
+                }
                 Text("当前体重采用日期最新的体重记录；没有记录时采用档案中的初始体重。体检数据请到来源记录修改。")
                     .font(.footnote).foregroundStyle(.secondary)
                 if let error { Text(error).foregroundStyle(.red) }
-                if samples.isEmpty { Text("暂无体重记录") }
+                if samples.isEmpty {
+                    Text("\(selectedPet.nickname)暂无体重记录")
+                        .accessibilityIdentifier("weightHistory.empty")
+                }
                 ForEach(samples) { sample in
                     Button {
                         if let id = sample.sourceRecordID {
-                            sourceSubscription = recordRepo.recordsPublisher(petID: pet.id).first().sink { records in
+                            sourceSubscription = recordRepo.recordsPublisher(petID: sample.petID)
+                                .first().receive(on: DispatchQueue.main).sink { records in
+                                guard selectedPet.id == sample.petID else { return }
                                 if let record = records.first(where: { $0.id == id }) { sourceRecord = record }
                                 else { error = "来源记录不存在，请刷新后重试" }
                             }
@@ -105,6 +134,7 @@ struct WeightHistoryView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("weightHistory.sample.\(sample.id.uuidString)")
                     .swipeActions {
                         if sample.sourceRecordID == nil {
                             Button("删除", role: .destructive) {
@@ -115,20 +145,35 @@ struct WeightHistoryView: View {
                     }
                 }
             }
-            .navigationTitle("\(pet.nickname)的体重记录")
+            .navigationTitle("\(selectedPet.nickname)的体重记录")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("完成") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("新增") { showAdd = true } }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("完成") { dismiss() }.accessibilityIdentifier("weightHistory.done")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("新增") { showAdd = true }.accessibilityIdentifier("weightHistory.add")
+                }
             }
-            .sheet(isPresented: $showAdd, onDismiss: reload) { WeightFormView(petID: pet.id) }
-            .sheet(item: $editing, onDismiss: reload) { WeightFormView(petID: pet.id, editing: $0) }
+            .sheet(isPresented: $showAdd, onDismiss: reload) { WeightFormView(petID: selectedPet.id) }
+            .sheet(item: $editing, onDismiss: reload) { WeightFormView(petID: $0.petID, editing: $0) }
             .sheet(item: $sourceRecord, onDismiss: reload) { RecordDetailView(record: $0) }
             .onAppear(perform: reload)
+            .onChange(of: selectedPetID) { _ in
+                sourceSubscription?.cancel()
+                sourceSubscription = nil
+                reload()
+            }
+            .onChange(of: availablePets.map(\.id)) { ids in
+                if !ids.contains(selectedPetID), let firstID = ids.first {
+                    selectedPetID = firstID
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .weightsDidChange)) { _ in reload() }
         }
     }
     private func reload() {
-        do { samples = try repo.samples(petID: pet.id).sorted { $0.date > $1.date }; error = nil }
-        catch { self.error = "读取失败：" + error.localizedDescription }
+        do { samples = try repo.samples(petID: selectedPet.id).sorted { $0.date > $1.date }; error = nil }
+        catch { samples = []; self.error = "读取失败：" + error.localizedDescription }
     }
 }

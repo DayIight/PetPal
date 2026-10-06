@@ -47,7 +47,7 @@ import WidgetKit
         reloadTimelines()
     }
 
-    /// 提醒是否在今天触发（快照只装当天全集，widget 侧无需理解 RepeatRule）；纯函数，非隔离
+    /// 提醒是否在指定日触发；与 Widget 使用相同的重复规则。
     nonisolated static func fires(rule: RepeatRule, on date: Date, calendar: Calendar = .current) -> Bool {
         ReminderRecurrence.occurs(rule: rule, on: date, calendar: calendar)
     }

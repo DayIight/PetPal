@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		09B22913034049919FCD6971 /* SelectWidgetPetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E635B0A52969F7A8A2E41 /* SelectWidgetPetIntent.swift */; };
 		0CEF993F05F6BDDEEED3369F /* DashboardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A689F4688B2962236695DEBB /* DashboardTests.swift */; };
 		14C663209B5285D01065D5EA /* AvatarPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 638FA20AFF53D669855AABB4 /* AvatarPickerView.swift */; };
 		17B6D6D96E2CCDD987EDED79 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CB9BB611812E16745808CB0 /* WidgetSnapshot.swift */; };
@@ -24,6 +25,7 @@
 		46447655F428F060811BC07C /* DashboardCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614FEEDCE9B4F0F53903033B /* DashboardCharts.swift */; };
 		4E3CFE01BDB0319A1F6937A2 /* ReminderFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1F057C078BFB07E5B81C25 /* ReminderFormView.swift */; };
 		58F42671478340C3C2297E4C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1455F5DA037FC0F79B8720D9 /* Assets.xcassets */; };
+		5C6BB14CFCAF12F626D927A5 /* SelectWidgetPetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E635B0A52969F7A8A2E41 /* SelectWidgetPetIntent.swift */; };
 		60575D06A98522EA76235052 /* ReminderListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C69716F59C3ED03ED3E6845A /* ReminderListView.swift */; };
 		64C257077947ED98AEA7B232 /* WidgetSnapshotSyncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36A66C873B7051E3AC7C421 /* WidgetSnapshotSyncer.swift */; };
 		768CBDEE9285DF87B06DA791 /* PrivacySupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6C3BD5E7C1F5D776C07AD03 /* PrivacySupportView.swift */; };
@@ -40,11 +42,13 @@
 		B0185C77163B2CA553294972 /* LaunchFollowupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 882520852231F27F27775564 /* LaunchFollowupTests.swift */; };
 		B28C661163D7E257E0D8DBA3 /* PetFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 958F6C579A173F555594EE6E /* PetFormView.swift */; };
 		B64DE1B12D78D93A4E975B34 /* PetProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CFCFB4238402245EA584FB3 /* PetProfileTests.swift */; };
+		BC2870F1D8FB29ADC68D0292 /* WidgetPetPaging.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD349923AE20D8ACAB2D2A73 /* WidgetPetPaging.swift */; };
 		BC7C0F1C967A900961BACA8D /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CB9BB611812E16745808CB0 /* WidgetSnapshot.swift */; };
 		BFE7FACCC09847413729522F /* DesignSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B3F913B76568DA44CA203C /* DesignSkeleton.swift */; };
 		C7F8BD2DE1C7894FD1312C98 /* PetPalWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E865EEEFEC8FF4CFEEA25FF9 /* PetPalWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CE1258296DACEF7A1C89C8D3 /* PetPalWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8860B53A8CC4318ABB10963A /* PetPalWidget.swift */; };
 		D1AD010CBCE485C2F7B8F0BF /* RecordTemplatePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD61F5B1C0BFDE1DB7FD61BC /* RecordTemplatePickerView.swift */; };
+		D4EDDDD9F9ED411B590D78B0 /* WidgetPetPaging.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD349923AE20D8ACAB2D2A73 /* WidgetPetPaging.swift */; };
 		DF36CC2204BC51019B5120A7 /* DailyRecordSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C4AC5B6D6CF0E52BD922895 /* DailyRecordSkeleton.swift */; };
 		E10A42A3EEA5E300F231171E /* DashboardSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA805538E1D91758540E5791 /* DashboardSkeleton.swift */; };
 		E2FC5B0A614136653CDDB921 /* RecordCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969BB8C2A81440E13248D107 /* RecordCalendarView.swift */; };
@@ -134,9 +138,11 @@
 		B4F723769C5954A630E18C99 /* DashboardHealthTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardHealthTimeline.swift; sourceTree = "<group>"; };
 		BB6BA6E92B626506746EBEF0 /* PetPalUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PetPalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC9798564C3F1B615D1DD0FC /* MoodPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodPicker.swift; sourceTree = "<group>"; };
+		BD349923AE20D8ACAB2D2A73 /* WidgetPetPaging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetPetPaging.swift; sourceTree = "<group>"; };
 		C23A0D052F0B5A5C31C2B290 /* DailyRecordTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyRecordTests.swift; sourceTree = "<group>"; };
 		C36A66C873B7051E3AC7C421 /* WidgetSnapshotSyncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotSyncer.swift; sourceTree = "<group>"; };
 		C3C32D44F582D8D1B4F76522 /* RecordsHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsHomeView.swift; sourceTree = "<group>"; };
+		C40E635B0A52969F7A8A2E41 /* SelectWidgetPetIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectWidgetPetIntent.swift; sourceTree = "<group>"; };
 		C69716F59C3ED03ED3E6845A /* ReminderListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderListView.swift; sourceTree = "<group>"; };
 		D6C3BD5E7C1F5D776C07AD03 /* PrivacySupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacySupportView.swift; sourceTree = "<group>"; };
 		D973295CF3382B4F15F21CCB /* PresetRecordFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetRecordFormView.swift; sourceTree = "<group>"; };
@@ -276,6 +282,8 @@
 		98C78BAAAED7C39F14856E54 /* M8_Widget */ = {
 			isa = PBXGroup;
 			children = (
+				C40E635B0A52969F7A8A2E41 /* SelectWidgetPetIntent.swift */,
+				BD349923AE20D8ACAB2D2A73 /* WidgetPetPaging.swift */,
 				7CB9BB611812E16745808CB0 /* WidgetSnapshot.swift */,
 				C36A66C873B7051E3AC7C421 /* WidgetSnapshotSyncer.swift */,
 				DCD8A854CB49467B0FB4D804 /* WidgetSnapshotTests.swift */,
@@ -512,7 +520,9 @@
 				60575D06A98522EA76235052 /* ReminderListView.swift in Sources */,
 				9129A8B47DCA4BBC143F45A2 /* ReminderRecurrence.swift in Sources */,
 				2B6287357F04B6D3710735BA /* ReminderSkeleton.swift in Sources */,
+				5C6BB14CFCAF12F626D927A5 /* SelectWidgetPetIntent.swift in Sources */,
 				1DA64933DD35F42173B19289 /* WeightFormView.swift in Sources */,
+				D4EDDDD9F9ED411B590D78B0 /* WidgetPetPaging.swift in Sources */,
 				BC7C0F1C967A900961BACA8D /* WidgetSnapshot.swift in Sources */,
 				64C257077947ED98AEA7B232 /* WidgetSnapshotSyncer.swift in Sources */,
 			);
@@ -524,6 +534,8 @@
 			files = (
 				CE1258296DACEF7A1C89C8D3 /* PetPalWidget.swift in Sources */,
 				FB0730DF90E9B9D5B24B2007 /* ReminderRecurrence.swift in Sources */,
+				09B22913034049919FCD6971 /* SelectWidgetPetIntent.swift in Sources */,
+				BC2870F1D8FB29ADC68D0292 /* WidgetPetPaging.swift in Sources */,
 				17B6D6D96E2CCDD987EDED79 /* WidgetSnapshot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -1,8 +1,7 @@
 import Foundation
 
 // MARK: - Widget 快照模型（L-01；App 与 Widget Extension 共享编译，本文件不得 import WidgetKit/SwiftUI）
-// 契约：reminders 仅含「当天会触发」的提醒（Syncer 已按 RepeatRule 与当天日历过滤），
-// Widget 侧只需再按当前时刻过滤「未过」项即可。
+// 契约：reminders 保存所有宠物的完整重复规则；Widget 按页面宠物与当地日历计算今日未过项。
 struct WidgetSnapshot: Codable, Equatable {
     struct PetEntry: Codable, Equatable, Identifiable {
         var id: UUID
@@ -82,14 +81,15 @@ enum WidgetSnapshotQueries {
         return snapshot.pets.first
     }
     /// 保留规则并在 Widget 中重新计算，跨天无需依赖 App 更新快照。
-    static func remainingReminders(in snapshot: WidgetSnapshot, now: Date = Date(),
+    static func remainingReminders(in snapshot: WidgetSnapshot, petID: UUID? = nil, now: Date = Date(),
                                    calendar: Calendar = .current) -> [WidgetSnapshot.ReminderEntry] {
-        guard let pet = currentPet(in: snapshot) else { return [] }
+        guard let id = petID ?? currentPet(in: snapshot)?.id,
+              snapshot.pets.contains(where: { $0.id == id }) else { return [] }
         let start = calendar.startOfDay(for: now)
         guard let end = calendar.date(byAdding: .day, value: 1, to: start),
               let searchEnd = calendar.date(byAdding: .day, value: 3, to: end) else { return [] }
         var events: [WidgetSnapshot.ReminderEntry] = []
-        for reminder in snapshot.reminders where reminder.petID == pet.id && reminder.isEnabled != false {
+        for reminder in snapshot.reminders where reminder.petID == id && reminder.isEnabled != false {
             // 旧版快照只含生成当天的项目，跨天必须失效，防止周一提醒出现在周二。
             if reminder.repeatRule == nil && !calendar.isDate(snapshot.generatedAt, inSameDayAs: now) { continue }
             let rule = reminder.repeatRule ?? .daily
@@ -110,12 +110,13 @@ enum WidgetSnapshotQueries {
         }
         return events.sorted { ($0.fireDate ?? .distantFuture) < ($1.fireDate ?? .distantFuture) }
     }
-    static func timelineDates(in snapshot: WidgetSnapshot, now: Date, calendar: Calendar = .current) -> [Date] {
+    static func timelineDates(in snapshot: WidgetSnapshot, petID: UUID? = nil,
+                              now: Date, calendar: Calendar = .current) -> [Date] {
         var dates: Set<Date> = [now]
         for offset in 0...2 {
             guard let day = calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: now)) else { continue }
             if day > now { dates.insert(day) }
-            let events = remainingReminders(in: snapshot, now: day, calendar: calendar)
+            let events = remainingReminders(in: snapshot, petID: petID, now: day, calendar: calendar)
             for event in events { if let date = event.fireDate, date > now { dates.insert(date) } }
         }
         return dates.sorted()

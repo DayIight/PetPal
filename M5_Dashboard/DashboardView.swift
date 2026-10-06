@@ -46,7 +46,7 @@ struct DashboardView: View {
                         .accessibilityIdentifier("dashboard.exportPDF")
                 }
             }
-            .sheet(isPresented: $showWeights) { WeightHistoryView(pet: pet) }
+            .sheet(isPresented: $showWeights) { WeightHistoryView(pet: pet, pets: pets) }
             .sheet(item: $shareItem) { item in
                 ActivityView(activityItems: [item.url])
                     .ignoresSafeArea()

@@ -95,6 +95,133 @@ final class WidgetSnapshotQueryTests: XCTestCase {
     }
 }
 
+final class WidgetPetPagingTests: XCTestCase {
+    private let pets: [WidgetSnapshot.PetEntry] = [
+        .init(id: UUID(), nickname: "小白", species: "狗"),
+        .init(id: UUID(), nickname: "豆豆", species: "猫"),
+        .init(id: UUID(), nickname: "团团", species: "兔"),
+    ]
+
+    private func snapshot() -> WidgetSnapshot {
+        WidgetSnapshot(generatedAt: Date(), currentPetID: pets[1].id, pets: pets, reminders: [])
+    }
+
+    func test_firstPage_usesAppCurrentPetUntilWidgetSelectionExists() {
+        XCTAssertEqual(WidgetPetPage.resolve(in: snapshot(), selectedPetID: nil)?.pet.id, pets[1].id)
+        XCTAssertEqual(WidgetPetPage.resolve(in: snapshot(), selectedPetID: pets[2].id)?.pet.id, pets[2].id)
+    }
+
+    func test_nextAndPrevious_visitEveryPetAndWrap() throws {
+        var page = try XCTUnwrap(WidgetPetPage.resolve(in: snapshot(), selectedPetID: pets[0].id))
+        for index in [1, 2, 0] {
+            page = try XCTUnwrap(WidgetPetPage.resolve(in: snapshot(), selectedPetID: page.nextPetID))
+            XCTAssertEqual(page.pet.id, pets[index].id)
+            XCTAssertEqual(page.index, index)
+            XCTAssertEqual(page.count, pets.count)
+        }
+        for index in [2, 1, 0] {
+            page = try XCTUnwrap(WidgetPetPage.resolve(in: snapshot(), selectedPetID: page.previousPetID))
+            XCTAssertEqual(page.pet.id, pets[index].id)
+        }
+    }
+
+    func test_selectedIdentity_survivesReorderingAndAppPetChange() throws {
+        var updated = snapshot()
+        updated.currentPetID = pets[0].id
+        updated.pets = [pets[2], pets[0], pets[1]]
+        let page = try XCTUnwrap(WidgetPetPage.resolve(in: updated, selectedPetID: pets[2].id))
+        XCTAssertEqual(page.pet.id, pets[2].id)
+        XCTAssertEqual(page.index, 0)
+    }
+
+    func test_deletedSelection_fallsBackToValidCurrentPetThenFirst() {
+        var updated = snapshot()
+        updated.pets.removeLast()
+        XCTAssertEqual(WidgetPetPage.resolve(in: updated, selectedPetID: pets[2].id)?.pet.id, pets[1].id)
+        updated.currentPetID = pets[2].id
+        XCTAssertEqual(WidgetPetPage.resolve(in: updated, selectedPetID: pets[2].id)?.pet.id, pets[0].id)
+    }
+
+    func test_singleAndEmptyPets_doNotOfferPaging() throws {
+        var updated = snapshot()
+        updated.pets = [pets[0]]
+        let page = try XCTUnwrap(WidgetPetPage.resolve(in: updated, selectedPetID: pets[1].id))
+        XCTAssertEqual(page.count, 1)
+        XCTAssertNil(page.nextPetID)
+        XCTAssertNil(page.previousPetID)
+        updated.pets = []
+        XCTAssertNil(WidgetPetPage.resolve(in: updated, selectedPetID: pets[0].id))
+    }
+
+    func test_eachPage_usesItsOwnRemindersAndTimelineBoundaries() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 6, hour: 12))!
+        var s = snapshot()
+        s.currentPetID = pets[0].id
+        s.reminders = [
+            .init(id: UUID(), petID: pets[0].id, petName: pets[0].nickname,
+                  type: "喂食", hour: 14, minute: 0, repeatRule: .daily),
+            .init(id: UUID(), petID: pets[1].id, petName: pets[1].nickname,
+                  type: "服药", hour: 17, minute: 0, repeatRule: .daily),
+            .init(id: UUID(), petID: pets[1].id, petName: pets[1].nickname,
+                  type: "驱虫", hour: 18, minute: 0, repeatRule: .daily, isEnabled: false),
+        ]
+        for (index, hour) in [(0, 14), (1, 17)] {
+            let events = WidgetSnapshotQueries.remainingReminders(in: s, petID: pets[index].id, now: now, calendar: calendar)
+            XCTAssertEqual(events.map(\.hour), [hour])
+            XCTAssertTrue(events.allSatisfy { $0.petID == pets[index].id })
+            let dates = WidgetSnapshotQueries.timelineDates(in: s, petID: pets[index].id, now: now, calendar: calendar)
+            XCTAssertTrue(dates.contains(calendar.date(bySettingHour: hour, minute: 0, second: 0, of: now)!))
+            let otherHour = index == 0 ? 17 : 14
+            XCTAssertFalse(dates.contains(calendar.date(bySettingHour: otherHour, minute: 0, second: 0, of: now)!))
+        }
+        XCTAssertTrue(WidgetSnapshotQueries.remainingReminders(in: s, petID: pets[2].id, now: now, calendar: calendar).isEmpty)
+        XCTAssertTrue(WidgetSnapshotQueries.remainingReminders(in: s, petID: UUID(), now: now, calendar: calendar).isEmpty)
+    }
+
+    func test_selectionPersists_withoutChangingSnapshot_andRejectsStaleTarget() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("widget-pages-\(UUID())")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let s = snapshot()
+        try WidgetSnapshotStore.write(s, to: directory)
+        XCTAssertTrue(try WidgetPetPageStore.select(petID: pets[2].id, in: directory))
+        XCTAssertEqual(WidgetPetPageStore.selectedPetID(from: directory), pets[2].id)
+        XCTAssertEqual(WidgetSnapshotStore.read(from: directory), s)
+        XCTAssertFalse(try WidgetPetPageStore.select(petID: UUID(), in: directory))
+        XCTAssertEqual(WidgetPetPageStore.selectedPetID(from: directory), pets[2].id)
+        var updated = s
+        updated.pets.removeLast()
+        try WidgetSnapshotStore.write(updated, to: directory)
+        XCTAssertFalse(try WidgetPetPageStore.select(petID: pets[2].id, in: directory))
+        XCTAssertEqual(WidgetPetPage.resolve(in: updated, selectedPetID: WidgetPetPageStore.selectedPetID(from: directory))?.pet.id, pets[1].id)
+    }
+
+    func test_unreadableSelectionAndSnapshot_haveSafeFallbacks() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("widget-pages-\(UUID())")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        XCTAssertNil(WidgetPetPageStore.selectedPetID(from: directory))
+        XCTAssertFalse(try WidgetPetPageStore.select(petID: pets[0].id, in: directory))
+        try Data("broken".utf8).write(to: directory.appendingPathComponent(WidgetPetPageStore.selectionFileName))
+        XCTAssertNil(WidgetPetPageStore.selectedPetID(from: directory))
+        XCTAssertEqual(WidgetPetPage.resolve(in: snapshot(), selectedPetID: WidgetPetPageStore.selectedPetID(from: directory))?.pet.id, pets[1].id)
+    }
+
+    func test_selectionWriteFailure_leavesSnapshotIntact() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("widget-pages-\(UUID())")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let s = snapshot()
+        try WidgetSnapshotStore.write(s, to: directory)
+        try FileManager.default.createDirectory(at: directory.appendingPathComponent(WidgetPetPageStore.selectionFileName), withIntermediateDirectories: true)
+        XCTAssertThrowsError(try WidgetPetPageStore.select(petID: pets[0].id, in: directory))
+        XCTAssertEqual(WidgetSnapshotStore.read(from: directory), s)
+        XCTAssertNil(WidgetPetPageStore.selectedPetID(from: directory))
+    }
+}
+
 final class WidgetSnapshotFiresTests: XCTestCase {
     private var calendar: Calendar {
         var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "Asia/Shanghai")!
@@ -174,5 +301,32 @@ final class DeepLinkRouterTests: XCTestCase {
         router.handle(url: URL(string: "petpal://other/\(UUID().uuidString)")!)
         router.handle(url: URL(string: "petpal://pet/not-a-uuid")!)
         XCTAssertEqual(router.path.count, 0)
+    }
+
+    @MainActor func test_handle_recordsURL_preservesTargetPetAndClearsProfileNavigation() {
+        let router = DeepLinkRouter()
+        router.openPet(id: UUID())
+        let petID = UUID()
+        router.handle(url: URL(string: "petpal://records/\(petID.uuidString)")!)
+        XCTAssertEqual(router.recordsPetID, petID)
+        XCTAssertTrue(router.path.isEmpty)
+        let otherPet = UUID()
+        router.handle(url: URL(string: "petpal://records/\(otherPet.uuidString)")!)
+        XCTAssertEqual(router.recordsPetID, otherPet)
+    }
+
+    @MainActor func test_handle_invalidRecordsURL_doesNotChangePendingDestination() {
+        let router = DeepLinkRouter()
+        let petID = UUID()
+        router.openRecords(id: petID)
+        for raw in ["https://records/\(UUID())", "petpal://records/not-a-uuid",
+                    "petpal://records/extra/\(UUID())", "petpal://other/\(UUID())"] {
+            router.handle(url: URL(string: raw)!)
+        }
+        XCTAssertEqual(router.recordsPetID, petID)
+        XCTAssertTrue(router.path.isEmpty)
+        router.handle(url: URL(string: "petpal://pet/\(UUID())")!)
+        XCTAssertNil(router.recordsPetID)
+        XCTAssertEqual(router.path.count, 1)
     }
 }

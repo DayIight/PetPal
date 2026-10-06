@@ -60,6 +60,8 @@ struct RootTabView: View {
     @State private var snapshotSyncer: WidgetSnapshotSyncer
     @State private var showRecovery = false
     @State private var dataRevision = UUID()
+    @State private var recordsNavigationRevision = UUID()
+    @State private var missingRecordsPet = false
     @Environment(\.scenePhase) private var scenePhase
     enum Tab { case today, records, growth, profile }
 
@@ -94,6 +96,7 @@ struct RootTabView: View {
                         .tabItem { Label("今日", systemImage: "house") }.tag(Tab.today)
                     RecordsHomeView(currentPet: currentPet, reminderService: reminderService,
                                     pickerRequested: $recordsPickerRequested)
+                        .id(recordsNavigationRevision)
                         .tabItem { Label("记录", systemImage: "calendar") }.tag(Tab.records)
                     Group {
                         if let pet = currentPet.current {
@@ -119,13 +122,33 @@ struct RootTabView: View {
         .onChange(of: scenePhase) { if $0 == .active { refreshLocalData() } }
         .onOpenURL { router.handle(url: $0) }
         .onReceive(router.$path) { if !$0.isEmpty { selection = .profile } }
+        .onReceive(router.$recordsPetID.combineLatest(currentPet.$pets, currentPet.$hasLoadedPets)
+            .receive(on: DispatchQueue.main)) { id, pets, loaded in
+            // 冷启动时先保留请求，等档案加载完成再选宠物；不存在的 ID 不落到另一只宠物。
+            guard let id, loaded, router.recordsPetID == id, storeError == nil else { return }
+            router.recordsPetID = nil
+            guard let pet = pets.first(where: { $0.id == id }) else {
+                missingRecordsPet = true
+                return
+            }
+            currentPet.select(pet)
+            recordsPickerRequested = false
+            recordsNavigationRevision = UUID()
+            selection = .records
+        }
         .onReceive(NotificationCenter.default.publisher(for: .backupDidRestore)) { _ in
             storeError = CoreDataStack.shared.loadError
             router.path = NavigationPath()
+            router.recordsPetID = nil
             dataRevision = UUID()
             // 宠物 publisher 刷新后由 syncer 自动生成快照；通知在恢复流程内重建。
         }
         .sheet(isPresented: $showRecovery) { NavigationStack { BackupManagementView() } }
+        .alert("无法打开记录", isPresented: $missingRecordsPet) {
+            Button("知道了", role: .cancel) {}
+        } message: {
+            Text("这只宠物的档案已不存在。请在 App 中查看或创建宠物档案。")
+        }
     }
 
     private func refreshLocalData() {
