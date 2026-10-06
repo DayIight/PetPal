@@ -260,3 +260,105 @@ final class RecordKindSymbolTests: XCTestCase {
         }
     }
 }
+
+// MARK: - 表单 VM（GAP-01/02/03：照片、编辑模式、心情上限）
+final class RecordFormViewModelTests: XCTestCase {
+    @MainActor private func makeRepo() -> CoreDataRecordRepository {
+        CoreDataRecordRepository(stack: CoreDataStack(inMemory: true))
+    }
+    @MainActor private func validAnswers(_ vm: RecordFormViewModel) {
+        vm.draft.answers = ["food": "处方粮", "grams": "80", "mealTime": "早"]
+    }
+
+    @MainActor func test_save_missingRequired_blocked() {
+        let repo = makeRepo()
+        let vm = RecordFormViewModel(repo: repo, petID: UUID(), kind: .feeding)
+        XCTAssertFalse(vm.save())
+        XCTAssertFalse(vm.errors.isEmpty)
+    }
+
+    @MainActor func test_save_validDraft_persists() throws {
+        let repo = makeRepo()
+        let pet = UUID()
+        let vm = RecordFormViewModel(repo: repo, petID: pet, kind: .feeding)
+        validAnswers(vm)
+        XCTAssertTrue(vm.save())
+        var records: [PetPal.Record] = []
+        var bag = Set<AnyCancellable>()
+        repo.recordsPublisher(petID: pet).sink { records = $0 }.store(in: &bag)
+        XCTAssertEqual(records.count, 1)
+        _ = bag
+    }
+
+    // GAP-03：心情自定义文本超 10 字被校验拦截
+    @MainActor func test_save_moodOver10_blocked() {
+        let repo = makeRepo()
+        let vm = RecordFormViewModel(repo: repo, petID: UUID(), kind: .feeding)
+        validAnswers(vm)
+        vm.draft.mood = String(repeating: "好", count: 11)
+        XCTAssertFalse(vm.save())
+        vm.draft.mood = "有点拉肚子"
+        XCTAssertTrue(vm.save())
+    }
+
+    // GAP-02：编辑模式 save 走 update，保留原 createdAt 且不新增条目
+    @MainActor func test_editingSave_updatesInPlace_preservesCreatedAt() throws {
+        let repo = makeRepo()
+        let pet = UUID()
+        var original = PetPal.Record(petID: pet, kind: .feeding,
+                                     answers: ["food": "处方粮", "grams": "80", "mealTime": "早"])
+        original.createdAt = Date().addingTimeInterval(-86400)
+        try repo.create(original)
+        let vm = RecordFormViewModel(repo: repo, editing: original)
+        XCTAssertTrue(vm.isEditing)
+        vm.draft.answers["grams"] = "120"
+        XCTAssertTrue(vm.save())
+        var records: [PetPal.Record] = []
+        var bag = Set<AnyCancellable>()
+        repo.recordsPublisher(petID: pet).sink { records = $0 }.store(in: &bag)
+        XCTAssertEqual(records.count, 1, "编辑不得新增条目")
+        XCTAssertEqual(records.first?.answers["grams"], "120")
+        XCTAssertEqual(records.first?.createdAt, original.createdAt)
+        _ = bag
+    }
+
+    // GAP-01：照片校验——超 10MB 拒绝；第 10 张拒绝（含已落盘计数）
+    @MainActor func test_addPhoto_over10MB_rejected() {
+        let repo = makeRepo()
+        let vm = RecordFormViewModel(repo: repo, petID: UUID(), kind: .feeding)
+        vm.addPhoto(Data(count: MediaPolicy.maxPhotoBytes + 1))
+        XCTAssertTrue(vm.pickedImages.isEmpty)
+        XCTAssertEqual(vm.errors, ["单张图片不能超过10MB"])
+    }
+
+    @MainActor func test_addPhoto_beyondLimit_rejected() {
+        let repo = makeRepo()
+        let vm = RecordFormViewModel(repo: repo, petID: UUID(), kind: .feeding)
+        let image = AvatarStoreTests.makeImage(width: 10, height: 10)
+        for _ in 0..<MediaPolicy.maxPhotos { vm.addPhoto(image) }
+        XCTAssertEqual(vm.pickedImages.count, MediaPolicy.maxPhotos)
+        vm.addPhoto(image)
+        XCTAssertEqual(vm.pickedImages.count, MediaPolicy.maxPhotos, "第 10 张应被拒绝")
+        // 已落盘照片计入总数：编辑带 1 张已存照片时只能再选 8 张
+        var existing = PetPal.Record(petID: UUID(), kind: .feeding)
+        existing.photoFileNames = ["a.jpg"]
+        let editVM = RecordFormViewModel(repo: repo, editing: existing)
+        for _ in 0..<(MediaPolicy.maxPhotos - 1) { editVM.addPhoto(image) }
+        editVM.addPhoto(image)
+        XCTAssertEqual(editVM.pickedImages.count, MediaPolicy.maxPhotos - 1)
+    }
+
+    @MainActor func test_removePhotos_updatesDraftAndPicked() {
+        let repo = makeRepo()
+        var existing = PetPal.Record(petID: UUID(), kind: .feeding)
+        existing.photoFileNames = ["a.jpg", "b.jpg"]
+        let vm = RecordFormViewModel(repo: repo, editing: existing)
+        vm.removeSavedPhoto("a.jpg")
+        XCTAssertEqual(vm.draft.photoFileNames, ["b.jpg"])
+        vm.addPhoto(AvatarStoreTests.makeImage(width: 10, height: 10))
+        vm.addPhoto(AvatarStoreTests.makeImage(width: 10, height: 10))
+        vm.removePickedPhoto(at: 0)
+        XCTAssertEqual(vm.pickedImages.count, 1)
+        vm.removePickedPhoto(at: 99)   // 越界不崩溃
+    }
+}

@@ -128,3 +128,51 @@ func XCTAssertThrowsErrorAsync(_ expression: @autoclosure () async throws -> Any
     do { _ = try await expression(); XCTFail("应抛错", file: file, line: line) }
     catch { /* 预期 */ }
 }
+
+// MARK: - 消息类型样式（R-03：MessageKindStyle 全分支映射 + SF Symbol 有效性）
+final class MessageKindStyleTests: XCTestCase {
+    private let allKinds: [InteractionMessage.Kind] = [
+        .likePost, .commentPost, .reactPost, .likeComment, .replyComment,
+    ]
+    func test_actionText_allKindsNonEmptyAndDistinct() {
+        let texts = allKinds.map(MessageKindStyle.actionText)
+        XCTAssertFalse(texts.contains { $0.isEmpty })
+        XCTAssertEqual(Set(texts).count, allKinds.count, "每种消息类型的动作文案应可区分")
+    }
+    func test_iconName_allKindsResolveToRealSymbols() {
+        for kind in allKinds {
+            let name = MessageKindStyle.iconName(kind)
+            XCTAssertNotNil(UIImage(systemName: name), "\(kind) 的 \(name) 不是有效 SF Symbol")
+        }
+        XCTAssertEqual(MessageKindStyle.iconName(.likePost), MessageKindStyle.iconName(.likeComment))
+        XCTAssertEqual(MessageKindStyle.iconName(.commentPost), MessageKindStyle.iconName(.replyComment))
+    }
+}
+
+// MARK: - 评论 VM（R-01：长评论展开态；超 500 字 surface 错误而非静默）
+final class CommentListViewModelTests: XCTestCase {
+    @MainActor private func makeVM() -> (CommentListViewModel, MockSocialRepository) {
+        let repo = MockSocialRepository()
+        var feed: [Post] = []
+        let c = repo.feedPublisher.sink { feed = $0 }
+        defer { c.cancel() }
+        return (CommentListViewModel(post: feed[0], repo: repo), repo)
+    }
+
+    @MainActor func test_toggleExpanded_togglesMembership() {
+        let (vm, _) = makeVM()
+        let id = UUID()
+        vm.toggleExpanded(id)
+        XCTAssertTrue(vm.expandedIDs.contains(id))
+        vm.toggleExpanded(id)
+        XCTAssertFalse(vm.expandedIDs.contains(id))
+    }
+
+    @MainActor func test_send_over500_surfacesError() {
+        let (vm, _) = makeVM()
+        vm.draft = String(repeating: "字", count: 501)
+        vm.send()
+        XCTAssertEqual(vm.errorMessage, "评论最多500字")
+        XCTAssertFalse(vm.draft.isEmpty, "被拒内容应保留在输入框供删减")
+    }
+}

@@ -21,6 +21,11 @@ enum BreedCatalog {
     }
 }
 
+// MARK: - 过敏源预设目录（档案表单多选预设 + 自定义兜底）
+enum AllergenCatalog {
+    static let presets = ["鸡肉", "牛肉", "鱼肉", "乳制品", "鸡蛋", "谷物", "大豆", "尘螨", "花粉", "跳蚤"]
+}
+
 // MARK: - 值类型模型（层间唯一传递对象）
 struct Pet: Identifiable, Equatable {
     var id = UUID()
@@ -42,7 +47,9 @@ enum NeuterStatus: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 enum PetField: Hashable { case nickname, breed, birthday, weight, chip, vetPhone }
-enum PetSort { case nickname, createdAt }
+enum PetSort: String, CaseIterable {
+    case nickname = "昵称", createdAt = "创建时间"
+}
 
 // MARK: - 校验（纯函数，独立可测）
 enum PetValidator {
@@ -69,24 +76,48 @@ protocol PetRepository: AnyObject {
     func delete(id: UUID) throws    // 调用方联动清理 M4 关联提醒
 }
 
+enum DataStoreError: LocalizedError {
+    case missingItem
+    var errorDescription: String? { "数据已不存在，请刷新后重试。" }
+}
+
 final class CoreDataStack {
     static let shared = CoreDataStack()
     let container: NSPersistentContainer
     /// 持久化加载失败时非 nil（H-03：不再静默吞错，UI 层据此展示错误态）
     private(set) var loadError: Error?
-    init(inMemory: Bool = false) {
+    /// sqlite store 的磁盘 URL（inMemory 为 nil；GAP-06 备份据此取源文件）
+    var storeURL: URL? { container.persistentStoreDescriptions.first?.url }
+    private let saveHandler: (NSManagedObjectContext) throws -> Void
+    init(inMemory: Bool = false, storeURL: URL? = nil,
+         saveHandler: @escaping (NSManagedObjectContext) throws -> Void = { try $0.save() }) {
+        self.saveHandler = saveHandler
         container = NSPersistentContainer(name: "PetPal")
         if inMemory, let description = container.persistentStoreDescriptions.first {
             description.type = NSInMemoryStoreType
             description.url = nil
         }
+        if let storeURL { container.persistentStoreDescriptions = [NSPersistentStoreDescription(url: storeURL)] }
+        container.persistentStoreDescriptions.forEach { $0.shouldAddStoreAsynchronously = false }
         container.loadPersistentStores { [weak self] _, e in
             if let e {
                 self?.loadError = e
-                assertionFailure("\(e)")   // Debug 下仍中断，Release 下由 UI 呈现错误态
+                NSLog("PetPal 数据加载失败：%@", e.localizedDescription)
             }
         }
+        if loadError == nil {
+            do { try HealthDataMigration.linkLegacyWeights(in: container.viewContext); if container.viewContext.hasChanges { try save() } }
+            catch { container.viewContext.rollback(); NSLog("旧体重来源补全失败：%@", error.localizedDescription) }
+        }
     }
+    func setLoadError(_ error: Error?) { loadError = error }
+
+    /// 保存失败必须撤销本次上下文变更，防止后续操作把失败的草稿一起写入。
+    func save() throws {
+        do { try saveHandler(container.viewContext) }
+        catch { container.viewContext.rollback(); throw error }
+    }
+
     /// 从本 stack 的 model 解析实体并插入 viewContext。
     /// 直接用 `CDX(context:)` 在多 container 同进程（测试场景）下会命中错误模型拷贝。
     func insert<T: NSManagedObject>(_ type: T.Type) -> T {
@@ -119,36 +150,55 @@ final class CoreDataPetRepository: PetRepository {
     private var ctx: NSManagedObjectContext { stack.container.viewContext }
     private func reload() {
         let r = CDPet.fetchRequest(); r.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        subject.send(((try? ctx.fetch(r)) ?? []).map(Pet.init))
+        let weights = (try? ctx.fetch(CDWeightSample.fetchRequest())) ?? []
+        subject.send(((try? ctx.fetch(r)) ?? []).map { entity in
+            var pet = Pet(entity)
+            if let latest = weights.filter({ $0.petID == pet.id && ($0.date ?? .distantFuture) <= Date() })
+                .max(by: { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }) { pet.weightKg = latest.kg }
+            return pet
+        })
     }
     private func save() throws {
-        try ctx.save(); reload()
+        try stack.save(); reload()
         NotificationCenter.default.post(name: .petsDidChange, object: nil)
     }
     func create(_ pet: Pet) throws { pet.apply(to: stack.insert(CDPet.self)); try save() }
-    func update(_ pet: Pet) throws { guard let e = find(pet.id) else { return }; pet.apply(to: e); try save() }
+    func update(_ pet: Pet) throws {
+        guard let e = try find(pet.id) else { throw DataStoreError.missingItem }
+        let request = CDWeightSample.fetchRequest(); request.predicate = NSPredicate(format: "petID == %@", pet.id as CVarArg)
+        let latest = try ctx.fetch(request).filter { ($0.date ?? .distantFuture) <= Date() }.max { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
+        let currentWeight = latest?.kg ?? e.weightKg
+        let baseline = e.weightKg
+        pet.apply(to: e)
+        if pet.weightKg != currentWeight {
+            let sample = stack.insert(CDWeightSample.self)
+            sample.id = UUID(); sample.petID = pet.id; sample.kg = pet.weightKg; sample.date = Date()
+        } else { e.weightKg = baseline }
+        try save()
+        NotificationCenter.default.post(name: .weightsDidChange, object: nil)
+    }
     // H-02 级联删除：先收集关联文件，再删 CDRecord/CDReminder/CDWeightSample/CDPet，最后清盘
-    // （pending 通知的撤销由调用方经 PetListViewModel.reminderCleanup 在调用本方法前完成）
+    // （pending 通知在本事务保存成功后经 PetListViewModel.reminderCleanup 重排清理）
     func delete(id: UUID) throws {
-        guard let e = find(id) else { return }
+        guard let e = try find(id) else { return }
         var files: [String] = []
         if let avatar = e.avatarFileName { files.append(avatar) }
         let recordReq = CDRecord.fetchRequest(); recordReq.predicate = NSPredicate(format: "petID == %@", id as CVarArg)
-        for r in (try? ctx.fetch(recordReq)) ?? [] {
-            files.append(contentsOf: r.photoFileNames ?? [])
-            ctx.delete(r)
-        }
         let reminderReq = CDReminder.fetchRequest(); reminderReq.predicate = NSPredicate(format: "petID == %@", id as CVarArg)
-        ((try? ctx.fetch(reminderReq)) ?? []).forEach(ctx.delete)
         let weightReq = CDWeightSample.fetchRequest(); weightReq.predicate = NSPredicate(format: "petID == %@", id as CVarArg)
-        ((try? ctx.fetch(weightReq)) ?? []).forEach(ctx.delete)
+        // 所有读取先成功，再开始删除，读取失败时不留下半套上下文变更。
+        let records = try ctx.fetch(recordReq)
+        let reminders = try ctx.fetch(reminderReq)
+        let weights = try ctx.fetch(weightReq)
+        for r in records { files.append(contentsOf: r.photoFileNames ?? []); ctx.delete(r) }
+        reminders.forEach(ctx.delete); weights.forEach(ctx.delete)
         ctx.delete(e)
         try save()
         files.forEach(AvatarStore.delete(fileName:))   // M-04：数据库落盘后再清文件
     }
-    private func find(_ id: UUID) -> CDPet? {
+    private func find(_ id: UUID) throws -> CDPet? {
         let r = CDPet.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return try? ctx.fetch(r).first
+        return try ctx.fetch(r).first
     }
 }
 
@@ -171,10 +221,11 @@ private extension Pet {   // 值类型 <-> CDPet 映射
 
 // MARK: - 头像压缩（最长边≤1080px，JPEG 0.8）与媒体文件清理（M-04）
 enum AvatarStore {
-    private static var directory: URL {
+    static var directory: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
-    static func save(_ image: UIImage) -> String? {
+    static func save(_ image: UIImage, to destination: URL = directory) -> String? {
+        guard image.size.width > 0, image.size.height > 0 else { return nil }
         let scale = min(1, 1080 / max(image.size.width, image.size.height))
         let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
         let format = UIGraphicsImageRendererFormat()
@@ -183,8 +234,12 @@ enum AvatarStore {
             _ in image.draw(in: CGRect(origin: .zero, size: size))
         }
         let name = UUID().uuidString + ".jpg"
-        try? data.write(to: directory.appendingPathComponent(name))
-        return name
+        do {
+            try data.write(to: destination.appendingPathComponent(name), options: .atomic)
+            return name
+        } catch {
+            return nil
+        }
     }
     /// 读取已落盘的头像/附件图片；文件不存在返回 nil（列表/详情展示用）
     static func load(fileName: String) -> UIImage? {
@@ -209,7 +264,7 @@ enum AvatarStore {
     @Published private(set) var pets: [Pet] = []
     @Published var sort: PetSort = .createdAt { didSet { applySort() } }
     @Published var toast: String?
-    /// H-02：删除宠物前撤销其 pending 通知的钩子（由 App 层注入 ReminderService.removeAll）
+    /// 删除宠物成功后重排通知的钩子（App 层注入共享 ReminderService）
     var reminderCleanup: ((UUID) throws -> Void)?
     private let repo: PetRepository
     private var bag = Set<AnyCancellable>()
@@ -224,11 +279,12 @@ enum AvatarStore {
         case .createdAt: pets.sort { $0.createdAt > $1.createdAt }
         }
     }
-    func delete(_ pet: Pet) {
+    @discardableResult func delete(_ pet: Pet) -> Bool {
         do {
-            try reminderCleanup?(pet.id)          // 先撤销 pending 通知
-            try repo.delete(id: pet.id)           // 再级联删库与文件
-        } catch { toast = "删除失败，请重试" }
+            try repo.delete(id: pet.id)           // 数据库级联成功后再撤销通知
+            try reminderCleanup?(pet.id)
+            return true
+        } catch { toast = "删除失败，请重试"; return false }
     }
 }
 
@@ -237,20 +293,27 @@ enum AvatarStore {
     @Published private(set) var pickedAvatar: UIImage?   // 新选头像，保存时才落盘
     @Published private(set) var avatarRemoved = false    // 标记移除，保存时才清文件
     @Published private(set) var errors: [PetField: String] = [:]
+    @Published private(set) var saveError: String?
+    private let saveAvatar: (UIImage) -> String?
     private let repo: PetRepository, isEditing: Bool
     private let originalAvatarFileName: String?
-    init(repo: PetRepository, editing: Pet? = nil) {
+    init(repo: PetRepository, editing: Pet? = nil,
+         saveAvatar: @escaping (UIImage) -> String? = { AvatarStore.save($0) }) {
+        self.saveAvatar = saveAvatar
         self.repo = repo; isEditing = editing != nil; draft = editing ?? Pet()
         originalAvatarFileName = editing?.avatarFileName
     }
     func pickAvatar(_ image: UIImage) { pickedAvatar = image; avatarRemoved = false }
     func removeAvatar() { pickedAvatar = nil; avatarRemoved = true }
     @discardableResult func save() -> Bool {
+        saveError = nil
         errors = PetValidator.errors(for: draft)          // 非空：View 高亮并阻止提交
         guard errors.isEmpty else { return false }
         var newFile: String?
         if let pickedAvatar {
-            guard let name = AvatarStore.save(pickedAvatar) else { return false }  // 落盘失败不提交
+            guard let name = saveAvatar(pickedAvatar) else {
+                saveError = "头像保存失败，请重试"; return false
+            }
             newFile = name
             draft.avatarFileName = name
         } else if avatarRemoved {
@@ -261,6 +324,7 @@ enum AvatarStore {
         } catch {
             if let newFile { AvatarStore.delete(fileName: newFile) }   // 回滚，避免孤儿文件
             draft.avatarFileName = originalAvatarFileName
+            saveError = "档案保存失败，请重试"
             return false
         }
         // 写库成功后清理被替换/移除的旧头像文件

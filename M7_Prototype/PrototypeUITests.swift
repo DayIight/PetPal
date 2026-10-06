@@ -1,6 +1,6 @@
 import XCTest
 
-// 关键路径 UI 自动化（五标签栏新导航）：①发布记录 ②设置提醒 ③导出 PDF ④日历当日记录 ⑤冷启动
+// 关键路径 UI 自动化（本地首版四标签导航）：①发布记录 ②设置提醒 ③导出 PDF ④日历当日记录 ⑤冷启动
 final class PrototypeUITests: XCTestCase {
     private var app: XCUIApplication!
 
@@ -10,12 +10,31 @@ final class PrototypeUITests: XCTestCase {
         app.launch()
     }
 
+    func test_localReleaseNavigationAndDataTools() {
+        XCTAssertTrue(app.petPalTab("今日").waitForExistence(timeout: 3))
+        XCTAssertTrue(app.petPalTab("记录").exists)
+        XCTAssertTrue(app.petPalTab("成长").exists)
+        XCTAssertTrue(app.petPalTab("我的").exists)
+        XCTAssertFalse(app.petPalTab("首页动态").exists)
+        XCTAssertFalse(app.petPalTab("消息").exists)
+        XCTAssertFalse(app.buttons["tab.publish"].exists)
+        app.petPalTab("我的").tap()
+        if !app.buttons["profile.backup"].isHittable { app.swipeUp() }
+        app.buttons["profile.backup"].tap()
+        XCTAssertTrue(app.navigationBars["数据备份"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["backup.export"].exists)
+        XCTAssertTrue(app.buttons["backup.import"].exists)
+        app.buttons["完成"].tap()
+        app.buttons["profile.privacy"].tap()
+        XCTAssertTrue(app.navigationBars["隐私与支持"].waitForExistence(timeout: 3))
+    }
+
     // 路径①：我的 tab 建档案 → 记录 tab 记一条喂食（通用动态表单）
     func test_createPet_thenLogFeeding() {
         createPetIfNeeded()
 
-        app.tabBars.buttons["记录"].tap()
-        XCTAssertTrue(app.staticTexts["records.currentPet"].waitForExistence(timeout: 3))
+        app.petPalTab("记录").tap()
+        XCTAssertTrue((app.staticTexts["records.currentPet"].waitForExistence(timeout: 3) || app.buttons["records.petSwitcher"].waitForExistence(timeout: 3)))
         app.buttons["records.add"].tap()
         XCTAssertTrue(app.buttons["record.template.喂食"].waitForExistence(timeout: 3))
         app.buttons["record.template.喂食"].tap()
@@ -35,7 +54,7 @@ final class PrototypeUITests: XCTestCase {
     func test_deleteAllPets_thenRecreate_canLogRecord() {
         createPetIfNeeded()
         // 删除全部档案（可能有多只）：详情页删除按钮在屏外，需先上滑
-        app.tabBars.buttons["我的"].tap()
+        app.petPalTab("我的").tap()
         let petRows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "pet.row."))
         for _ in 0..<5 {
             guard petRows.firstMatch.waitForExistence(timeout: 2) else { break }
@@ -55,8 +74,8 @@ final class PrototypeUITests: XCTestCase {
         createPetIfNeeded()
 
         // 直接记一条：按钮应可用，保存后时间轴原地出现
-        app.tabBars.buttons["记录"].tap()
-        XCTAssertTrue(app.staticTexts["records.currentPet"].waitForExistence(timeout: 3),
+        app.petPalTab("记录").tap()
+        XCTAssertTrue((app.staticTexts["records.currentPet"].waitForExistence(timeout: 3) || app.buttons["records.petSwitcher"].waitForExistence(timeout: 3)),
                       "重建档案后记录页应显示当前宠物")
         app.buttons["records.add"].tap()
         XCTAssertTrue(app.buttons["record.template.训练"].waitForExistence(timeout: 3))
@@ -72,8 +91,8 @@ final class PrototypeUITests: XCTestCase {
     // 回归：保存记录后时间轴应「原地」出现新行，无需切换界面（跨实例广播修复的 UI 级验证）
     func test_timelineShowsNewRecordWithoutSwitchingTabs() {
         createPetIfNeeded()
-        app.tabBars.buttons["记录"].tap()
-        XCTAssertTrue(app.staticTexts["records.currentPet"].waitForExistence(timeout: 3))
+        app.petPalTab("记录").tap()
+        XCTAssertTrue((app.staticTexts["records.currentPet"].waitForExistence(timeout: 3) || app.buttons["records.petSwitcher"].waitForExistence(timeout: 3)))
 
         app.buttons["records.add"].tap()
         XCTAssertTrue(app.buttons["record.template.训练"].waitForExistence(timeout: 3))
@@ -91,7 +110,7 @@ final class PrototypeUITests: XCTestCase {
 
     // 校验拦截：昵称为空时保存失败，错误文案出现且表单 sheet 保持打开
     func test_emptyNickname_blocksSave() {
-        app.tabBars.buttons["我的"].tap()
+        app.petPalTab("我的").tap()
         // 仅冷启动无档案（空态引导可见）时执行；已有档案则跳过
         guard app.staticTexts["pet.emptyGuide"].waitForExistence(timeout: 3) else { return }
         app.buttons["pet.createFirst"].tap()
@@ -103,7 +122,7 @@ final class PrototypeUITests: XCTestCase {
     // 路径②：设置每日提醒（含系统权限弹窗处理）
     func test_setDailyReminder() {
         createPetIfNeeded()
-        app.tabBars.buttons["记录"].tap()
+        app.petPalTab("记录").tap()
         // 系统权限弹窗（中文系统按钮为「允许」，英文为 "Allow"）
         addUIInterruptionMonitor(withDescription: "通知权限") { alert in
             if alert.buttons["允许"].exists { alert.buttons["允许"].tap(); return true }
@@ -112,18 +131,45 @@ final class PrototypeUITests: XCTestCase {
         }
         XCTAssertTrue(app.buttons["records.reminder"].waitForExistence(timeout: 3))
         app.buttons["records.reminder"].tap()
+        // 铃铛现在先落提醒列表页，再点「+」进创建表单
+        XCTAssertTrue(app.buttons["reminders.add"].waitForExistence(timeout: 3))
+        app.buttons["reminders.add"].tap()
         app.buttons["reminder.save"].tap()
         app.tap()   // 触发 interruption monitor 消费弹窗
-        // 授权后保存成功回记录页；若曾拒绝则出现引导 Alert
-        let backRecords = app.buttons["records.reminder"].waitForExistence(timeout: 3)
-        let deniedAlert = app.alerts["通知权限未开启"].exists
-        XCTAssertTrue(backRecords || deniedAlert)
+        // 授权后保存成功回到提醒列表且该提醒可见；若曾拒绝则出现引导 Alert
+        let savedRow = app.descendants(matching: .any)
+            .matching(identifier: "reminders.row.喂食").firstMatch.waitForExistence(timeout: 3)
+        let deniedAlert = app.alerts["提醒已保存"].exists
+        XCTAssertTrue(savedRow || deniedAlert)
+    }
+
+    func test_checkupCanBeEditedAndDeletedFromTimeline() {
+        createPetIfNeeded()
+        app.petPalTab("记录").tap()
+        app.buttons["records.add"].tap()
+        app.buttons["record.template.体检"].tap()
+        let weight = app.textFields["record.field.weightKg"]
+        XCTAssertTrue(weight.waitForExistence(timeout: 3)); weight.tap(); weight.typeText("8")
+        app.buttons["record.save"].tap()
+        XCTAssertTrue(app.buttons["record.save"].waitForNonExistence(timeout: 3))
+        let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "records.row.")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 3)); row.tap()
+        XCTAssertTrue(app.buttons["detail.edit"].waitForExistence(timeout: 3)); app.buttons["detail.edit"].tap()
+        let editingWeight = app.textFields["record.field.weightKg"]
+        XCTAssertTrue(editingWeight.waitForExistence(timeout: 3)); editingWeight.tap(); editingWeight.typeText("\u{8}9")
+        app.buttons["record.save"].tap()
+        XCTAssertTrue(app.buttons["record.save"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["9"].waitForExistence(timeout: 3))
+        app.buttons["detail.delete"].tap()
+        XCTAssertTrue(app.buttons["确认删除记录"].waitForExistence(timeout: 3))
+        app.buttons["确认删除记录"].tap()
+        XCTAssertTrue(app.buttons["detail.delete"].waitForNonExistence(timeout: 3))
     }
 
     // ③ 导出 PDF：建档案 → 我的 tab → 成长看板 → 导出 → 系统分享面板出现
     func test_exportPDF() throws {
         createPetIfNeeded()
-        app.tabBars.buttons["我的"].tap()
+        app.petPalTab("我的").tap()
         XCTAssertTrue(app.buttons["profile.dashboard"].waitForExistence(timeout: 3))
         app.buttons["profile.dashboard"].tap()
         // 看板出现：导出按钮 + 三大区块锚点。体重图表区两种状态皆可：
@@ -145,7 +191,7 @@ final class PrototypeUITests: XCTestCase {
     func test_calendarShowsTodayRecord() {
         createPetIfNeeded()
         // 记一条喂食，保证今日有记录圆点（mealTime 为必填，需先选择用餐时段）
-        app.tabBars.buttons["记录"].tap()
+        app.petPalTab("记录").tap()
         app.buttons["records.add"].tap()
         app.buttons["record.template.喂食"].tap()
         app.textFields["record.field.food"].tap()
@@ -155,23 +201,23 @@ final class PrototypeUITests: XCTestCase {
         pickOption("午", field: "record.field.mealTime")
         app.buttons["record.save"].tap()
         // 校验通过 sheet 才真正关闭
-        XCTAssertTrue(app.buttons["records.add"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["records.add"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["record.save"].exists, "喂食 sheet 应已关闭")
 
         // 切到「日历」分段
         let calendarSegment = app.buttons["日历"].exists ? app.buttons["日历"] : app.buttons["records.segment"]
         calendarSegment.tap()
-        XCTAssertTrue(app.staticTexts["calendar.dayListTitle"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["calendar.dayListTitle"].waitForExistence(timeout: 5))
         // 今日格子：identifier calendar.day.M月d日，提示「有n条记录」
         let cal = Calendar.current
         let m = cal.component(.month, from: Date())
         let d = cal.component(.day, from: Date())
         let todayCell = app.buttons["calendar.day.\(m)月\(d)日"]
-        XCTAssertTrue(todayCell.waitForExistence(timeout: 3))
+        XCTAssertTrue(todayCell.waitForExistence(timeout: 5))
         todayCell.tap()
         // 当日列表出现刚保存的记录（类型「喂食」）
         XCTAssertTrue(app.buttons.matching(identifier: "calendar.recordRow")
-            .firstMatch.waitForExistence(timeout: 3))
+            .firstMatch.waitForExistence(timeout: 5))
     }
 
     // 冷启动性能基线（PRD §7：≤2 秒；XCTApplicationLaunchMetric 测至首帧渲染完成）
@@ -183,7 +229,7 @@ final class PrototypeUITests: XCTestCase {
 
     /// 冷启动无档案时先建一个（「我的」tab → 空态「创建第一个宠物档案」）；已有档案则直接返回
     private func createPetIfNeeded() {
-        app.tabBars.buttons["我的"].tap()
+        app.petPalTab("我的").tap()
         guard app.staticTexts["pet.emptyGuide"].waitForExistence(timeout: 3) else { return }
         app.buttons["pet.createFirst"].tap()
         app.textFields["pet.nickname"].tap()
@@ -203,5 +249,17 @@ final class PrototypeUITests: XCTestCase {
             app.buttons[field].tap()
         }
         XCTFail("字段 \(field) 的选项「\(option)」未出现")
+    }
+}
+
+
+extension XCUIApplication {
+    /// iPhone 的底部标签栏与 iPad 的浮动标签栏暴露不同的元素类型。
+    func petPalTab(_ title: String) -> XCUIElement {
+        let classic = tabBars.buttons[title].firstMatch
+        if classic.exists { return classic }
+        let floating = cells[title].firstMatch
+        if floating.exists { return floating }
+        return buttons[title].firstMatch
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import CoreData
 import SwiftUI
 
@@ -8,6 +9,7 @@ struct WeightSample: Identifiable, Equatable {
     var petID: UUID
     var kg: Double                      // 0.1...100.0
     var date: Date
+    var sourceRecordID: UUID?
 }
 
 /// 体重合法范围（Stepper 由 in: 钳制；TextField 直接输入的越界值由保存侧用本校验拦截）
@@ -90,6 +92,25 @@ enum ChartPalette {
 protocol WeightRepository: AnyObject {
     func samples(petID: UUID) throws -> [WeightSample]
     func add(_ sample: WeightSample) throws
+    func update(_ sample: WeightSample) throws
+    func delete(id: UUID) throws
+}
+extension WeightRepository {
+    func update(_ sample: WeightSample) throws { throw DataStoreError.missingItem }
+    func delete(id: UUID) throws { throw DataStoreError.missingItem }
+}
+
+extension Notification.Name { static let weightsDidChange = Notification.Name("PetPal.weightsDidChange") }
+
+/// GAP-07：体检记录 → 体重样本的纯函数抽取（key 与 RecordKind.checkup 模板字段一致）
+enum WeightExtraction {
+    static let checkupWeightKey = "weightKg"
+    static func sample(from record: Record) -> WeightSample? {
+        guard record.kind == .checkup,
+              let raw = record.answers[checkupWeightKey],
+              let kg = Double(raw), WeightValidator.isValid(kg) else { return nil }
+        return WeightSample(petID: record.petID, kg: kg, date: record.createdAt, sourceRecordID: record.id)
+    }
 }
 
 final class CoreDataWeightRepository: WeightRepository {
@@ -101,13 +122,41 @@ final class CoreDataWeightRepository: WeightRepository {
         r.predicate = NSPredicate(format: "petID == %@", petID as CVarArg)
         r.sortDescriptors = [NSSortDescriptor(key: "date", ascending: true)]
         return try ctx.fetch(r).map {
-            WeightSample(id: $0.id ?? UUID(), petID: $0.petID ?? UUID(), kg: $0.kg, date: $0.date ?? Date())
+            WeightSample(id: $0.id ?? UUID(), petID: $0.petID ?? UUID(), kg: $0.kg, date: $0.date ?? Date(), sourceRecordID: $0.sourceRecordID)
         }
     }
+    private func validate(_ sample: WeightSample) throws {
+        guard WeightValidator.isValid(sample.kg), sample.date <= Date() else {
+            throw NSError(domain: "PetPal.Weight", code: 1, userInfo: [NSLocalizedDescriptionKey: "体重需在0.1–100kg之间，日期不能晚于今天"])
+        }
+        guard sample.sourceRecordID == nil else { throw linkedError }
+    }
+    private var linkedError: NSError { NSError(domain: "PetPal.Weight", code: 2, userInfo: [NSLocalizedDescriptionKey: "体检体重请在来源记录中修改或删除"])}
+    private func find(_ id: UUID) throws -> CDWeightSample? {
+        let request = CDWeightSample.fetchRequest(); request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return try ctx.fetch(request).first
+    }
+    private func changed() {
+        NotificationCenter.default.post(name: .weightsDidChange, object: nil)
+        NotificationCenter.default.post(name: .petsDidChange, object: nil)
+    }
     func add(_ s: WeightSample) throws {
+        try validate(s)
         let e = stack.insert(CDWeightSample.self)
         e.id = s.id; e.petID = s.petID; e.kg = s.kg; e.date = s.date
-        try ctx.save()
+        try stack.save(); changed()
+    }
+    func update(_ s: WeightSample) throws {
+        try validate(s)
+        guard let e = try find(s.id), e.petID == s.petID else { throw DataStoreError.missingItem }
+        guard e.sourceRecordID == nil else { throw linkedError }
+        e.kg = s.kg; e.date = s.date
+        try stack.save(); changed()
+    }
+    func delete(id: UUID) throws {
+        guard let e = try find(id) else { throw DataStoreError.missingItem }
+        guard e.sourceRecordID == nil else { throw linkedError }
+        ctx.delete(e); try stack.save(); changed()
     }
 }
 
@@ -119,10 +168,16 @@ final class CoreDataWeightRepository: WeightRepository {
     var yDomain: ClosedRange<Double> { ChartSeriesBuilder.yDomain(series: series) }
     private let repo: WeightRepository
     private let names: [UUID: String]
+    private var bag = Set<AnyCancellable>()
     init(repo: WeightRepository, names: [UUID: String]) {
         self.repo = repo; self.names = names
         selectedPetIDs = Set(names.keys)
         rebuild()
+        // 体检抽取/记体重等写入后广播，看板原地重建（与 pets/records 广播模式一致）
+        NotificationCenter.default.publisher(for: .weightsDidChange)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.rebuild() }
+            .store(in: &bag)
     }
     func togglePet(_ id: UUID) {
         selectedPetIDs.formSymmetricDifference([id])
@@ -130,5 +185,27 @@ final class CoreDataWeightRepository: WeightRepository {
     private func rebuild() {
         let samples = selectedPetIDs.flatMap { (try? repo.samples(petID: $0)) ?? [] }
         series = ChartSeriesBuilder.series(samples: samples, names: names, granularity: granularity)
+    }
+}
+
+/// 旧版抽取保留了记录的准确时间；只有唯一匹配时才补来源，避免占用手录数据。
+enum HealthDataMigration {
+    private struct Key: Hashable { let petID: UUID; let date: Date; let kg: Double }
+    static func linkLegacyWeights(in context: NSManagedObjectContext) throws {
+        let records = try context.fetch(CDRecord.fetchRequest()).filter { $0.kind == RecordKind.checkup.rawValue }
+        let samples = try context.fetch(CDWeightSample.fetchRequest())
+        func key(_ record: CDRecord) -> Key? {
+            guard let petID = record.petID, let date = record.createdAt,
+                  let raw = record.answers?[WeightExtraction.checkupWeightKey], let kg = Double(raw), WeightValidator.isValid(kg) else { return nil }
+            return Key(petID: petID, date: date, kg: kg)
+        }
+        let eligible = records.compactMap { r in key(r).map { ($0, r) } }
+        let grouped = Dictionary(grouping: eligible, by: { $0.0 })
+        for (key, matches) in grouped where matches.count == 1 {
+            let record = matches[0].1
+            guard let id = record.id, !samples.contains(where: { $0.sourceRecordID == id }) else { continue }
+            let candidates = samples.filter { $0.sourceRecordID == nil && $0.petID == key.petID && $0.date == key.date && $0.kg == key.kg }
+            if candidates.count == 1 { candidates[0].sourceRecordID = id }
+        }
     }
 }

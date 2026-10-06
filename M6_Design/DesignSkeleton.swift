@@ -48,26 +48,20 @@ struct CardContainer<Content: View>: View {
     }
 }
 
-// MARK: - 根导航：五标签栏，「发布」居中突出、点击弹 sheet 而非切页（PRD §6 要求保留五 tab 布局）
-// H-04 修复：①记住来源 tab，发布后停留原页不再强制跳回首页；②占位 tab 对 VoiceOver 隐藏
-// 重构：各 tab 挂正式页面（首页动态=信息流 / 记录=记录主页 / 消息=互动消息 / 我的=宠物管理）
+// MARK: - 本地首版：今日 / 记录 / 成长 / 我的
 struct RootTabView: View {
     @StateObject private var router = DeepLinkRouter.shared
     @StateObject private var petListVM = PetListViewModel(repo: CoreDataPetRepository())
     @StateObject private var currentPet: CurrentPetStore
-    @StateObject private var reminderService = ReminderService(
-        repo: CoreDataReminderRepository(), scheduler: UNNotificationScheduler())
-    @State private var selection: Tab = .home
-    @State private var lastContentTab: Tab = .home   // 最近一个内容 tab，发布拦截后恢复
-    @State private var showPublish = false
-    @State private var recordsPickerRequested = false   // 发布 sheet「记一条日常」→ 记录页弹模板选择
+    @StateObject private var reminderService = ReminderService.shared
+    @State private var selection: Tab = .today
+    @State private var recordsPickerRequested = false
     @State private var storeError: Error?
-    @State private var snapshotSyncer: WidgetSnapshotSyncer   // L-01：widget 快照同步
+    @State private var snapshotSyncer: WidgetSnapshotSyncer
+    @State private var showRecovery = false
+    @State private var dataRevision = UUID()
     @Environment(\.scenePhase) private var scenePhase
-    /// 全 App 共享一份社交数据：信息流/消息页跳转/发布 sheet 都落在同一实例上
-    private let socialRepo = MockSocialRepository()
-
-    enum Tab: Int { case home, records, publish, messages, profile }
+    enum Tab { case today, records, growth, profile }
 
     init() {
         let current = CurrentPetStore(repo: CoreDataPetRepository())
@@ -79,109 +73,146 @@ struct RootTabView: View {
     var body: some View {
         Group {
             if let error = storeError {
-                // H-03：持久化加载失败的全屏错误态，而非静默丢数据
-                // （iOS 16 无 ContentUnavailableView，用等效自绘布局；升 iOS 17 后可替换）
+                NavigationStack {
                 VStack(spacing: DS.Spacing.md) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle).foregroundStyle(.orange)
+                    Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundStyle(.orange)
                     Text("数据加载失败").font(.headline)
-                    Text("本地数据库无法打开（\(error.localizedDescription)）。请重启 App 重试；若反复出现，请联系支持。")
-                        .font(.body).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Text("本地数据暂时无法打开：\(error.localizedDescription)")
+                        .foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Button("从备份恢复") { showRecovery = true }
+                    Text("恢复前会校验备份，并保留原数据库副本。")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    NavigationLink("隐私与支持") { PrivacySupportView() }
                 }
                 .padding(DS.Spacing.lg)
                 .accessibilityIdentifier("app.storeError")
+                }
             } else {
-                tabBar
+                TabView(selection: $selection) {
+                    TodayHomeView(currentPet: currentPet, reminderService: reminderService,
+                                  onCreatePet: { selection = .profile })
+                        .tabItem { Label("今日", systemImage: "house") }.tag(Tab.today)
+                    RecordsHomeView(currentPet: currentPet, reminderService: reminderService,
+                                    pickerRequested: $recordsPickerRequested)
+                        .tabItem { Label("记录", systemImage: "calendar") }.tag(Tab.records)
+                    Group {
+                        if let pet = currentPet.current {
+                            DashboardView(pet: pet, pets: currentPet.pets).id(pet.id)
+                        } else {
+                            Text("创建宠物档案后查看成长趋势")
+                        }
+                    }
+                    .tabItem { Label("成长", systemImage: "chart.xyaxis.line") }.tag(Tab.growth)
+                    PetManagementView(petListVM: petListVM, currentPet: currentPet,
+                                      onShowBackup: { showRecovery = true })
+                        .tabItem { Label("我的", systemImage: "person") }.tag(Tab.profile)
+                }
+                .id(dataRevision)
             }
         }
         .onAppear {
             storeError = CoreDataStack.shared.loadError
-            // H-02：删除宠物前先撤销其 pending 通知
-            petListVM.reminderCleanup = { [reminderService] id in
-                try reminderService.removeAll(petID: id)
-            }
-            // L-01：提醒增删/重排后重建 widget 快照
+            petListVM.reminderCleanup = { [reminderService] _ in Task { await reminderService.rescheduleAll() } }
             reminderService.onDidChange = { [snapshotSyncer] in snapshotSyncer.sync() }
-            snapshotSyncer.sync()
+            refreshLocalData()
         }
-        // L-01：回前台刷新快照（跨日/跨时区后 widget 数据保鲜）
-        .onChange(of: scenePhase) { phase in
-            if phase == .active { snapshotSyncer.sync() }
-        }
-        // L-01：widget 点击深链 petpal://pet/<uuid>
+        .onChange(of: scenePhase) { if $0 == .active { refreshLocalData() } }
         .onOpenURL { router.handle(url: $0) }
-        // H-06：通知点击深链落点在「我的」tab 的导航栈，路径入栈时先切到该 tab
-        .onReceive(router.$path) { path in
-            if !path.isEmpty { selection = .profile }
+        .onReceive(router.$path) { if !$0.isEmpty { selection = .profile } }
+        .onReceive(NotificationCenter.default.publisher(for: .backupDidRestore)) { _ in
+            storeError = CoreDataStack.shared.loadError
+            router.path = NavigationPath()
+            dataRevision = UUID()
+            // 宠物 publisher 刷新后由 syncer 自动生成快照；通知在恢复流程内重建。
         }
+        .sheet(isPresented: $showRecovery) { NavigationStack { BackupManagementView() } }
     }
 
-    private var tabBar: some View {
-        ZStack(alignment: .bottom) {
-            TabView(selection: $selection) {
-                FeedView(repo: socialRepo)
-                    .tabItem { Label("首页动态", systemImage: "house") }.tag(Tab.home)
-                RecordsHomeView(currentPet: currentPet, reminderService: reminderService,
-                                pickerRequested: $recordsPickerRequested)
-                    .tabItem { Label("记录", systemImage: "calendar") }.tag(Tab.records)
-                Color.clear
-                    .tabItem { Label("发布", systemImage: "plus") }.tag(Tab.publish)
-                    .accessibilityHidden(true)   // 占位 tab 不进入读屏焦点，发布由悬浮按钮承担
-                MessageListView(repo: socialRepo, messages: socialRepo.interactionMessages())
-                    .tabItem { Label("消息", systemImage: "bell.badge") }.tag(Tab.messages)
-                PetManagementView(petListVM: petListVM, currentPet: currentPet)
-                    .tabItem { Label("我的", systemImage: "person") }.tag(Tab.profile)
-            }
-            .tint(.accentColor)   // 选中=主题色；未选中自动为 secondaryLabel
-            publishButton
-        }
-        .onChange(of: selection) { tab in   // 拦截中间 tab：只弹发布，并停留在来源页
-            if tab == .publish {
-                selection = lastContentTab; showPublish = true
-            } else {
-                lastContentTab = tab
-            }
-        }
-        .sheet(isPresented: $showPublish) { publishSheet }
+    private func refreshLocalData() {
+        guard storeError == nil else { return }
+        snapshotSyncer.sync()
+        Task { await reminderService.rescheduleAll() }
+        // 和用户保存操作在主线程串行，数据库与媒体取得一致的副本。
+        DatabaseBackupManager.backupIfDue()
     }
+}
 
-    /// 发布 sheet：记一条日常（跳记录页并弹模板选择）/ 发一条动态（表单 push）
-    private var publishSheet: some View {
+struct TodayHomeView: View {
+    @ObservedObject var currentPet: CurrentPetStore
+    @ObservedObject var reminderService: ReminderService
+    var onCreatePet: () -> Void
+    @State private var showRecord = false
+    @State private var showReminder = false
+    @State private var showWeight = false
+    var body: some View {
         NavigationStack {
             List {
-                Button {
-                    showPublish = false
-                    selection = .records
-                    recordsPickerRequested = true
-                } label: {
-                    Label("记一条日常", systemImage: "pawprint")
+                if let pet = currentPet.current {
+                    Section("当前宠物") {
+                        HStack {
+                            PetAvatarThumb(pet: pet)
+                            Text(pet.nickname).font(.headline)
+                            Spacer()
+                            if currentPet.pets.count > 1 {
+                                Menu("切换") {
+                                    ForEach(currentPet.pets) { p in
+                                        Button(p.nickname) { currentPet.select(p) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Section("今日待提醒") {
+                        TimelineView(.periodic(from: Date(), by: 60)) { context in
+                            let events = todayReminders(pet: pet, now: context.date)
+                            if events.isEmpty { Text("今日暂无待提醒").foregroundStyle(.secondary) }
+                            else {
+                                ForEach(events, id: \.occurrenceKey) { event in
+                                    HStack { Text(String(format: "%02d:%02d", event.hour, event.minute)).monospacedDigit(); Text(event.type) }
+                                }
+                            }
+                        }
+                        if reminderService.permission != .granted {
+                            Text("通知权限未开启，可在「管理提醒」中开启通知。")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                    Section("快速记录") {
+                        Button { showRecord = true } label: { Label("记一条日常", systemImage: "plus.circle") }
+                            .accessibilityIdentifier("today.addRecord")
+                        Button { showWeight = true } label: { Label("记体重", systemImage: "scalemass") }
+                        Button { showReminder = true } label: { Label("管理提醒", systemImage: "bell") }
+                    }
+                    Section {
+                        Text("记录与照片保存在本机。定期在「我的 → 数据备份」导出完整备份，方便换机或恢复。")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                } else {
+                    Section {
+                        Text("为宠物建档，开始记录日常与健康变化")
+                        Button("创建宠物档案", action: onCreatePet)
+                            .accessibilityIdentifier("today.createPet")
+                    }
                 }
-                .a11y("记一条日常", hint: "前往记录页选择模板，为当前宠物记一条日常记录")
-                .accessibilityIdentifier("publish.logRecord")
-                NavigationLink {
-                    PublishFormView(vm: FeedViewModel(repo: socialRepo))
-                } label: {
-                    Label("发一条动态", systemImage: "square.and.pencil")
-                }
-                .a11y("发一条动态", hint: "撰写并发布一条宠友动态")
-                .accessibilityIdentifier("publish.newPost")
             }
-            .navigationTitle("发布")
-            .presentationDetents([.medium])   // iOS 16+
+            .navigationTitle("今日")
+            .sheet(isPresented: $showRecord) { RecordTemplatePickerView(pet: currentPet.current) }
+            .sheet(isPresented: $showWeight) {
+                if let pet = currentPet.current { WeightFormView(petID: pet.id) }
+            }
+            .sheet(isPresented: $showReminder) {
+                if let pet = currentPet.current { ReminderListView(pet: pet, service: reminderService) }
+            }
         }
+    }
+    private func todayReminders(pet: Pet, now: Date) -> [WidgetSnapshot.ReminderEntry] {
+        let snapshot = WidgetSnapshot(generatedAt: now, currentPetID: pet.id,
+            pets: [.init(id: pet.id, nickname: pet.nickname, species: pet.species.rawValue)],
+            reminders: reminderService.configurations.map {
+                .init(id: $0.id, petID: $0.petID, petName: $0.petName, type: $0.type.rawValue, hour: $0.hour, minute: $0.minute,
+                      repeatRule: $0.repeatRule, advance: $0.advance, isEnabled: $0.isEnabled)
+            })
+        return WidgetSnapshotQueries.remainingReminders(in: snapshot, now: now)
     }
 
-    private var publishButton: some View {
-        Button { showPublish = true } label: {
-            Image(systemName: "plus")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
-                .background(Circle().fill(Color.accentColor))
-                .shadow(color: DS.Shadow.cardColor, radius: DS.Shadow.cardRadius, y: DS.Shadow.cardY)
-        }
-        .a11y("发布", hint: "创建新动态或日常记录")
-        .accessibilityIdentifier("tab.publish")
-        .padding(.bottom, DS.Spacing.xs)
-    }
 }

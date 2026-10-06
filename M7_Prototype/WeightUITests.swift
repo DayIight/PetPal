@@ -18,7 +18,7 @@ final class WeightUITests: XCTestCase {
     // 路径：记体重（调一次 Stepper）→ 保存回我的页 → 看板出现该宠物折线、空态占位消失
     func test_logWeight_thenVisibleOnDashboard() {
         createPetIfNeeded()
-        app.tabBars.buttons["我的"].tap()
+        app.petPalTab("我的").tap()
         XCTAssertTrue(app.buttons["profile.addWeight"].waitForExistence(timeout: 3))
 
         app.buttons["profile.addWeight"].tap()
@@ -45,7 +45,7 @@ final class WeightUITests: XCTestCase {
     // 直输通道：TextField 直接输入 12.5（不点 Stepper）→ 保存 → sheet 关闭
     func test_logWeight_viaDirectTextInput() {
         createPetIfNeeded()
-        app.tabBars.buttons["我的"].tap()
+        app.petPalTab("我的").tap()
         XCTAssertTrue(app.buttons["profile.addWeight"].waitForExistence(timeout: 3))
 
         app.buttons["profile.addWeight"].tap()
@@ -61,7 +61,7 @@ final class WeightUITests: XCTestCase {
 
     /// 冷启动无档案时先建一个（与 PrototypeUITests.createPetIfNeeded 等效，私有方法故自持一份）
     private func createPetIfNeeded() {
-        app.tabBars.buttons["我的"].tap()
+        app.petPalTab("我的").tap()
         guard app.staticTexts["pet.emptyGuide"].waitForExistence(timeout: 3) else { return }
         app.buttons["pet.createFirst"].tap()
         app.textFields["pet.nickname"].tap()

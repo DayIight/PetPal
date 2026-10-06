@@ -1,5 +1,6 @@
 import XCTest
 import Combine
+import CoreData
 @testable import PetPal
 
 // MARK: - 校验逻辑（目标：PetValidator 行覆盖 100%）
@@ -81,7 +82,7 @@ final class PetCascadeDeleteTests: XCTestCase {
         _ = bag
     }
 
-    @MainActor func test_viewModelDelete_invokesReminderCleanupBeforeRepo() throws {
+    @MainActor func test_viewModelDelete_invokesReminderCleanupAfterRepo() throws {
         let stack = CoreDataStack(inMemory: true)
         let repo = CoreDataPetRepository(stack: stack)
         let vm = PetListViewModel(repo: repo)
@@ -90,7 +91,7 @@ final class PetCascadeDeleteTests: XCTestCase {
         let pet = Pet(nickname: "豆豆", breed: "金毛", birthday: Date(), weightKg: 20)
         try repo.create(pet)
         vm.delete(pet)
-        XCTAssertEqual(cleanedIDs, [pet.id], "删除宠物必须先触发提醒清理钩子")
+        XCTAssertEqual(cleanedIDs, [pet.id], "删除宠物后必须触发提醒清理钩子")
         XCTAssertEqual(vm.pets.count, 0)
     }
 }
@@ -177,8 +178,9 @@ final class AvatarStoreTests: XCTestCase {
 // MARK: - 表单头像（新建/编辑共用 PetFormViewModel：保存时落盘，替换/移除清理旧文件）
 final class PetFormAvatarTests: XCTestCase {
     @MainActor private func makeVM(editing: Pet? = nil) -> PetFormViewModel {
-        PetFormViewModel(repo: CoreDataPetRepository(stack: CoreDataStack(inMemory: true)),
-                         editing: editing)
+        let repo = CoreDataPetRepository(stack: CoreDataStack(inMemory: true))
+        if let editing { try! repo.create(editing) }
+        return PetFormViewModel(repo: repo, editing: editing)
     }
     @MainActor private func fillValid(_ vm: PetFormViewModel) {
         vm.draft.nickname = "小白"; vm.draft.breed = "柯基"
@@ -273,5 +275,143 @@ final class PetRepositoryCrossInstanceTests: XCTestCase {
         wait(for: [drained], timeout: 2)
         XCTAssertEqual(received.last?.count, 1)
         XCTAssertEqual(received.last?.first?.nickname, "小白")
+    }
+}
+
+// MARK: - GAP-04：过敏源预设目录与表单往返
+final class AllergenCatalogTests: XCTestCase {
+    func test_presets_nonEmptyAndUnique() {
+        XCTAssertFalse(AllergenCatalog.presets.isEmpty)
+        XCTAssertEqual(Set(AllergenCatalog.presets).count, AllergenCatalog.presets.count)
+    }
+
+    @MainActor func test_formSave_allergens_roundTrip() throws {
+        let repo = CoreDataPetRepository(stack: CoreDataStack(inMemory: true))
+        let vm = PetFormViewModel(repo: repo)
+        vm.draft.nickname = "小白"; vm.draft.breed = "柯基"
+        vm.draft.allergens = ["鸡肉", "花粉", "海鲜"]   // 预设 2 项 + 自定义 1 项
+        XCTAssertTrue(vm.save())
+        var latest: [Pet] = []
+        var bag = Set<AnyCancellable>()
+        repo.petsPublisher.sink { latest = $0 }.store(in: &bag)
+        XCTAssertEqual(latest.first?.allergens, ["鸡肉", "花粉", "海鲜"])
+        _ = bag
+    }
+}
+
+// MARK: - R-03：PetFormViewModel 编辑回写与校验拦截入口
+final class PetFormEditingTests: XCTestCase {
+    @MainActor func test_editingSave_updatesAllFields_preservesCreatedAt() throws {
+        let repo = CoreDataPetRepository(stack: CoreDataStack(inMemory: true))
+        var original = Pet(nickname: "小白", breed: "柯基", birthday: Date(), weightKg: 8.5)
+        original.createdAt = Date().addingTimeInterval(-86400 * 30)
+        original.allergens = ["鸡肉"]
+        try repo.create(original)
+
+        let vm = PetFormViewModel(repo: repo, editing: original)
+        vm.draft.nickname = "大白"
+        vm.draft.weightKg = 9.2
+        vm.draft.allergens = ["鸡肉", "尘螨"]
+        vm.draft.vetName = "王医生"
+        XCTAssertTrue(vm.save())
+
+        var latest: [Pet] = []
+        var bag = Set<AnyCancellable>()
+        repo.petsPublisher.sink { latest = $0 }.store(in: &bag)
+        XCTAssertEqual(latest.count, 1, "编辑不得新增档案")
+        XCTAssertEqual(latest.first?.nickname, "大白")
+        XCTAssertEqual(latest.first?.weightKg ?? 0, 9.2, accuracy: 0.001)
+        XCTAssertEqual(latest.first?.allergens, ["鸡肉", "尘螨"])
+        XCTAssertEqual(latest.first?.vetName, "王医生")
+        XCTAssertEqual(latest.first?.createdAt, original.createdAt, "编辑必须保留原创建时间")
+        _ = bag
+    }
+
+    @MainActor func test_formSave_futureBirthdayAndOverweight_blockedViaVM() {
+        let repo = CoreDataPetRepository(stack: CoreDataStack(inMemory: true))
+        let vm = PetFormViewModel(repo: repo)
+        vm.draft.nickname = "小白"; vm.draft.breed = "柯基"
+        vm.draft.birthday = Date().addingTimeInterval(86400)
+        XCTAssertFalse(vm.save())
+        XCTAssertNotNil(vm.errors[.birthday])
+        vm.draft.birthday = Date()
+        vm.draft.weightKg = 100.1
+        XCTAssertFalse(vm.save())
+        XCTAssertNotNil(vm.errors[.weight])
+        vm.draft.weightKg = 8.5
+        XCTAssertTrue(vm.save())
+    }
+}
+
+// MARK: - GAP-06：sqlite 每周自动备份（文件生成 / 保留 2 份 / inMemory 跳过）
+final class DatabaseBackupManagerTests: XCTestCase {
+    private var tempDir: URL!
+    override func setUpWithError() throws {
+        tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("PetPalBackupTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    }
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    /// 独立临时 store（绕开 CoreDataStack.shared 的真实路径）
+    private func makeLiveStore() throws -> (NSPersistentContainer, URL) {
+        let storeURL = tempDir.appendingPathComponent("live.sqlite")
+        let container = NSPersistentContainer(name: "PetPal")
+        container.persistentStoreDescriptions = [NSPersistentStoreDescription(url: storeURL)]
+        var loadError: Error?
+        container.loadPersistentStores { _, e in loadError = e }
+        XCTAssertNil(loadError)
+        // 写一条数据，验证备份文件包含真实内容
+        let entity = container.managedObjectModel.entitiesByName["CDPet"]!
+        let e = NSManagedObject(entity: entity, insertInto: container.viewContext)
+        e.setValue(UUID(), forKey: "id")
+        e.setValue("备份猫", forKey: "nickname")
+        try container.viewContext.save()
+        return (container, storeURL)
+    }
+
+    func test_backup_createsFile_andPrunesToKeepTwo() throws {
+        let (container, storeURL) = try makeLiveStore()
+        let backupDir = tempDir.appendingPathComponent("Backups", isDirectory: true)
+        try FileManager.default.createDirectory(at: backupDir, withIntermediateDirectories: true)
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        for i in 0..<3 {
+            try DatabaseBackupManager.backup(model: container.managedObjectModel,
+                                             storeURL: storeURL, to: backupDir,
+                                             now: base.addingTimeInterval(Double(i)))
+        }
+        let files = try FileManager.default.contentsOfDirectory(atPath: backupDir.path)
+            .filter { $0.hasSuffix(".sqlite") }
+        XCTAssertEqual(files.count, 2, "仅保留最新 2 份备份")
+        XCTAssertFalse(files.contains { $0.contains(DatabaseBackupManager.timestamp(base)) },
+                       "最旧一份应被裁剪")
+
+        // 最新备份可打开且含数据
+        let newest = backupDir.appendingPathComponent(
+            "PetPal-\(DatabaseBackupManager.timestamp(base.addingTimeInterval(2))).sqlite")
+        let check = NSPersistentContainer(name: "PetPal")
+        check.persistentStoreDescriptions = [NSPersistentStoreDescription(url: newest)]
+        var loadError: Error?
+        check.loadPersistentStores { _, e in loadError = e }
+        XCTAssertNil(loadError)
+        let count = try check.viewContext.count(for: NSFetchRequest(entityName: "CDPet"))
+        XCTAssertEqual(count, 1, "备份文件应包含源库数据")
+    }
+
+    func test_backupIfDue_inMemoryStack_skips() {
+        let suite = "PetPalBackupTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        DatabaseBackupManager.backupIfDue(stack: CoreDataStack(inMemory: true), defaults: defaults)
+        XCTAssertNil(defaults.object(forKey: "PetPal.lastBackupDate"),
+                     "inMemory stack 无磁盘库，不应备份也不应记录时间")
+    }
+
+    func test_timestamp_isSortableDateFormat() {
+        let d1 = DatabaseBackupManager.timestamp(Date(timeIntervalSince1970: 1_000))
+        let d2 = DatabaseBackupManager.timestamp(Date(timeIntervalSince1970: 2_000))
+        XCTAssertTrue(d1 < d2, "文件名字典序必须等于时间序（裁剪依赖排序）")
     }
 }

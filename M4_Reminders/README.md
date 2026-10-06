@@ -1,60 +1,32 @@
-# M4 智能提醒系统
+# M4 提醒
 
-MVP 范围：通知权限请求与拒绝引导、五类提醒（喂食/疫苗/驱虫/体检/服药）、
-每日重复、通知标题含宠物昵称、点击通知跳转、删除宠物联动清理。
-波4进展（2026-09-25）：提前量（5m/15m/30m/1h/1d/3d，`AdvanceOption`）已落地——
-`ReminderTriggerBuilder.advanceTriggers` 用真实日历把主触发器日期成分整体前移
-（周几回绕、跨月跨年由 Calendar 处理），调度时以 `#adv#` 标识挂第二组触发器，
-随 id 前缀一并撤销；正文格式「提前30分钟：该给【小白】喂食了」。
-仍延后：每周多选/提前量的 UI 编排（Picker 接线）。
+首版支持喂食、疫苗、驱虫、体检和服药提醒。规则包括每日、每周多选、每月、每年和一次性；列表可新增、编辑、暂停、启用及删除。
 
-## 架构说明（本轮输出形式：架构说明）
-三层拆分：`ReminderService`（编排层，协调权限/存储/调度）→
-`ReminderRepository`（Core Data 存提醒配置，本地库）+
-`NotificationScheduling`（UNUserNotificationCenter 协议化包装，测试用 Mock 替换）。
-规则即数据：`RepeatRule` 为 Codable 枚举，JSON 存库；
-`ReminderTriggerBuilder` 纯函数把规则映射为 `UNCalendarNotificationTrigger` 数组
-（每周多选拆为多个 trigger），已支持全部四种重复，仅 UI 编排延后。
-通知正文由 `ReminderContentBuilder` 纯函数生成，强制包含【宠物昵称】；
-userInfo 携带 petID/reminderID，App 层 `UNUserNotificationCenterDelegate` 据此路由到对应页面。
-联动：M1 删除宠物调用 `ReminderService.removeAll(petID:)`，先撤销 pending 通知再删库
-（2026-09-20 整改后经 `PetListViewModel.reminderCleanup` 真实接线，不再是空钩子）。
-时区/日历变更：已落地（2026-09-20 整改，M-06）——监听 `NSSystemTimeZoneDidChange` 后
-`rescheduleAll()` 按库中配置全量重排；提醒落库时同时存 `petName`，重排无需回查 M1。
-提醒配置与送达解耦（M-03）：`save` 一律先落库，权限不足仅跳过调度，不再静默丢失。
+## 已确认的日期规则（2026-10-06）
 
-## 数据模型（Core Data 实体 `CDReminder`，输出形式：架构说明）
+- 每日提醒最多提前 1 小时；其他规则可提前 5/15/30 分钟、1 小时、1/3 天。
+- 每周至少选择一天，不会把空选择改成每日。
+- 每月 29/30/31 日遇到不足的月份，改为当月最后一天；下一月仍按原始日期计算。
+- 每年 2 月 29 日在非闰年改为 2 月 28 日。2 月 31 日等规则不可保存。
+- 提前一天/三天按日历日偏移，保持当地钟点；分钟与小时按时间偏移。夏令时不存在的钟点顺延，重复的钟点取第一次。
+- 一次性提醒保存实际日期。启用的新增/编辑一次性提醒必须在未来。
 
-| 属性 | 类型 | 说明 |
-|---|---|---|
-| id | UUID | 同时作为通知 identifier 前缀（多 trigger 时 `#序号` 后缀） |
-| petID | UUID | 必填，绑定具体宠物 |
-| petName | String | 随提醒落库（整改新增），时区重排时重建通知正文无需回查 M1 |
-| type | String | ReminderType 五类之一 |
-| hour / minute | Int16 | 具体提醒时间 |
-| repeatRule | String | RepeatRule 的 JSON 编码 |
+## 调度与状态
 
-提前量（5分钟/15分钟/30分钟/1小时/1天/3天）不建模，实现时将触发时间前移即可，属延后项。
+`ReminderRecurrence` 是 App 和 Widget 共用的 Foundation 日期计算。`ReminderSchedulePlan` 先为每日/每周分配系统重复请求，再为月/年/一次性提醒分配实际日期请求，整个 App 保守使用最多 64 条待发送请求。准时和仍在未来的提前提醒按一组分配，避免只安排半组。
 
-## 权限与跳转流程（输出形式：架构说明）
-1. 首次进入提醒页 → `requestPermission()` → granted/denied 写入 `@Published`。
-2. denied：弹 Alert「通知权限未开启」→ `UIApplication.openSettingsURLString` 跳系统设置。
-3. 点击通知：delegate 读 userInfo → DeepLink 路由至对应宠物档案页/记录页。
+月/年采用用户确认的滚动预排。每次重排计算未来至多 8 年的候选，实际窗口由可用名额决定；列表显示“通知已安排至”日期。启动、回前台及系统时区变更时自动补排。长期不打开 App 可能耗尽窗口；名额不足导致某条提醒完全没有安排时，显示错误并允许重试。每日/每周的系统重复通知持续有效，不显示预排截止日期。
 
-## 关键交互逻辑（输出形式：代码骨架，见 ReminderSkeleton.swift）
-- 保存提醒 = 存库 → 校验权限 → 撤销同 id 旧调度 → 按 RepeatRule 重建 trigger 组。
-- 撤销一律按 id 前缀匹配，兼容每周多选产生的多 trigger。
+`ReminderService.shared` 用串行任务队列协调保存、删除和全量重排。撤销旧请求时等待系统 pending 查询完成，再添加新请求。全量重排只清理 `route=reminder` 的通知，同时清理数据库中已删除配置的旧请求。
 
-## 测试要点（输出形式：代码骨架，见 ReminderTests.swift）
-- 正文必含【昵称】与动作词；每日 trigger repeats=true 且时分正确；每周多选产出 N 个 trigger。
-- 权限被拒时 Service 不调度且状态为 denied；保存后 Mock 收到请求；removeAll 撤销+清库。
+每次重排从系统重新读取授权状态，后台刷新不弹授权框。表单保存时可申请权限。数据库写入失败抛错并保留草稿；配置保存成功但权限关闭或通知添加失败，单独显示送达提示。保存中禁用控件和关闭手势。
 
-## 独立验收清单（M4 MVP）
-- [ ] 首次使用弹出系统权限请求；被拒后出现引导 Alert 并可跳转系统设置
-- [ ] 五类提醒均可创建，通知正文格式为「该给【昵称】XX了」
-- [ ] 每日重复到点触发（真机/模拟器验证）
-- [ ] 点击通知跳转到对应宠物详情页（已接线：AppDelegate → DeepLinkRouter → NavigationPath）
-- [ ] 删除宠物后其全部提醒被撤销且不再触发（级联链路已实测）
-- [ ] 权限被拒时提醒仍落库，界面给出开启引导，不再静默丢失
-- [x] 时区变更后按库中配置全量重排（`rescheduleAll` 单测覆盖；真机改时区走查待定）
-- [ ] Scheduler/Builder/Service 单测通过（UN 框架经协议 Mock）
+## 数据关联
+
+`CDReminder` 保存 id、petID、petName、type、hour、minute、repeatRule、advance，以及 V2 的 `isEnabled` 和可选 `sourceRecordID`。旧库迁移后原有提醒默认启用。
+
+疫苗/驱虫记录可选择按 `nextDue` 创建一次性提醒。提醒和来源记录在同一 Core Data 保存中落库；修改日期更新同一提醒，取消关联选项或删除来源记录会删除关联配置。手动暂停的关联提醒在来源记录更新后继续暂停。宠物删除成功后全量重排，删除失败时保留原提醒。
+
+## 验证边界
+
+单元测试覆盖权限回补、异步撤销顺序、连续保存、数据库与通知添加失败、编辑/暂停、月末/闰年/提前量/夏令时、64 条预算和滚动截止日期。模拟器可验证系统 URL 注册与 UI；实际通知送达、杀进程后的时区行为和正式签名 App Group 仍需真机验收。

@@ -9,6 +9,8 @@ import Combine
     @Published var replyTarget: Comment?      // 仅一级评论可成为回复目标
     @Published var lengthWarning = false
     @Published var errorMessage: String?
+    /// 长评论展开态（R-01：默认折叠 5 行，点「全文」展开）
+    @Published var expandedIDs: Set<UUID> = []
     private let postID: UUID
     private let repo: SocialRepository
     private var bag = Set<AnyCancellable>()
@@ -29,7 +31,8 @@ import Combine
     /// ≤500 字拦截由 UI onChange 截断 + 提示；此处为提交前最终防线
     func send() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, text.count <= 500 else { return }
+        guard !text.isEmpty else { return }
+        guard text.count <= 500 else { errorMessage = "评论最多500字"; return }
         let parent = replyTarget
         Task {
             do {
@@ -40,6 +43,10 @@ import Combine
                 errorMessage = "评论失败，请重试"
             }
         }
+    }
+
+    func toggleExpanded(_ id: UUID) {
+        expandedIDs.formSymmetricDifference([id])
     }
 }
 
@@ -103,6 +110,15 @@ struct CommentListView: View {
                     .foregroundStyle(.secondary)
             }
             Text(comment.text).font(.callout)
+                .lineLimit(vm.expandedIDs.contains(comment.id) ? nil : 5)
+            // R-01：长评论默认折叠 5 行，避免单条近 500 字评论撑爆行高
+            if comment.text.count > 200 {
+                Button(vm.expandedIDs.contains(comment.id) ? "收起" : "全文") {
+                    vm.toggleExpanded(comment.id)
+                }
+                .font(.caption)
+                .accessibilityIdentifier("comment.expand.\(index)")
+            }
             if !isChild {
                 Button("回复") { vm.replyTarget = comment }
                     .font(.caption)

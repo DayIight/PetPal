@@ -1,10 +1,5 @@
 name: PetPal
 
-packages:
-  Kingfisher:
-    url: https://github.com/onevcat/Kingfisher
-    from: 8.0.0
-
 options:
   createIntermediateGroups: true
   deploymentTarget:
@@ -29,36 +24,59 @@ targets:
       - path: M1_PetProfile/PetFormView.swift
       - path: M1_PetProfile/PetManagementView.swift
       - path: M1_PetProfile/AvatarPickerView.swift
+      - path: M1_PetProfile/DatabaseBackupManager.swift
+      - path: M1_PetProfile/PortableBackup.swift
+      - path: M1_PetProfile/BackupManagementView.swift
+      - path: M1_PetProfile/PrivacySupportView.swift
       - path: M2_DailyRecords/DailyRecordSkeleton.swift
       - path: M2_DailyRecords/RecordCalendarView.swift
       - path: M2_DailyRecords/CustomTemplateViews.swift
       - path: M2_DailyRecords/RecordsHomeView.swift
-      - path: M3_Social/SocialSkeleton.swift
-      - path: M3_Social/FeedView.swift
-      - path: M3_Social/CommentListView.swift
-      - path: M3_Social/PublishFormView.swift
-      - path: M3_Social/MessagesView.swift
+      - path: M2_DailyRecords/RecordTemplatePickerView.swift
+      - path: M2_DailyRecords/PresetRecordFormView.swift
+      - path: M2_DailyRecords/MoodPicker.swift
+      - path: M2_DailyRecords/RecordPhotoPicker.swift
       - path: M4_Reminders/ReminderSkeleton.swift
+      - path: M4_Reminders/ReminderRecurrence.swift
       - path: M4_Reminders/ReminderFormView.swift
+      - path: M4_Reminders/ReminderListView.swift
       - path: M5_Dashboard/DashboardSkeleton.swift
       - path: M5_Dashboard/DashboardView.swift
+      - path: M5_Dashboard/DashboardCharts.swift
+      - path: M5_Dashboard/DashboardHealthTimeline.swift
+      - path: M5_Dashboard/DashboardPDF.swift
       - path: M6_Design/DesignSkeleton.swift
       - path: M7_Prototype/PrototypeApp.swift
       - path: M7_Prototype/WeightFormView.swift
       - path: M8_Widget/WidgetSnapshot.swift
       - path: M8_Widget/WidgetSnapshotSyncer.swift
+      - path: M6_Design/AppIcon/PetPal-Social/PetPalSocial.icon
+        type: file
+        buildPhase: resources
+      - path: PetPal/Assets.xcassets
       - path: PetPal/Models/PetPal.xcdatamodeld
       - path: PetPal/Models/CoreDataEntities.swift
       - path: PetPal/Supporting/PrivacyInfo.xcprivacy
     dependencies:
-      - package: Kingfisher
       - target: PetPalWidget
     info:
       path: PetPal/Supporting/Info.plist
       properties:
         CFBundleDisplayName: PetPal
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.petpal.backup
+            UTTypeDescription: PetPal 完整备份
+            UTTypeConformsTo:
+              - public.data
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - petpalbackup
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
+        CFBundleURLTypes:
+          - CFBundleURLName: com.petpal.pet
+            CFBundleURLSchemes:
+              - petpal
         LSRequiresIPhoneOS: true
         NSCameraUsageDescription: 拍摄宠物头像与记录照片
         UIApplicationSupportsIndirectInputEvents: true
@@ -74,6 +92,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.petpal.prototype
         PRODUCT_NAME: PetPal
+        ASSETCATALOG_COMPILER_APPICON_NAME: PetPalSocial
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: PetPal/Supporting/PetPal.entitlements
         CURRENT_PROJECT_VERSION: "1"
@@ -84,8 +103,9 @@ targets:
     platform: iOS
     sources:
       - path: M1_PetProfile/PetProfileTests.swift
+      - path: M1_PetProfile/LaunchReadinessTests.swift
+      - path: M1_PetProfile/LaunchFollowupTests.swift
       - path: M2_DailyRecords/DailyRecordTests.swift
-      - path: M3_Social/SocialTests.swift
       - path: M4_Reminders/ReminderTests.swift
       - path: M5_Dashboard/DashboardTests.swift
       - path: M8_Widget/WidgetSnapshotTests.swift
@@ -102,7 +122,6 @@ targets:
     sources:
       - path: M7_Prototype/PrototypeUITests.swift
       - path: M7_Prototype/WeightUITests.swift
-      - path: M3_Social/SocialUITests.swift
     dependencies:
       - target: PetPal
     settings:
@@ -117,6 +136,7 @@ targets:
     sources:
       - path: PetPalWidget/PetPalWidget.swift
       - path: M8_Widget/WidgetSnapshot.swift
+      - path: M4_Reminders/ReminderRecurrence.swift
     info:
       path: PetPalWidget/Info.plist
       properties:

@@ -24,7 +24,6 @@ import WidgetKit
 
     func sync() {
         let now = Date()
-        let calendar = Calendar.current
         let all = (try? reminderRepo.allReminders()) ?? []
         let snapshot = WidgetSnapshot(
             generatedAt: now,
@@ -34,34 +33,22 @@ import WidgetKit
                       avatarFileName: $0.avatarFileName)
             },
             reminders: all
-                .filter { Self.fires(rule: $0.repeatRule, on: now, calendar: calendar) }
                 .map { .init(id: $0.id, petID: $0.petID, petName: $0.petName,
-                             type: $0.type.rawValue, hour: $0.hour, minute: $0.minute) })
+                             type: $0.type.rawValue, hour: $0.hour, minute: $0.minute, repeatRule: $0.repeatRule, advance: $0.advance, isEnabled: $0.isEnabled) })
         let directory = WidgetSnapshotStore.sharedDirectory
         do {
             try WidgetSnapshotStore.write(snapshot, to: directory)
-            if let avatar = currentPet.current?.avatarFileName {
-                let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-                WidgetSnapshotStore.copyAvatar(fileName: avatar, from: documents, to: directory)
-            }
+            let names = Set(currentPet.pets.compactMap(\.avatarFileName))
+            for name in names { WidgetSnapshotStore.copyAvatar(fileName: name, from: AvatarStore.directory, to: directory) }
+            try WidgetSnapshotStore.pruneAvatars(keeping: names, in: directory)
         } catch {
-            assertionFailure("widget 快照写入失败：\(error)")   // 不阻塞主流程，widget 保持旧快照/空态
+            NSLog("widget 快照写入失败：%@", error.localizedDescription)   // 不阻塞主流程，widget 保持旧快照/空态
         }
         reloadTimelines()
     }
 
     /// 提醒是否在今天触发（快照只装当天全集，widget 侧无需理解 RepeatRule）；纯函数，非隔离
     nonisolated static func fires(rule: RepeatRule, on date: Date, calendar: Calendar = .current) -> Bool {
-        switch rule {
-        case .daily:
-            return true
-        case .weekly(let days):
-            return days.contains(calendar.component(.weekday, from: date))
-        case .monthly(let day):
-            return calendar.component(.day, from: date) == day
-        case .yearly(let month, let day):
-            return calendar.component(.month, from: date) == month
-                && calendar.component(.day, from: date) == day
-        }
+        ReminderRecurrence.occurs(rule: rule, on: date, calendar: calendar)
     }
 }

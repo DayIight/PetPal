@@ -198,17 +198,13 @@ struct TemplateFormView: View {
 // MARK: - 按模板动态渲染的记录表单
 // 字段类型映射：text→TextField、multiline→TextEditor、number→decimalPad、
 // single→Picker、multi→多个 Toggle（存逗号串）、toggle→Toggle(存 "true"/"false")、date→DatePicker(存 yyyy-MM-dd)
+// 与预设表单共用 RecordFormViewModel（校验/照片/编辑统一）；校验字段传 template.templateFields
 struct CustomRecordFormView: View {
     let template: CustomTemplate
-    let petID: UUID
-    @State private var answers: [String: String] = [:]
+    @StateObject private var vm: RecordFormViewModel
     @State private var toggles: [String: Bool] = [:]
     @State private var multiSelections: [String: Set<String>] = [:]
     @State private var dates: [String: Date] = [:]
-    @State private var note = ""
-    @State private var mood = ""
-    @State private var errors: [String] = []
-    private let repo = CoreDataRecordRepository()
     @Environment(\.dismiss) private var dismiss
 
     private static let dayFormatter: DateFormatter = {
@@ -217,6 +213,39 @@ struct CustomRecordFormView: View {
         f.dateFormat = "yyyy-MM-dd"
         return f
     }()
+
+    init(template: CustomTemplate, petID: UUID) {
+        self.template = template
+        _vm = StateObject(wrappedValue: RecordFormViewModel(
+            repo: CoreDataRecordRepository(), petID: petID, kind: .custom,
+            validationFields: template.templateFields, templateName: template.name, templateSnapshot: template))
+    }
+
+    init(template: CustomTemplate, editing record: Record) {
+        self.template = template
+        _vm = StateObject(wrappedValue: RecordFormViewModel(
+            repo: CoreDataRecordRepository(), editing: record,
+            validationFields: template.templateFields))
+        // date/toggle/multi 本地编辑态从 answers 反序列化回填（key = 字段 UUID）
+        var d: [String: Date] = [:], t: [String: Bool] = [:], m: [String: Set<String>] = [:]
+        for field in template.fields {
+            let key = field.id.uuidString
+            let raw = record.answers[key] ?? ""
+            switch field.type {
+            case .date:
+                if let date = Self.dayFormatter.date(from: raw) { d[key] = date }
+            case .toggle:
+                t[key] = raw == "true"
+            case .multi:
+                m[key] = Set(raw.split(separator: ",").map(String.init))
+            default:
+                break
+            }
+        }
+        _dates = State(initialValue: d)
+        _toggles = State(initialValue: t)
+        _multiSelections = State(initialValue: m)
+    }
 
     var body: some View {
         NavigationStack {
@@ -227,23 +256,31 @@ struct CustomRecordFormView: View {
                     }
                 }
                 Section("备注与心情") {
-                    TextField("备注（≤200字）", text: $note)
+                    TextField("备注（≤200字）", text: $vm.draft.note)
                         .accessibilityIdentifier("custom.note")
-                    Picker("心情", selection: $mood) {
-                        ForEach(["😀", "😐", "😢"], id: \.self) { Text($0).tag($0) }
-                    }
-                    .accessibilityIdentifier("custom.mood")
+                    MoodPicker(mood: $vm.draft.mood, a11yPrefix: "custom.mood")
                 }
-                if !errors.isEmpty {
+                Section("照片（选填，最多9张）") {
+                    RecordPhotoPicker(
+                        savedFileNames: vm.draft.photoFileNames,
+                        pickedImages: vm.pickedImages,
+                        a11yPrefix: "custom.photo",
+                        onAddData: { vm.addPhoto($0) },
+                        onAddImage: { vm.addPhoto($0) },
+                        onRemoveSaved: { vm.removeSavedPhoto($0) },
+                        onRemovePicked: { vm.removePickedPhoto(at: $0) }
+                    )
+                }
+                if !vm.errors.isEmpty {
                     Section {
-                        ForEach(errors, id: \.self) {
+                        ForEach(vm.errors, id: \.self) {
                             Text($0).font(.footnote).foregroundStyle(.red)
                         }
                     }
                     .accessibilityIdentifier("custom.errors")
                 }
             }
-            .navigationTitle(template.name)
+            .navigationTitle(vm.isEditing ? "编辑\(template.name)" : template.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -291,7 +328,7 @@ struct CustomRecordFormView: View {
     }
 
     private func textBinding(_ key: String) -> Binding<String> {
-        Binding(get: { answers[key] ?? "" }, set: { answers[key] = $0 })
+        Binding(get: { vm.draft.answers[key] ?? "" }, set: { vm.draft.answers[key] = $0 })
     }
 
     private func toggleBinding(_ key: String) -> Binding<Bool> {
@@ -314,9 +351,7 @@ struct CustomRecordFormView: View {
     }
 
     private func save() {
-        var record = Record(petID: petID, kind: .custom, note: note, mood: mood)
-        record.templateName = template.name
-        var result: [String: String] = [:]
+        var result = vm.draft.answers
         for field in template.fields {
             let key = field.id.uuidString
             switch field.type {
@@ -327,18 +362,10 @@ struct CustomRecordFormView: View {
             case .date:
                 result[key] = Self.dayFormatter.string(from: dates[key] ?? Date())
             default:
-                result[key] = answers[key] ?? ""
+                break   // text/multiline/number/single 已直接写入 draft.answers
             }
         }
-        record.answers = result
-        // 自定义模板记录的校验：传入模板字段（key 与 answers 一致）
-        errors = RecordValidator.errors(for: record, fields: template.templateFields)
-        guard errors.isEmpty else { return }
-        do {
-            try repo.create(record)
-            dismiss()
-        } catch {
-            errors = ["保存失败，请重试"]
-        }
+        vm.draft.answers = result
+        if vm.save() { dismiss() }
     }
 }

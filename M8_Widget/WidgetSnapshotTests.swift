@@ -145,7 +145,7 @@ final class ReminderServiceOnDidChangeTests: XCTestCase {
         XCTAssertEqual(calls, 1, "save 后应触发快照重建钩子")
         await service.rescheduleAll()
         XCTAssertEqual(calls, 2, "rescheduleAll 后应触发快照重建钩子")
-        try service.removeAll(petID: pet)
+        try await service.removeAll(petID: pet)
         XCTAssertEqual(calls, 3, "removeAll 后应触发快照重建钩子")
     }
 

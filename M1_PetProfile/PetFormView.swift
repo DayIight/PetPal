@@ -4,6 +4,7 @@ import SwiftUI
 struct PetFormView: View {
     @StateObject var vm: PetFormViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var customAllergen = ""
     var body: some View {
         NavigationStack {
             Form {
@@ -41,6 +42,8 @@ struct PetFormView: View {
                         .labelsHidden()
                         .a11y("微调体重", hint: "每次增减0.1kg")
                 }
+                Text("修改体重会新增今日体重记录；当前体重采用最新日期的体重记录。")
+                    .font(.footnote).foregroundStyle(.secondary)
                 Picker("绝育状态", selection: $vm.draft.neuterStatus) {
                     ForEach(NeuterStatus.allCases) { Text($0.rawValue).tag($0) }
                 }
@@ -53,6 +56,11 @@ struct PetFormView: View {
                     TextField("兽医电话", text: optionalText(\.vetPhone))
                         .keyboardType(.phonePad)
                         .accessibilityIdentifier("pet.vetPhone")
+                    allergenField
+                }
+                if let error = vm.saveError {
+                    Text(error).font(.footnote).foregroundStyle(.red)
+                        .accessibilityIdentifier("pet.saveError")
                 }
                 ForEach(Array(vm.errors.values), id: \.self) {
                     Text($0).font(.footnote).foregroundStyle(.red)
@@ -83,5 +91,53 @@ struct PetFormView: View {
     private func optionalText(_ keyPath: WritableKeyPath<Pet, String?>) -> Binding<String> {
         Binding(get: { vm.draft[keyPath: keyPath] ?? "" },
                 set: { vm.draft[keyPath: keyPath] = $0.isEmpty ? nil : $0 })
+    }
+
+    /// 过敏源：预设标签多选 Toggle + 自定义输入追加；自定义项可单独移除
+    @ViewBuilder private var allergenField: some View {
+        Text("过敏源").font(.body)
+        ForEach(AllergenCatalog.presets, id: \.self) { item in
+            Toggle(item, isOn: allergenBinding(item))
+                .accessibilityIdentifier("pet.allergen.\(item)")
+        }
+        let customs = vm.draft.allergens.filter { !AllergenCatalog.presets.contains($0) }
+        ForEach(customs, id: \.self) { item in
+            HStack {
+                Text(item)
+                Spacer()
+                Button {
+                    vm.draft.allergens.removeAll { $0 == item }
+                } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .a11y("移除过敏源\(item)")
+                .accessibilityIdentifier("pet.allergen.remove.\(item)")
+            }
+        }
+        HStack {
+            TextField("自定义过敏源", text: $customAllergen)
+                .accessibilityIdentifier("pet.allergenInput")
+            Button("添加") {
+                let value = customAllergen.trimmingCharacters(in: .whitespaces)
+                guard !value.isEmpty, !vm.draft.allergens.contains(value) else { return }
+                vm.draft.allergens.append(value)
+                customAllergen = ""
+            }
+            .disabled(customAllergen.trimmingCharacters(in: .whitespaces).isEmpty)
+            .accessibilityIdentifier("pet.allergenAdd")
+        }
+    }
+
+    private func allergenBinding(_ item: String) -> Binding<Bool> {
+        Binding(
+            get: { vm.draft.allergens.contains(item) },
+            set: { isOn in
+                if isOn {
+                    if !vm.draft.allergens.contains(item) { vm.draft.allergens.append(item) }
+                } else {
+                    vm.draft.allergens.removeAll { $0 == item }
+                }
+            })
     }
 }

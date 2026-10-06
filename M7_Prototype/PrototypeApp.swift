@@ -1,7 +1,6 @@
 import SwiftUI
 import Combine
 import UserNotifications
-import Kingfisher
 
 @main
 struct PetPalPrototypeApp: App {
@@ -30,8 +29,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = self
-        // M3：Kingfisher 缓存策略（PRD：内存缓存用 SDK 合理默认，磁盘缓存上限 200MB）
-        ImageCache.default.diskStorage.config.sizeLimit = 200 * 1024 * 1024
         return true
     }
     /// 通知点击（前台/后台/杀进程态均经此回调）；userInfo 契约见 M4 ReminderContentBuilder
@@ -60,11 +57,15 @@ final class UNNotificationScheduler: NotificationScheduling {
     func add(_ request: UNNotificationRequest) async throws {
         try await center.add(request)
     }
-    func removePending(matchingPrefix prefix: String) {
-        center.getPendingNotificationRequests { reqs in
-            let ids = reqs.filter { $0.identifier.hasPrefix(prefix) }.map(\.identifier)
-            self.center.removePendingNotificationRequests(withIdentifiers: ids)
-        }
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await center.notificationSettings().authorizationStatus
+    }
+    func removePending(matchingPrefix prefix: String) async {
+        let requests = await center.pendingNotificationRequests()
+        let ids = requests.filter {
+            $0.content.userInfo["route"] as? String == "reminder" && $0.identifier.hasPrefix(prefix)
+        }.map(\.identifier)
+        center.removePendingNotificationRequests(withIdentifiers: ids)
     }
 }
 

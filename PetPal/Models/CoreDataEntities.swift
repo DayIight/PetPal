@@ -27,6 +27,12 @@ extension CDPet {
 
 @objc(CDRecord)
 public class CDRecord: NSManagedObject {
+    @NSManaged public var wantsNextReminder: Bool
+    @NSManaged public var nextReminderHour: Int16
+    @NSManaged public var nextReminderMinute: Int16
+    @NSManaged public var templateID: UUID?
+    @NSManaged public var templateSnapshot: String?
+    @NSManaged public var templateSchemaVersion: Int16
     @NSManaged public var id: UUID?
     @NSManaged public var petID: UUID?
     @NSManaged public var kind: String?
@@ -60,6 +66,8 @@ extension CDCustomTemplate {
 
 @objc(CDReminder)
 public class CDReminder: NSManagedObject {
+    @NSManaged public var isEnabled: Bool
+    @NSManaged public var sourceRecordID: UUID?
     @NSManaged public var id: UUID?
     @NSManaged public var petID: UUID?
     @NSManaged public var type: String?
@@ -78,6 +86,7 @@ extension CDReminder {
 
 @objc(CDWeightSample)
 public class CDWeightSample: NSManagedObject {
+    @NSManaged public var sourceRecordID: UUID?
     @NSManaged public var id: UUID?
     @NSManaged public var petID: UUID?
     @NSManaged public var kg: Double

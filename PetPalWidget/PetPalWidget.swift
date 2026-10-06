@@ -25,10 +25,18 @@ struct PetPalReminderProvider: TimelineProvider {
     func getTimeline(in context: Context,
                      completion: @escaping (Timeline<PetPalReminderEntry>) -> Void) {
         let now = Date()
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1,
-                                             to: Calendar.current.startOfDay(for: now)) ?? now
-        completion(Timeline(entries: [makeEntry(now: now)], policy: .after(tomorrow)))
+        let directory = WidgetSnapshotStore.sharedDirectory
+        guard let snapshot = WidgetSnapshotStore.read(from: directory) else {
+            completion(Timeline(entries: [makeEntry(now: now)], policy: .after(now.addingTimeInterval(3600))))
+            return
+        }
+        let entries = WidgetSnapshotQueries.timelineDates(in: snapshot, now: now).map { date in
+            PetPalReminderEntry(date: date, pet: WidgetSnapshotQueries.currentPet(in: snapshot),
+                                remaining: WidgetSnapshotQueries.remainingReminders(in: snapshot, now: date), directory: directory)
+        }
+        completion(Timeline(entries: entries, policy: .atEnd))
     }
+
     private func makeEntry(now: Date = Date()) -> PetPalReminderEntry {
         let directory = WidgetSnapshotStore.sharedDirectory
         guard let snapshot = WidgetSnapshotStore.read(from: directory) else {
@@ -42,32 +50,55 @@ struct PetPalReminderProvider: TimelineProvider {
     }
 }
 
-// MARK: - 视图（iOS 16 无 containerBackground，保持系统默认底色；颜色用语义色自动适配深色模式）
+// MARK: - 视图（iOS 16 无 containerBackground，用 ZStack 铺渐变底；语义色自动适配深色模式）
 struct PetPalReminderWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: PetPalReminderEntry
 
+    /// 主题色淡渐变底：浅色下柔和、深色下自动压暗，提醒内容保持可读
+    private var background: some View {
+        LinearGradient(colors: [Color.accentColor.opacity(0.16), Color.accentColor.opacity(0.04)],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
     var body: some View {
-        if let pet = entry.pet {
-            switch family {
-            case .systemMedium: mediumBody(pet: pet)
-            default: smallBody(pet: pet)
+        ZStack {
+            background
+            if let pet = entry.pet {
+                switch family {
+                case .systemMedium: mediumBody(pet: pet)
+                default: smallBody(pet: pet)
+                }
+            } else {
+                VStack(spacing: 8) {
+                    Image(systemName: "pawprint.circle.fill")
+                        .font(.system(size: 34))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, Color.accentColor)
+                    Text("打开 PetPal 建立宠物档案")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("PetPal，尚未建立宠物档案")
             }
-        } else {
-            VStack(spacing: 8) {
-                Image(systemName: "pawprint.fill")
-                    .font(.title2).foregroundStyle(.secondary)
-                Text("打开 PetPal 建立宠物档案")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("PetPal，尚未建立宠物档案")
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var petURL: URL? {
         entry.pet.map { URL(string: "petpal://pet/\($0.id.uuidString)")! }
+    }
+
+    /// 提醒类型 → SF Symbol（与 App 内 M2/M4 同一套图标语义）
+    private func icon(for type: String) -> String {
+        switch type {
+        case "喂食": return "fork.knife"
+        case "疫苗": return "syringe.fill"
+        case "驱虫": return "pill.fill"
+        case "体检": return "stethoscope"
+        case "服药": return "pills.fill"
+        default: return "bell.fill"
+        }
     }
 
     private func avatar(pet: WidgetSnapshot.PetEntry, size: CGFloat) -> some View {
@@ -78,13 +109,15 @@ struct PetPalReminderWidgetView: View {
                 Image(uiImage: image).resizable().scaledToFill()
             } else {
                 Image(systemName: "pawprint.fill")
-                    .resizable().scaledToFit().padding(size * 0.22)
-                    .foregroundStyle(.secondary)
+                    .resizable().scaledToFit().padding(size * 0.24)
+                    .foregroundStyle(Color.accentColor)
             }
         }
         .frame(width: size, height: size)
+        .background(Circle().fill(Color(.systemBackground)))
         .clipShape(Circle())
-        .background(Circle().fill(Color(.secondarySystemBackground)))
+        .overlay(Circle().strokeBorder(Color.accentColor.opacity(0.45), lineWidth: 2))
+        .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
         .accessibilityHidden(true)
     }
 
@@ -92,51 +125,91 @@ struct PetPalReminderWidgetView: View {
         String(format: "%02d:%02d %@", r.hour, r.minute, r.type)
     }
 
+    /// 下一项提醒胶囊：图标 + 时间类型，主题色浅底
+    private func reminderPill(_ r: WidgetSnapshot.ReminderEntry) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon(for: r.type))
+            Text(timeText(r)).lineLimit(1)
+        }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(Color.accentColor)
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(Capsule().fill(Color.accentColor.opacity(0.14)))
+    }
+
+    private var doneMark: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "checkmark.circle.fill")
+            Text("今日暂无待提醒")
+        }
+        .font(.caption)
+        .foregroundStyle(.green)
+    }
+
     private func smallBody(pet: WidgetSnapshot.PetEntry) -> some View {
-        VStack(spacing: 6) {
-            avatar(pet: pet, size: 52)
+        VStack(spacing: 8) {
+            avatar(pet: pet, size: 56)
             Text(pet.nickname).font(.headline).lineLimit(1)
             if let next = entry.remaining.first {
-                Text(timeText(next)).font(.caption).foregroundStyle(.secondary)
+                reminderPill(next)
             } else {
-                Text("今日提醒已完成").font(.caption).foregroundStyle(.secondary)
+                doneMark
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .widgetURL(petURL)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(pet.nickname)，\(entry.remaining.first.map { "下一项提醒 \(timeText($0))" } ?? "今日提醒已完成")")
+        .accessibilityLabel("\(pet.nickname)，\(entry.remaining.first.map { "下一项提醒 \(timeText($0))" } ?? "今日暂无待提醒")")
+    }
+
+    /// 提醒行：类型图标圆点 + 等宽时间 + 类型；下一项高亮
+    private func reminderRow(_ r: WidgetSnapshot.ReminderEntry, isNext: Bool) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon(for: r.type))
+                .font(.caption)
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(isNext ? Color.accentColor : Color.accentColor.opacity(0.15)))
+                .foregroundStyle(isNext ? Color.white : Color.accentColor)
+            Text(String(format: "%02d:%02d", r.hour, r.minute))
+                .font(.callout.bold().monospacedDigit())
+            Text(r.type)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.accentColor.opacity(isNext ? 0.12 : 0))
+        )
     }
 
     private func mediumBody(pet: WidgetSnapshot.PetEntry) -> some View {
         HStack(spacing: 12) {
             VStack(spacing: 6) {
-                avatar(pet: pet, size: 56)
+                avatar(pet: pet, size: 60)
                 Text(pet.nickname).font(.headline).lineLimit(1)
             }
             Divider()
             if entry.remaining.isEmpty {
-                Text("今日提醒已完成").font(.callout).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                doneMark
+                    .font(.callout)
+                    .frame(maxWidth: .infinity)
             } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(entry.remaining.prefix(3)) { r in
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(entry.remaining.prefix(3).enumerated()), id: \.element.occurrenceKey) { i, r in
                         Link(destination: petURL!) {
-                            Text(timeText(r))
-                                .font(.callout)
-                                .foregroundStyle(.primary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            reminderRow(r, isNext: i == 0)
                         }
                     }
                     if entry.remaining.count > 3 {
                         Text("还有 \(entry.remaining.count - 3) 项")
                             .font(.caption).foregroundStyle(.secondary)
+                            .padding(.leading, 30)
                     }
                 }
             }
         }
-        .padding(.horizontal, 4)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(12)
         .accessibilityLabel("\(pet.nickname)，今日剩余 \(entry.remaining.count) 项提醒")
     }
 }

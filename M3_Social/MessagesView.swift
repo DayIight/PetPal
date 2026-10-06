@@ -4,6 +4,27 @@ import SwiftUI
 // Mock 演示数据，但与信息流种子动态/评论真实关联（同一 MockSocialRepository 实例）：
 // 点击消息跳转对应动态的评论区；评论类消息携带 commentID，落位并高亮该评论。
 
+/// 消息类型 → 图标/动作文案（提成内部枚举：R-03 单测覆盖全分支）
+enum MessageKindStyle {
+    static func iconName(_ kind: InteractionMessage.Kind) -> String {
+        switch kind {
+        case .likePost, .likeComment: return "heart.fill"
+        case .commentPost, .replyComment: return "bubble.right.fill"
+        case .reactPost: return "face.smiling.fill"
+        }
+    }
+
+    static func actionText(_ kind: InteractionMessage.Kind) -> String {
+        switch kind {
+        case .likePost: return "赞了你的动态"
+        case .commentPost: return "评论了你的动态"
+        case .reactPost: return "回应了你的动态"
+        case .likeComment: return "赞了你的评论"
+        case .replyComment: return "回复了你的评论"
+        }
+    }
+}
+
 struct MessageListView: View {
     let repo: SocialRepository
     let messages: [InteractionMessage]
@@ -57,21 +78,11 @@ struct MessageListView: View {
     }
 
     private func iconName(_ kind: InteractionMessage.Kind) -> String {
-        switch kind {
-        case .likePost, .likeComment: return "heart.fill"
-        case .commentPost, .replyComment: return "bubble.right.fill"
-        case .reactPost: return "face.smiling.fill"
-        }
+        MessageKindStyle.iconName(kind)
     }
 
     private func actionText(_ kind: InteractionMessage.Kind) -> String {
-        switch kind {
-        case .likePost: return "赞了你的动态"
-        case .commentPost: return "评论了你的动态"
-        case .reactPost: return "回应了你的动态"
-        case .likeComment: return "赞了你的评论"
-        case .replyComment: return "回复了你的评论"
-        }
+        MessageKindStyle.actionText(kind)
     }
 
     /// 互动通知卡片：图标圆标 + actor/action（headline）+ 摘录（body）+ 时间（辅助）+ 未读点

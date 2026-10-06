@@ -292,42 +292,131 @@ struct MonthCalendarGrid: View {
     }
 }
 
-// MARK: - 记录详情（只读）
-// 取舍说明：编辑路径需给 RecordFormViewModel 增加 update 入口（骨架 API 锁定不动），
-// 成本高于收益，本期详情只读展示 answers/note/mood/时间；编辑在后续迭代复用 update(_:)。
+// MARK: - 记录详情（只读展示 + 「编辑」入口复用表单）
+// 编辑走 RecordRepository.update（保留原 createdAt）；编辑保存后订阅广播刷新本页快照。
+// 自定义记录的编辑需按 templateName 反解模板；模板已删除时降级为只读并提示。
 struct RecordDetailView: View {
-    let record: Record
+    @State private var record: Record
+    @State private var showEdit = false
+    @State private var editTemplate: CustomTemplate?
+    @State private var showTemplateMissing = false
+    @State private var showDelete = false
+    @State private var deleteError: String?
+    @Environment(\.dismiss) private var dismiss
+    @State private var reloadCancellable: AnyCancellable?
+    private let repo = CoreDataRecordRepository()
+    private let templateRepo = CoreDataCustomTemplateRepository()
     private let cal = Calendar.current
 
+    init(record: Record) {
+        _record = State(initialValue: record)
+    }
+
     var body: some View {
-        Form {
-            Section("记录") {
-                LabeledContent("类型", value: record.displayKind)
-                LabeledContent("时间", value: timeText)
-            }
-            // 预设模板：按 kind.fields 的标题展示；自定义模板：标题仅存于模板内，
-            // 记录里只有字段 UUID key，无法反解，直接列出原始键值
-            if record.kind != .custom {
-                Section("内容") {
-                    ForEach(record.kind.fields, id: \.key) { field in
-                        LabeledContent(field.title, value: record.answers[field.key].flatMap { $0.isEmpty ? nil : $0 } ?? "—")
+        NavigationStack {
+            Form {
+                Section("记录") {
+                    LabeledContent("类型", value: record.displayKind)
+                    LabeledContent("时间", value: timeText)
+                }
+                // 预设模板：按 kind.fields 的标题展示；自定义模板：标题仅存于模板内，
+                // 记录里只有字段 UUID key，无法反解，直接列出原始键值
+                if record.kind != .custom {
+                    Section("内容") {
+                        ForEach(record.kind.fields, id: \.key) { field in
+                            LabeledContent(field.title, value: record.answers[field.key].flatMap { $0.isEmpty ? nil : $0 } ?? "—")
+                        }
+                    }
+                } else if let snapshot = record.templateSnapshot {
+                    Section("内容") {
+                        ForEach(snapshot.fields) { field in
+                            LabeledContent(field.title, value: record.answers[field.id.uuidString].flatMap { $0.isEmpty ? nil : $0 } ?? "—")
+                        }
+                    }
+                } else if !record.answers.isEmpty {
+                    Section("内容") {
+                        ForEach(record.answers.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
+                            LabeledContent("旧字段（\(key.prefix(8))）", value: value.isEmpty ? "—" : value)
+                        }
                     }
                 }
-            } else if !record.answers.isEmpty {
-                Section("内容") {
-                    ForEach(record.answers.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
-                        LabeledContent("字段", value: value.isEmpty ? "—" : value)
+                Section("备注与心情") {
+                    LabeledContent("备注", value: record.note.isEmpty ? "—" : record.note)
+                    LabeledContent("心情", value: record.mood.isEmpty ? "—" : record.mood)
+                }
+                if !record.photoFileNames.isEmpty {
+                    Section("照片") {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: DS.Spacing.sm) {
+                                ForEach(record.photoFileNames, id: \.self) { name in
+                                    if let image = AvatarStore.load(fileName: name) {
+                                        Image(uiImage: image)
+                                            .resizable().scaledToFill()
+                                            .frame(width: 96, height: 96)
+                                            .clipped()
+                                            .cornerRadius(DS.Radius.control)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, DS.Spacing.xs)
+                        }
+                        .accessibilityIdentifier("detail.photos")
                     }
                 }
             }
-            Section("备注与心情") {
-                LabeledContent("备注", value: record.note.isEmpty ? "—" : record.note)
-                LabeledContent("心情", value: record.mood.isEmpty ? "—" : record.mood)
+            .accessibilityIdentifier("calendar.recordDetail")
+            .confirmationDialog("删除这条记录？关联照片、体检体重和下次提醒也会删除。", isPresented: $showDelete, titleVisibility: .visible) {
+                Button("确认删除记录", role: .destructive) {
+                    do { try repo.delete(id: record.id); dismiss() }
+                    catch { deleteError = "删除失败：" + error.localizedDescription }
+                }
+            }
+            .alert("删除失败", isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
+                Button("好", role: .cancel) {}
+            } message: { Text(deleteError ?? "") }
+            .navigationTitle("记录详情")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("完成") { dismiss() } }
+                ToolbarItem(placement: .bottomBar) { Button("删除记录", role: .destructive) { showDelete = true }.accessibilityIdentifier("detail.delete") }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("编辑", action: beginEdit)
+                        .a11y("编辑记录", hint: "修改本条记录的内容")
+                        .accessibilityIdentifier("detail.edit")
+                }
+            }
+            .sheet(isPresented: $showEdit, onDismiss: reload) {
+                if record.kind == .custom, let template = editTemplate {
+                    CustomRecordFormView(template: template, editing: record)
+                } else {
+                    NavigationStack { PresetRecordFormView(editing: record) }
+                }
+            }
+            .alert("无法编辑", isPresented: $showTemplateMissing) {
+                Button("好", role: .cancel) {}
+            } message: {
+                Text("这是一条旧版记录，未保存完整字段定义。为保留原始答案，暂时只能查看或删除。")
             }
         }
-        .accessibilityIdentifier("calendar.recordDetail")
-        .navigationTitle("记录详情")
-        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func beginEdit() {
+        if record.kind == .custom {
+            guard let template = record.templateSnapshot else {
+                showTemplateMissing = true
+                return
+            }
+            editTemplate = template
+        }
+        showEdit = true
+    }
+
+    /// 编辑保存后 repo 已广播重载，订阅一次取回本条最新快照（被删除则保持旧值展示）
+    private func reload() {
+        reloadCancellable = repo.recordsPublisher(petID: record.petID).first()
+            .sink { records in
+                if let fresh = records.first(where: { $0.id == record.id }) { record = fresh }
+            }
     }
 
     private var timeText: String {

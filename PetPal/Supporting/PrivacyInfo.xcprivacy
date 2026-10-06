@@ -21,6 +21,13 @@
 			</array>
 		</dict>
 		<dict>
+			<!-- PDF 导出前检查容量，空间不足时向用户显示错误；不上传容量信息。 -->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array><string>E174.1</string></array>
+		</dict>
+		<dict>
 			<!-- 文件时间戳：头像/附件本地文件管理（AvatarStore） -->
 			<key>NSPrivacyAccessedAPIType</key>
 			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>

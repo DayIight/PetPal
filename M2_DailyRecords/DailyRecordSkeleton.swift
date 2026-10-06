@@ -72,13 +72,14 @@ final class CoreDataCustomTemplateRepository: CustomTemplateRepository {
         if try find(template.id) == nil, try all().count >= Self.maxCount {
             throw CustomTemplateError.limitExceeded
         }
+        let payload = String(data: try JSONEncoder().encode(template), encoding: .utf8)
         let e = try find(template.id) ?? stack.insert(CDCustomTemplate.self)
         e.id = template.id; e.name = template.name; e.createdAt = template.createdAt
-        e.payload = String(data: try JSONEncoder().encode(template), encoding: .utf8)
-        try ctx.save()
+        e.payload = payload
+        try stack.save()
     }
     func delete(id: UUID) throws {
-        if let e = try find(id) { ctx.delete(e); try ctx.save() }
+        if let e = try find(id) { ctx.delete(e); try stack.save() }
     }
     private func find(_ id: UUID) throws -> CDCustomTemplate? {
         let r = CDCustomTemplate.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -106,7 +107,8 @@ enum RecordKind: String, CaseIterable, Identifiable {
         case .deworming: return [.text("drug", "药品名", true), .date("nextDue", "下次日期")]
         case .vaccine: return [.text("vaccineName", "疫苗名称", true), .text("hospital", "接种医院"),
                                .date("nextDue", "下次截止")]
-        case .checkup: return [.text("hospital", "体检医院"), .text("conclusion", "结论")]
+        case .checkup: return [.text("hospital", "体检医院"), .text("conclusion", "结论"),
+                               .number("weightKg", "体重(kg)")]   // 保存时自动抽取到 WeightRepository（GAP-07）
         case .grooming: return [.text("items", "美容项目"), .text("shop", "门店")]
         }
     }
@@ -122,7 +124,13 @@ struct Record: Identifiable, Equatable {
     var mood = ""                     // 1 个预设表情或自定义文本
     var photoFileNames: [String] = [] // ≤9 张
     var templateName: String?         // kind == .custom 时的模板名快照
+    var templateID: UUID?
+    var templateSnapshot: CustomTemplate?
+    var templateSchemaVersion = 0
     var createdAt = Date()
+    var wantsNextReminder = false
+    var nextReminderHour = 9
+    var nextReminderMinute = 0
     var summary: String { answers.values.prefix(2).joined(separator: " · ") }
     /// 展示用类型名：自定义记录显示模板名，预设显示枚举文案
     var displayKind: String { templateName ?? kind.rawValue }
@@ -141,6 +149,7 @@ enum RecordValidator {
     static func errors(for r: Record, fields: [TemplateField]? = nil) -> [String] {
         var e: [String] = []
         if r.note.count > 200 { e.append("备注最多200字") }
+        if r.mood.count > 10 { e.append("心情标签最多10个字") }
         if r.photoFileNames.count > MediaPolicy.maxPhotos { e.append("最多附加9张图片") }
         for f in fields ?? r.kind.fields {
             let value = r.answers[f.key] ?? ""
@@ -150,10 +159,18 @@ enum RecordValidator {
             }
             // M-02：非空 number 字段必须可解析且在合理范围内，杜绝脏数据进入统计/图表
             if case .number = f.kind, !value.isEmpty {
-                guard let n = Double(value), numberRange.contains(n) else {
-                    e.append("「\(f.title)」需为 0.1-100000 之间的数字")
+                let range = r.kind == .checkup && f.key == WeightExtraction.checkupWeightKey ? WeightValidator.kgRange : numberRange
+                guard let n = Double(value), range.contains(n) else {
+                    e.append(r.kind == .checkup && f.key == WeightExtraction.checkupWeightKey ? "体重需在0.1–100kg之间" : "「\(f.title)」需为 0.1-100000 之间的数字")
                     continue
                 }
+            }
+        }
+        if r.wantsNextReminder {
+            guard r.kind == .vaccine || r.kind == .deworming,
+                  let raw = r.answers["nextDue"], let date = RecordAnswerDate.parse(raw),
+                  let due = Calendar.current.date(bySettingHour: r.nextReminderHour, minute: r.nextReminderMinute, second: 0, of: date), due > Date() else {
+                e.append("下次提醒请选择未来日期和时间"); return e
             }
         }
         return e
@@ -242,21 +259,70 @@ final class CoreDataRecordRepository: RecordRepository {
         subjects[petID]?.send(((try? ctx.fetch(r)) ?? []).map(Record.init))
     }
     private func saveContext() throws {
-        try ctx.save()
+        try stack.save()
         NotificationCenter.default.post(name: .recordsDidChange, object: nil)
+        NotificationCenter.default.post(name: .weightsDidChange, object: nil)
+        NotificationCenter.default.post(name: .petsDidChange, object: nil)
+        NotificationCenter.default.post(name: .remindersDidChange, object: nil)
+    }
+    private func linkedWeights(_ id: UUID) throws -> [CDWeightSample] {
+        let request = CDWeightSample.fetchRequest(); request.predicate = NSPredicate(format: "sourceRecordID == %@", id as CVarArg)
+        return try ctx.fetch(request)
+    }
+    private func linkedReminders(_ id: UUID) throws -> [CDReminder] {
+        let request = CDReminder.fetchRequest(); request.predicate = NSPredicate(format: "sourceRecordID == %@", id as CVarArg)
+        return try ctx.fetch(request)
+    }
+    private func synchronizeDerivedData(_ record: Record) throws {
+        let weights = try linkedWeights(record.id)
+        let reminders = try linkedReminders(record.id)
+        if let sample = WeightExtraction.sample(from: record) {
+            let e = weights.first ?? stack.insert(CDWeightSample.self)
+            e.id = e.id ?? UUID(); e.petID = sample.petID; e.kg = sample.kg; e.date = sample.date; e.sourceRecordID = record.id
+            weights.dropFirst().forEach(ctx.delete)
+        } else { weights.forEach(ctx.delete) }
+        if record.wantsNextReminder, record.kind == .vaccine || record.kind == .deworming,
+           let raw = record.answers["nextDue"], let date = RecordAnswerDate.parse(raw),
+           let due = Calendar.current.date(bySettingHour: record.nextReminderHour, minute: record.nextReminderMinute, second: 0, of: date) {
+            let petRequest = CDPet.fetchRequest(); petRequest.predicate = NSPredicate(format: "id == %@", record.petID as CVarArg)
+            let name = try ctx.fetch(petRequest).first?.nickname ?? "宠物"
+            let existing = reminders.first
+            let reminder = Reminder(id: existing?.id ?? UUID(), petID: record.petID, petName: name,
+                type: record.kind == .vaccine ? .vaccine : .deworming, hour: record.nextReminderHour, minute: record.nextReminderMinute,
+                repeatRule: .once(at: due), advance: AdvanceOption(rawValue: existing?.advance ?? "") ?? .none,
+                isEnabled: existing?.isEnabled ?? true, sourceRecordID: record.id)
+            reminder.apply(to: existing ?? stack.insert(CDReminder.self))
+            reminders.dropFirst().forEach(ctx.delete)
+        } else { reminders.forEach(ctx.delete) }
+    }
+    private func validate(_ record: Record) throws {
+        let relevantErrors = RecordValidator.errors(for: record, fields: record.kind == .checkup ? record.kind.fields : [])
+        if let error = relevantErrors.first {
+            throw NSError(domain: "PetPal.Record", code: 1, userInfo: [NSLocalizedDescriptionKey: error])
+        }
     }
     func create(_ record: Record) throws {
-        record.apply(to: stack.insert(CDRecord.self)); try saveContext(); reload(record.petID)
+        try validate(record)
+        do {
+            record.apply(to: stack.insert(CDRecord.self)); try synchronizeDerivedData(record)
+            try saveContext(); reload(record.petID)
+        } catch { ctx.rollback(); throw error }
     }
-    func update(_ record: Record) throws {   // M-01：保留原 createdAt，原位更新
-        let r = CDRecord.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", record.id as CVarArg)
-        guard let e = try? ctx.fetch(r).first else { return }
-        record.apply(to: e); try saveContext(); reload(record.petID)
+    func update(_ record: Record) throws {
+        try validate(record)
+        let request = CDRecord.fetchRequest(); request.predicate = NSPredicate(format: "id == %@", record.id as CVarArg)
+        guard let e = try ctx.fetch(request).first, e.petID == record.petID else { throw DataStoreError.missingItem }
+        do { record.apply(to: e); try synchronizeDerivedData(record); try saveContext(); reload(record.petID) }
+        catch { ctx.rollback(); throw error }
     }
     func delete(id: UUID) throws {
-        let r = CDRecord.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        guard let e = try? ctx.fetch(r).first, let petID = e.petID else { return }
-        ctx.delete(e); try saveContext(); reload(petID)
+        let request = CDRecord.fetchRequest(); request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        guard let e = try ctx.fetch(request).first, let petID = e.petID else { throw DataStoreError.missingItem }
+        let weights = try linkedWeights(id); let reminders = try linkedReminders(id)
+        let files = e.photoFileNames ?? []
+        ctx.delete(e); weights.forEach(ctx.delete); reminders.forEach(ctx.delete)
+        try saveContext(); reload(petID)
+        files.forEach(AvatarStore.delete(fileName:))
     }
 }
 
@@ -265,13 +331,18 @@ private extension Record {   // 值类型 <-> CDRecord 映射
         self.init(id: e.id ?? UUID(), petID: e.petID ?? UUID(),
                   kind: RecordKind(rawValue: e.kind ?? "") ?? .feeding,
                   answers: e.answers ?? [:], note: e.note ?? "", mood: e.mood ?? "",
-                  photoFileNames: e.photoFileNames ?? [], templateName: e.templateName,
-                  createdAt: e.createdAt ?? Date())
+                  photoFileNames: e.photoFileNames ?? [], templateName: e.templateName, templateID: e.templateID,
+                  templateSnapshot: e.templateSnapshot.flatMap { try? JSONDecoder().decode(CustomTemplate.self, from: Data($0.utf8)) },
+                  templateSchemaVersion: Int(e.templateSchemaVersion), createdAt: e.createdAt ?? Date(),
+                  wantsNextReminder: e.wantsNextReminder, nextReminderHour: Int(e.nextReminderHour), nextReminderMinute: Int(e.nextReminderMinute))
     }
     func apply(to e: CDRecord) {
         e.id = id; e.petID = petID; e.kind = kind.rawValue; e.answers = answers
         e.note = note; e.mood = mood; e.photoFileNames = photoFileNames
         e.templateName = templateName; e.createdAt = createdAt
+        e.templateID = templateID; e.templateSchemaVersion = Int16(templateSchemaVersion)
+        e.templateSnapshot = templateSnapshot.flatMap { try? JSONEncoder().encode($0) }.flatMap { String(data: $0, encoding: .utf8) }
+        e.wantsNextReminder = wantsNextReminder; e.nextReminderHour = Int16(nextReminderHour); e.nextReminderMinute = Int16(nextReminderMinute)
     }
 }
 
@@ -290,16 +361,85 @@ private extension Record {   // 值类型 <-> CDRecord 映射
 @MainActor final class RecordFormViewModel: ObservableObject {
     @Published var draft: Record
     @Published private(set) var errors: [String] = []
+    /// 本次新选、尚未落盘的照片（保存时才经 AvatarStore 压缩写盘，取消表单不留孤儿文件）
+    @Published private(set) var pickedImages: [UIImage] = []
+    let isEditing: Bool
     private let repo: RecordRepository
-    init(repo: RecordRepository, petID: UUID, kind: RecordKind) {
-        self.repo = repo; draft = Record(petID: petID, kind: kind)
+    private let weightRepo: WeightRepository?
+    private let savePhoto: (UIImage) -> String?
+    /// 自定义模板记录传入 CustomTemplate.templateFields；nil 时按 draft.kind.fields 校验
+    private let validationFields: [TemplateField]?
+    /// 编辑模式被移除的已落盘照片，保存成功后清理文件
+    private var removedPhotoFileNames: [String] = []
+
+    init(repo: RecordRepository, petID: UUID, kind: RecordKind,
+         validationFields: [TemplateField]? = nil, templateName: String? = nil, templateSnapshot: CustomTemplate? = nil,
+         weightRepo: WeightRepository? = nil,
+         savePhoto: @escaping (UIImage) -> String? = { AvatarStore.save($0) }) {
+        self.savePhoto = savePhoto
+        self.repo = repo
+        self.weightRepo = weightRepo
+        self.validationFields = validationFields
+        isEditing = false
+        draft = Record(petID: petID, kind: kind, templateName: templateName, templateID: templateSnapshot?.id,
+                       templateSnapshot: templateSnapshot, templateSchemaVersion: templateSnapshot == nil ? 0 : 1)
     }
+
+    init(repo: RecordRepository, editing record: Record,
+         validationFields: [TemplateField]? = nil, weightRepo: WeightRepository? = nil,
+         savePhoto: @escaping (UIImage) -> String? = { AvatarStore.save($0) }) {
+        self.savePhoto = savePhoto
+        self.repo = repo
+        self.weightRepo = weightRepo
+        self.validationFields = record.templateSnapshot?.templateFields ?? validationFields
+        isEditing = true
+        draft = record
+    }
+
     func addPhoto(_ data: Data) {   // >10MB 拒绝；落盘复用 M1 AvatarStore 压缩策略
         guard MediaPolicy.isValidPhoto(data) else { errors = ["单张图片不能超过10MB"]; return }
+        guard let image = UIImage(data: data) else { errors = ["图片格式不支持"]; return }
+        addPhoto(image)
     }
+
+    func addPhoto(_ image: UIImage) {
+        guard draft.photoFileNames.count + pickedImages.count < MediaPolicy.maxPhotos else {
+            errors = ["最多附加9张图片"]; return
+        }
+        pickedImages.append(image)
+    }
+
+    func removePickedPhoto(at index: Int) {
+        guard pickedImages.indices.contains(index) else { return }
+        pickedImages.remove(at: index)
+    }
+
+    func removeSavedPhoto(_ fileName: String) {
+        draft.photoFileNames.removeAll { $0 == fileName }
+        removedPhotoFileNames.append(fileName)
+    }
+
     @discardableResult func save() -> Bool {
-        errors = RecordValidator.errors(for: draft)
+        errors = RecordValidator.errors(for: draft, fields: validationFields)
         guard errors.isEmpty else { return false }
-        do { try repo.create(draft); return true } catch { errors = ["保存失败，请重试"]; return false }
+        // 新选照片压缩落盘（≤1080px、JPEG 0.8）；任一步失败回滚已写文件，不留孤儿
+        var newNames: [String] = []
+        for image in pickedImages {
+            guard let name = savePhoto(image) else {
+                newNames.forEach(AvatarStore.delete(fileName:))
+                errors = ["图片保存失败，请重试"]; return false
+            }
+            newNames.append(name)
+        }
+        draft.photoFileNames += newNames
+        do {
+            isEditing ? try repo.update(draft) : try repo.create(draft)
+        } catch {
+            newNames.forEach(AvatarStore.delete(fileName:))
+            draft.photoFileNames.removeAll { newNames.contains($0) }
+            errors = ["保存失败，请重试"]; return false
+        }
+        removedPhotoFileNames.forEach(AvatarStore.delete(fileName:))
+        return true
     }
 }

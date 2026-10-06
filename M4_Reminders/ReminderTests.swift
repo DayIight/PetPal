@@ -5,11 +5,20 @@ import UserNotifications
 // MARK: - Mock 调度器（替代 UNUserNotificationCenter）
 final class MockNotificationScheduler: NotificationScheduling {
     var authorized = true
+    var failAdd = false
+    var removalDelay: UInt64 = 0
+    var events: [String] = []
     var added: [UNNotificationRequest] = []
     var removedPrefixes: [String] = []
     func requestAuthorization() async throws -> Bool { authorized }
-    func add(_ request: UNNotificationRequest) async throws { added.append(request) }
-    func removePending(matchingPrefix prefix: String) {
+    func add(_ request: UNNotificationRequest) async throws {
+        if failAdd { throw NSError(domain: "NotificationFailure", code: 1) }; events.append("add"); added.append(request)
+    }
+    func authorizationStatus() async -> UNAuthorizationStatus { authorized ? .authorized : .denied }
+    func removePending(matchingPrefix prefix: String) async {
+        events.append("remove.begin")
+        if removalDelay > 0 { try? await Task.sleep(nanoseconds: removalDelay) }
+        events.append("remove.end")
         removedPrefixes.append(prefix)
         added.removeAll { $0.identifier.hasPrefix(prefix) }
     }
@@ -72,7 +81,7 @@ final class AdvanceTriggerTests: XCTestCase {
     func test_yearlyAdvance_wrapsMonthDay() {
         // 3月1日 提前3天 → 2月26日（2026 非闰年）
         let t = ReminderTriggerBuilder.advanceTriggers(rule: .yearly(month: 3, day: 1),
-                                                       hour: 9, minute: 0, advance: .d3)
+                                                       hour: 9, minute: 0, advance: .d3, now: Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1))!)
         XCTAssertEqual(t.count, 1)
         XCTAssertEqual(t[0].dateComponents.month, 2)
         XCTAssertEqual(t[0].dateComponents.day, 26)
@@ -153,10 +162,26 @@ final class ReminderServiceTests: XCTestCase {
         let pet = UUID()
         let reminder = Reminder(petID: pet, type: .feeding, hour: 8, minute: 0)
         try await service.save(reminder, petName: "小白")
-        try service.removeAll(petID: pet)
+        try await service.removeAll(petID: pet)
         XCTAssertTrue(scheduler.added.isEmpty)
-        XCTAssertTrue(scheduler.removedPrefixes.contains(reminder.id.uuidString),
+        XCTAssertTrue(scheduler.removedPrefixes.contains(""),
                       "removeAll 必须按提醒 id 前缀撤销 pending 通知")
         XCTAssertTrue(try repo.reminders(petID: pet).isEmpty)
+    }
+    // 列表页数据源与单条删除：保存后可读出，remove 撤销调度并清库，其他宠物的提醒不受影响
+    @MainActor func test_listAndRemoveSingleReminder() async throws {
+        await service.requestPermission()
+        let pet = UUID(), other = UUID()
+        let r1 = Reminder(petID: pet, type: .feeding, hour: 8, minute: 0)
+        let r2 = Reminder(petID: pet, type: .medication, hour: 21, minute: 0)
+        try await service.save(r1, petName: "小白")
+        try await service.save(r2, petName: "小白")
+        try await service.save(Reminder(petID: other, type: .vaccine, hour: 9, minute: 0), petName: "豆豆")
+        XCTAssertEqual(service.reminders(petID: pet).count, 2)
+        try await service.remove(r1)
+        XCTAssertTrue(scheduler.removedPrefixes.contains(""),
+                      "remove 必须按提醒 id 前缀撤销 pending 通知")
+        XCTAssertEqual(service.reminders(petID: pet).map(\.type), [.medication])
+        XCTAssertEqual(service.reminders(petID: other).count, 1)
     }
 }

@@ -10,7 +10,8 @@ MVP 范围：体重变化折线图（按月/按年切换、Y 轴自适应、多�
 （`LineMark` + `PointMark`，`chartYScale(domain:)` 绑定自适应 Y 域），
 无需自绘 Path；聚合层与 ViewModel 与渲染框架无关，保持不变。
 数据来源：新增 `CDWeightSample`（petID/date/kg）本地实体，仪表盘手动录入；
-从 M2 体检记录自动抽取体重为延后项，通过同一 `WeightRepository` 写入即可，不改动看板。
+M2 体检记录与来源体重在同一事务中保存、更新和删除。手动体重可在成长页「管理体重记录」编辑/删除；来源体重由体检记录管理。
+当前体重取日期最新的有效样本，无样本时取档案初始值；档案、看板与 PDF 使用同一宠物数据快照。
 聚合逻辑为纯函数 `ChartSeriesBuilder`：按宠物分组 → 按月/年桶取均值 → 生成 `ChartSeries`，
 Y 域 = 全序列 min/max ±10%  padding（下限 0.5kg），空数据返回 0...1 占位。
 多曲线配色经 `ChartPalette` 按序取模，保证同屏不同色；颜色仅用于数据区分，
@@ -24,6 +25,7 @@ Y 域 = 全序列 min/max ±10%  padding（下限 0.5kg），空数据返回 0..
 | petID | UUID | 关联宠物，支持多宠物叠加 |
 | kg | Double | 0.1...100.0（复用 M1 校验范围） |
 | date | Date | 采样日期，聚合桶依据 |
+| sourceRecordID | UUID? | 来源体检 ID；手录为空，编辑体检原位更新 |
 
 ## 视图层级（输出形式：架构说明）
 ```

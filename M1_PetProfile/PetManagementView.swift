@@ -6,11 +6,14 @@ import Combine
 struct PetManagementView: View {
     @ObservedObject var petListVM: PetListViewModel
     @ObservedObject var currentPet: CurrentPetStore
+    var onShowBackup: (() -> Void)? = nil
     @StateObject private var router = DeepLinkRouter.shared
     @State private var showAddPet = false
     @State private var showDashboard = false
     @State private var showTemplates = false
     @State private var showWeight = false
+    @State private var showBackup = false
+    @State private var showPrivacy = false
 
     var body: some View {
         NavigationStack(path: $router.path) {
@@ -19,6 +22,12 @@ struct PetManagementView: View {
                     if petListVM.pets.isEmpty {
                         emptyState
                     } else {
+                        Picker("排序", selection: $petListVM.sort) {
+                            ForEach(PetSort.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        .a11y("宠物排序", hint: "按昵称或创建时间排列档案列表")
+                        .accessibilityIdentifier("pet.sort")
                         petList
                     }
                     featureSection
@@ -56,6 +65,8 @@ struct PetManagementView: View {
                 }
             }
             .sheet(isPresented: $showTemplates) { TemplateListView() }
+            .sheet(isPresented: $showBackup) { NavigationStack { BackupManagementView() } }
+            .sheet(isPresented: $showPrivacy) { NavigationStack { PrivacySupportView() } }
         }
     }
 
@@ -125,6 +136,12 @@ struct PetManagementView: View {
         CardContainer {
             VStack(alignment: .leading, spacing: DS.Spacing.sm) {
                 Text("功能入口").font(.headline)
+                featureRow("数据备份", icon: "externaldrive", hint: "导出完整备份或从文件恢复数据") {
+                    if let onShowBackup { onShowBackup() } else { showBackup = true }
+                }
+                    .accessibilityIdentifier("profile.backup")
+                featureRow("隐私与支持", icon: "hand.raised", hint: "查看隐私政策和联系支持") { showPrivacy = true }
+                    .accessibilityIdentifier("profile.privacy")
                 featureRow("成长看板", icon: "chart.xyaxis.line",
                            hint: "查看当前宠物的体重曲线、打卡热力图与疫苗体检时间线",
                            disabled: currentPet.current == nil) {
@@ -259,6 +276,7 @@ struct PetDetailView: View {
                     }
                     Section("其他信息") {
                         LabeledContent("芯片号", value: pet.chipNumber?.isEmpty == false ? pet.chipNumber! : "—")
+                        LabeledContent("过敏源", value: pet.allergens.isEmpty ? "—" : pet.allergens.joined(separator: "、"))
                         LabeledContent("兽医", value: pet.vetName?.isEmpty == false ? pet.vetName! : "—")
                         LabeledContent("兽医电话", value: pet.vetPhone?.isEmpty == false ? pet.vetPhone! : "—")
                     }
@@ -310,7 +328,7 @@ struct PetDetailView: View {
 
     /// 删除走 PetListViewModel.delete（保留 H-02 reminderCleanup 联动），删除后退出详情并出栈深链路径
     private func delete(_ pet: Pet) {
-        petListVM.delete(pet)
+        guard petListVM.delete(pet) else { avatarError = petListVM.toast; return }
         if !router.path.isEmpty { router.path.removeLast() }
     }
 
