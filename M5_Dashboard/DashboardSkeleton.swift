@@ -105,9 +105,10 @@ final class CoreDataWeightRepository: WeightRepository {
         }
     }
     func add(_ s: WeightSample) throws {
-        let e = stack.insert(CDWeightSample.self)
-        e.id = s.id; e.petID = s.petID; e.kg = s.kg; e.date = s.date
-        try ctx.save()
+        try stack.transaction {
+            let e = stack.insert(CDWeightSample.self)
+            e.id = s.id; e.petID = s.petID; e.kg = s.kg; e.date = s.date
+        }
     }
 }
 

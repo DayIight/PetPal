@@ -54,8 +54,21 @@ struct PetFormView: View {
                         .keyboardType(.phonePad)
                         .accessibilityIdentifier("pet.vetPhone")
                 }
-                ForEach(Array(vm.errors.values), id: \.self) {
-                    Text($0).font(.footnote).foregroundStyle(.red)
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if !vm.errors.isEmpty || vm.saveError != nil {
+                    VStack(alignment: .leading, spacing: DS.Spacing.xs) {
+                        ForEach(vm.errors.values.sorted(), id: \.self) {
+                            Text($0).font(.footnote).foregroundStyle(.red)
+                        }
+                        if let saveError = vm.saveError {
+                            Text(saveError).font(.footnote).foregroundStyle(.red)
+                                .accessibilityIdentifier("pet.saveError")
+                        }
+                    }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(Color(.systemBackground))
                 }
             }
             .navigationTitle("宠物档案")

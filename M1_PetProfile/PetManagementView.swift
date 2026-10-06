@@ -310,24 +310,27 @@ struct PetDetailView: View {
 
     /// 删除走 PetListViewModel.delete（保留 H-02 reminderCleanup 联动），删除后退出详情并出栈深链路径
     private func delete(_ pet: Pet) {
-        petListVM.delete(pet)
-        if !router.path.isEmpty { router.path.removeLast() }
+        Task {
+            if await petListVM.delete(pet) {
+                if !router.path.isEmpty { router.path.removeLast() }
+            } else {
+                avatarError = petListVM.toast
+            }
+        }
     }
 
     /// 详情页点头像即时更换/移除：压缩落盘 → 写库 → 成功后清理旧文件；失败回滚新文件并提示
     private func changeAvatar(_ pet: Pet, image: UIImage?) {
         var updated = pet
         var newFile: String?
-        if let image {
-            guard let name = AvatarStore.save(image) else {
-                avatarError = "头像保存失败，请重试"; return
-            }
-            newFile = name
-            updated.avatarFileName = name
-        } else {
-            updated.avatarFileName = nil
-        }
         do {
+            if let image {
+                let name = try AvatarStore.save(image)
+                newFile = name
+                updated.avatarFileName = name
+            } else {
+                updated.avatarFileName = nil
+            }
             try repo.update(updated)
             if let old = pet.avatarFileName, old != newFile { AvatarStore.delete(fileName: old) }
         } catch {

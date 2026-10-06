@@ -17,7 +17,6 @@ xcodebuild \
   -configuration Debug \
   -destination "$DESTINATION" \
   -derivedDataPath "$DERIVED_DATA" \
-  CODE_SIGNING_ALLOWED=NO \
   build
 
 echo "构建成功。模拟器 App："

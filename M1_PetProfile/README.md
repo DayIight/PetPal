@@ -10,7 +10,8 @@ View 不直接持有 NSManagedObject，层间只传值类型 `Pet`，保证可�
 （`CloudKitPetRepository`，私有库 + 加密字段）接入，协议与 ViewModel 不变。
 删除宠物为真实级联（2026-09-20 整改，H-02）：`CoreDataPetRepository.delete` 同事务删除
 该宠物的全部 CDRecord/CDReminder/CDWeightSample 并清理头像与记录图片文件；
-pending 通知撤销由 App 层经 `PetListViewModel.reminderCleanup` 钩子在删库前完成。
+pending 通知 id 在删除前收集，撤销由 App 层经 `PetListViewModel.reminderCleanup` 钩子
+在数据库提交成功后完成；删除失败保留档案、文件与通知。
 
 ## 数据模型（Core Data 实体 `CDPet`，输出形式：架构说明）
 
@@ -46,17 +47,20 @@ PetFormView
 
 ## 状态管理（输出形式：架构说明）
 - `PetListViewModel`：订阅 `repo.petsPublisher`，排序切换仅改本地数组顺序；
-  删除失败置 `errorMessage` 触发 Toast。
+  删除失败置 `toast`，详情页保留并提示重试。
 - `PetFormViewModel`：持有 `draft: Pet`（值类型），`save()` 先跑 `PetValidator`，
   有错则回填 `errors` 字典并返回 false，View 据此高亮且不 dismiss。
-- 所有 ViewModel 标注 `@MainActor`，Repository 在后台 context 写、主线程发发布。
+- ViewModel 标注 `@MainActor`；Repository 通过 `CoreDataStack.transaction` 在 viewContext
+  的队列中提交，失败时 rollback，避免后续写入把失败的草稿一并提交。
 
 ## 关键交互逻辑（输出形式：代码骨架，见 PetProfileSkeleton.swift）
 1. 头像：`AvatarPickerView`（拍照 / `PhotosPicker` 相册 / 移除）→ `AvatarStore.save` 等比压缩至 ≤1080px、
-   JPEG 0.8 → 存 Documents。表单内在 `save()` 时落盘并写库（失败回滚新文件，成功清理被替换的旧文件）；
+   JPEG 0.8 → 原子写入 Documents，写入失败抛错。表单内在 `save()` 时落盘并写库
+   （失败回滚新文件，成功清理被替换的旧文件）；保存错误在固定区域显示，表单保持可编辑。
    详情页点头像即时保存。
 2. 提交：`save()` → `PetValidator.errors` → 空则 create/update，非空则逐字段红框高亮。
-3. 删除：详情页 `confirmationDialog` → `repo.delete` → 预留 `onPetDeleted` 钩子（M4 联动清理提醒）。
+3. 删除：详情页 `confirmationDialog` → `await PetListViewModel.delete` → 提交级联删除
+   → 撤销通知 → 成功后退出详情。失败保留详情并提示错误。
 
 关键 SwiftUI 片段（视图层约定，实现随可运行原型交付）：
 ```swift
@@ -66,7 +70,7 @@ TextField("昵称", text: $vm.draft.nickname)
         .stroke(vm.errors[.nickname] != nil ? Color.red : .clear))
     .accessibilityLabel("昵称").accessibilityHint("必填，一到二十个字符")
 .confirmationDialog("确认删除该宠物档案？", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-    Button("删除", role: .destructive) { vm.delete(pet) }   // 同时提示将清理关联提醒
+    Button("删除", role: .destructive) { Task { await vm.delete(pet) } }
     Button("取消", role: .cancel) {}
 }
 ```
@@ -74,6 +78,8 @@ TextField("昵称", text: $vm.draft.nickname)
 ## 测试要点（输出形式：代码骨架，见 PetProfileTests.swift）
 - `PetValidatorTests`：空昵称/超长、未来生日、越界体重、非法芯片号与电话 —— 逐项断言错误键。
 - `CoreDataPetRepositoryTests`：in-memory store 验证 CRUD 与 publisher 推送。
+- `StorageFailureRegressionTests`：图片写入失败、头像替换失败、各 Repository 提交失败及级联删除失败，
+  验证旧数据/文件/通知保留，未提交的变更不会污染后续保存。
 - 覆盖率目标：本模块 Validator + Repository 行覆盖 ≥70%。
 
 ## 独立验收清单（M1）

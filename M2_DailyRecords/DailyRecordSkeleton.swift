@@ -3,7 +3,7 @@ import Combine
 import CoreData
 import SwiftUI
 
-// MARK: - 模板定义（纯代码元数据；自定义模板延后，kind 预留 .custom）
+// MARK: - 模板定义
 struct TemplateField {
     enum Kind { case text, multiline, number, single([String]), multi([String]), toggle, date }
     let key: String, title: String, kind: Kind, isRequired: Bool
@@ -52,6 +52,20 @@ struct CustomTemplate: Identifiable, Equatable, Codable {
 
 enum CustomTemplateError: Error { case limitExceeded, emptyName, noFields }
 
+/// 顺序由 fields 数组保存。历史记录独立于之后的模板改名、改字段和删除。
+struct RecordTemplateSnapshot: Equatable, Codable {
+    var version = 1
+    let templateID: UUID
+    let name: String
+    let fields: [CustomTemplate.Field]
+    init(template: CustomTemplate) {
+        templateID = template.id; name = template.name; fields = template.fields
+    }
+    var templateFields: [TemplateField] {
+        CustomTemplate(id: templateID, name: name, fields: fields).templateFields
+    }
+}
+
 protocol CustomTemplateRepository: AnyObject {
     func all() throws -> [CustomTemplate]
     func save(_ template: CustomTemplate) throws   // 新增超过 20 个抛 limitExceeded
@@ -69,16 +83,17 @@ final class CoreDataCustomTemplateRepository: CustomTemplateRepository {
         return try ctx.fetch(r).compactMap(Self.decode)
     }
     func save(_ template: CustomTemplate) throws {
-        if try find(template.id) == nil, try all().count >= Self.maxCount {
-            throw CustomTemplateError.limitExceeded
+        try stack.transaction {
+            if try find(template.id) == nil, try all().count >= Self.maxCount {
+                throw CustomTemplateError.limitExceeded
+            }
+            let e = try find(template.id) ?? stack.insert(CDCustomTemplate.self)
+            e.id = template.id; e.name = template.name; e.createdAt = template.createdAt
+            e.payload = String(data: try JSONEncoder().encode(template), encoding: .utf8)
         }
-        let e = try find(template.id) ?? stack.insert(CDCustomTemplate.self)
-        e.id = template.id; e.name = template.name; e.createdAt = template.createdAt
-        e.payload = String(data: try JSONEncoder().encode(template), encoding: .utf8)
-        try ctx.save()
     }
     func delete(id: UUID) throws {
-        if let e = try find(id) { ctx.delete(e); try ctx.save() }
+        try stack.transaction { if let e = try find(id) { ctx.delete(e) } }
     }
     private func find(_ id: UUID) throws -> CDCustomTemplate? {
         let r = CDCustomTemplate.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -122,10 +137,22 @@ struct Record: Identifiable, Equatable {
     var mood = ""                     // 1 个预设表情或自定义文本
     var photoFileNames: [String] = [] // ≤9 张
     var templateName: String?         // kind == .custom 时的模板名快照
+    var templateSnapshot: RecordTemplateSnapshot?
     var createdAt = Date()
-    var summary: String { answers.values.prefix(2).joined(separator: " · ") }
+    var fields: [TemplateField] {
+        if kind != .custom { return kind.fields }
+        if let templateSnapshot { return templateSnapshot.templateFields }
+        // 旧记录没有字段定义，保留全部原始答案；不猜测已改变的模板含义。
+        return answers.keys.sorted().enumerated().map {
+            .text($0.element, "历史字段 \($0.offset + 1)（\($0.element.prefix(8))）")
+        }
+    }
+    var summary: String {
+        fields.compactMap { answers[$0.key] }.filter { !$0.isEmpty }
+            .prefix(2).joined(separator: " · ")
+    }
     /// 展示用类型名：自定义记录显示模板名，预设显示枚举文案
-    var displayKind: String { templateName ?? kind.rawValue }
+    var displayKind: String { templateSnapshot?.name ?? templateName ?? kind.rawValue }
 }
 
 // MARK: - 校验与媒体策略
@@ -142,7 +169,7 @@ enum RecordValidator {
         var e: [String] = []
         if r.note.count > 200 { e.append("备注最多200字") }
         if r.photoFileNames.count > MediaPolicy.maxPhotos { e.append("最多附加9张图片") }
-        for f in fields ?? r.kind.fields {
+        for f in fields ?? r.fields {
             let value = r.answers[f.key] ?? ""
             if f.isRequired && value.isEmpty {
                 e.append("「\(f.title)」为必填项")
@@ -219,10 +246,12 @@ extension Notification.Name { static let recordsDidChange = Notification.Name("P
 
 final class CoreDataRecordRepository: RecordRepository {
     private let stack: CoreDataStack
+    private let deletePhoto: (String) -> Void
     private var subjects: [UUID: CurrentValueSubject<[Record], Never>] = [:]
     private var changeObserver: NSObjectProtocol?
-    init(stack: CoreDataStack = .shared) {
+    init(stack: CoreDataStack = .shared, deletePhoto: @escaping (String) -> Void = AvatarStore.delete) {
         self.stack = stack
+        self.deletePhoto = deletePhoto
         // 表单/时间轴/日历/看板各自实例化 repository：任一实例写库后广播，其余存活实例重载已订阅的 petID
         changeObserver = NotificationCenter.default.addObserver(
             forName: .recordsDidChange, object: nil, queue: .main
@@ -241,22 +270,37 @@ final class CoreDataRecordRepository: RecordRepository {
         r.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         subjects[petID]?.send(((try? ctx.fetch(r)) ?? []).map(Record.init))
     }
-    private func saveContext() throws {
-        try ctx.save()
+    private func saveContext(_ changes: () throws -> Void) throws {
+        try stack.transaction(changes)
         NotificationCenter.default.post(name: .recordsDidChange, object: nil)
     }
     func create(_ record: Record) throws {
-        record.apply(to: stack.insert(CDRecord.self)); try saveContext(); reload(record.petID)
+        try saveContext { try record.apply(to: stack.insert(CDRecord.self)) }
+        reload(record.petID)
     }
     func update(_ record: Record) throws {   // M-01：保留原 createdAt，原位更新
         let r = CDRecord.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", record.id as CVarArg)
-        guard let e = try? ctx.fetch(r).first else { return }
-        record.apply(to: e); try saveContext(); reload(record.petID)
+        var removedPhotos: [String] = []
+        try saveContext {
+            guard let e = try ctx.fetch(r).first else { throw RepositoryError.notFound }
+            removedPhotos = (e.photoFileNames ?? []).filter { !record.photoFileNames.contains($0) }
+            try record.apply(to: e)
+        }
+        removedPhotos.forEach(deletePhoto)
+        reload(record.petID)
     }
     func delete(id: UUID) throws {
         let r = CDRecord.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        guard let e = try? ctx.fetch(r).first, let petID = e.petID else { return }
-        ctx.delete(e); try saveContext(); reload(petID)
+        var petID: UUID?
+        var photos: [String] = []
+        try saveContext {
+            guard let e = try ctx.fetch(r).first else { return }
+            petID = e.petID
+            photos = e.photoFileNames ?? []
+            ctx.delete(e)
+        }
+        photos.forEach(deletePhoto)
+        if let petID { reload(petID) }
     }
 }
 
@@ -266,12 +310,14 @@ private extension Record {   // 值类型 <-> CDRecord 映射
                   kind: RecordKind(rawValue: e.kind ?? "") ?? .feeding,
                   answers: e.answers ?? [:], note: e.note ?? "", mood: e.mood ?? "",
                   photoFileNames: e.photoFileNames ?? [], templateName: e.templateName,
+                  templateSnapshot: e.templateSnapshot.flatMap { try? JSONDecoder().decode(RecordTemplateSnapshot.self, from: Data($0.utf8)) },
                   createdAt: e.createdAt ?? Date())
     }
-    func apply(to e: CDRecord) {
+    func apply(to e: CDRecord) throws {
         e.id = id; e.petID = petID; e.kind = kind.rawValue; e.answers = answers
         e.note = note; e.mood = mood; e.photoFileNames = photoFileNames
         e.templateName = templateName; e.createdAt = createdAt
+        e.templateSnapshot = try templateSnapshot.map { String(decoding: try JSONEncoder().encode($0), as: UTF8.self) }
     }
 }
 
@@ -290,16 +336,63 @@ private extension Record {   // 值类型 <-> CDRecord 映射
 @MainActor final class RecordFormViewModel: ObservableObject {
     @Published var draft: Record
     @Published private(set) var errors: [String] = []
+    @Published private(set) var pendingPhotos: [PendingRecordPhoto] = []
     private let repo: RecordRepository
-    init(repo: RecordRepository, petID: UUID, kind: RecordKind) {
-        self.repo = repo; draft = Record(petID: petID, kind: kind)
+    private let isEditing: Bool
+    private let savePhoto: (UIImage) throws -> String
+    private let deletePhoto: (String) -> Void
+    private var hasSaved = false
+    init(repo: RecordRepository, petID: UUID, kind: RecordKind,
+         editing: Record? = nil, template: CustomTemplate? = nil,
+         savePhoto: @escaping (UIImage) throws -> String = { try AvatarStore.save($0) },
+         deletePhoto: @escaping (String) -> Void = AvatarStore.delete) {
+        self.repo = repo; isEditing = editing != nil
+        self.savePhoto = savePhoto; self.deletePhoto = deletePhoto
+        draft = editing ?? Record(petID: petID, kind: kind)
+        if editing == nil, let template {
+            draft.templateName = template.name
+            draft.templateSnapshot = RecordTemplateSnapshot(template: template)
+        }
+        if editing == nil {
+            for field in draft.fields {
+                if case .toggle = field.kind { draft.answers[field.key] = "false" }
+                if case .date = field.kind, field.isRequired {
+                    draft.answers[field.key] = RecordAnswerDate.table.string(from: Date())
+                }
+            }
+        }
     }
-    func addPhoto(_ data: Data) {   // >10MB 拒绝；落盘复用 M1 AvatarStore 压缩策略
-        guard MediaPolicy.isValidPhoto(data) else { errors = ["单张图片不能超过10MB"]; return }
+    var photoCount: Int { draft.photoFileNames.count + pendingPhotos.count }
+    @discardableResult func addPhoto(_ data: Data) -> Bool {
+        guard photoCount < MediaPolicy.maxPhotos else { errors = ["最多附加9张图片"]; return false }
+        guard MediaPolicy.isValidPhoto(data) else { errors = ["单张图片不能超过10MB"]; return false }
+        guard let image = UIImage(data: data) else { errors = ["无法读取图片，请重新选择"]; return false }
+        pendingPhotos.append(PendingRecordPhoto(image: image)); errors = []
+        return true
     }
+    func removePendingPhoto(id: UUID) { pendingPhotos.removeAll { $0.id == id } }
+    func reportPhotoError() { errors = ["图片加载失败，请重新选择"] }
     @discardableResult func save() -> Bool {
+        guard !hasSaved else { return true }
         errors = RecordValidator.errors(for: draft)
+        if photoCount > MediaPolicy.maxPhotos { errors.append("最多附加9张图片") }
         guard errors.isEmpty else { return false }
-        do { try repo.create(draft); return true } catch { errors = ["保存失败，请重试"]; return false }
+        var files: [String] = []
+        do {
+            for photo in pendingPhotos { files.append(try savePhoto(photo.image)) }
+            var saved = draft; saved.photoFileNames += files
+            isEditing ? try repo.update(saved) : try repo.create(saved)
+            draft = saved; pendingPhotos = []; hasSaved = true
+            return true
+        } catch {
+            files.forEach(deletePhoto)
+            errors = ["保存失败，请重试。原记录与照片已保留。"]
+            return false
+        }
     }
+}
+
+struct PendingRecordPhoto: Identifiable {
+    let id = UUID()
+    let image: UIImage
 }

@@ -1,19 +1,13 @@
 import Foundation
 import CoreData
 import UserNotifications
+import Combine
 
 // MARK: - 模型
 enum ReminderType: String, CaseIterable, Identifiable {
     case feeding = "喂食", vaccine = "疫苗", deworming = "驱虫", checkup = "体检", medication = "服药"
     var id: String { rawValue }
     var action: String { self == .vaccine ? "接种疫苗" : rawValue }
-}
-
-enum RepeatRule: Codable, Equatable {   // 每周多选/提前量 UI 编排为延后项，规则已全量支持
-    case daily
-    case weekly(Set<Int>)               // 1=周日 ... 7=周六
-    case monthly(day: Int)
-    case yearly(month: Int, day: Int)
 }
 
 struct Reminder: Identifiable, Equatable {
@@ -25,6 +19,18 @@ struct Reminder: Identifiable, Equatable {
     var minute: Int                     // 0-59
     var repeatRule: RepeatRule = .daily
     var advance: AdvanceOption = .none  // 提前提醒量
+    var isEnabled = true
+    var timeText: String { String(format: "%02d:%02d", hour, minute) }
+    var ruleText: String {
+        switch repeatRule {
+        case .daily: return "每日"
+        case .weekly(let days):
+            let names = [1: "周日", 2: "周一", 3: "周二", 4: "周三", 5: "周四", 6: "周五", 7: "周六"]
+            return [2, 3, 4, 5, 6, 7, 1].filter { days.contains($0) }.compactMap { names[$0] }.joined(separator: "、")
+        case .monthly(let day): return "每月\(day)日"
+        case .yearly(let month, let day): return "每年\(month)月\(day)日"
+        }
+    }
 }
 
 // MARK: - 提前量（PRD §4：5分钟/15分钟/30分钟/1小时/1天/3天）
@@ -37,6 +43,13 @@ enum AdvanceOption: String, Codable, CaseIterable, Identifiable {
         case .none: return 0
         case .m5: return 300; case .m15: return 900; case .m30: return 1800
         case .h1: return 3600; case .d1: return 86400; case .d3: return 259200
+        }
+    }
+    func shifting(_ date: Date, calendar: Calendar) -> Date? {
+        switch self {
+        case .d1: return calendar.date(byAdding: .day, value: -1, to: date)
+        case .d3: return calendar.date(byAdding: .day, value: -3, to: date)
+        default: return date.addingTimeInterval(-seconds)
         }
     }
 }
@@ -64,29 +77,21 @@ enum ReminderContentBuilder {
 
 enum ReminderTriggerBuilder {
     static func triggers(rule: RepeatRule, hour: Int, minute: Int) -> [UNCalendarNotificationTrigger] {
-        let base = DateComponents(hour: hour, minute: minute)
-        switch rule {
-        case .daily:
-            return [.init(dateMatching: base, repeats: true)]
-        case .weekly(let days):
-            return days.sorted().map { var d = base; d.weekday = $0
-                return .init(dateMatching: d, repeats: true) }
-        case .monthly(let day):
-            var d = base; d.day = day; return [.init(dateMatching: d, repeats: true)]
-        case .yearly(let month, let day):
-            var d = base; d.month = month; d.day = day; return [.init(dateMatching: d, repeats: true)]
-        }
+        rule.matchingComponents(hour: hour, minute: minute)
+            .map { .init(dateMatching: $0, repeats: true) }
     }
-    /// 提前量触发器：把每个主触发器对应的日期成分整体前移 advance，
-    /// 用真实日历计算（周几回绕、跨月/跨年由 Calendar 处理），再重建为重复触发器
+    /// 日/周可重复；月/年按实际日期预排 12 次，回前台/时区变更时补齐滚动窗口。
+    /// 固定重复的 day/month 无法表达不同月长及闰年的提前日期。
     static func advanceTriggers(rule: RepeatRule, hour: Int, minute: Int,
                                 advance: AdvanceOption,
+                                now: Date = Date(), occurrenceCount: Int = 12,
                                 calendar: Calendar = .current) -> [UNCalendarNotificationTrigger] {
-        guard advance != .none else { return [] }
+        guard advance != .none, rule.isValid,
+              (0...23).contains(hour), (0...59).contains(minute) else { return [] }
         func shifted(_ matching: DateComponents, extract: [Calendar.Component]) -> DateComponents? {
-            guard let next = calendar.nextDate(after: Date(), matching: matching,
-                                               matchingPolicy: .nextTime) else { return nil }
-            let shiftedDate = next.addingTimeInterval(-advance.seconds)
+            guard let next = calendar.nextDate(after: now, matching: matching,
+                                               matchingPolicy: .strict),
+                  let shiftedDate = advance.shifting(next, calendar: calendar) else { return nil }
             return calendar.dateComponents(Set(extract), from: shiftedDate)
         }
         switch rule {
@@ -98,23 +103,29 @@ enum ReminderTriggerBuilder {
                 shifted(.init(hour: hour, minute: minute, weekday: weekday),
                         extract: [.weekday, .hour, .minute])
             }.map { UNCalendarNotificationTrigger(dateMatching: $0, repeats: true) }
-        case .monthly(let day):
-            guard let d = shifted(.init(day: day, hour: hour, minute: minute),
-                                  extract: [.day, .hour, .minute]) else { return [] }
-            return [.init(dateMatching: d, repeats: true)]
-        case .yearly(let month, let day):
-            guard let d = shifted(.init(month: month, day: day, hour: hour, minute: minute),
-                                  extract: [.month, .day, .hour, .minute]) else { return [] }
-            return [.init(dateMatching: d, repeats: true)]
+        case .monthly, .yearly:
+            return ReminderOccurrenceBuilder.dates(rule: rule, hour: hour, minute: minute,
+                                                   after: now, count: occurrenceCount + 1,
+                                                   calendar: calendar)
+                .compactMap { advance.shifting($0, calendar: calendar) }
+                .filter { $0 > now }
+                .prefix(max(0, occurrenceCount))
+                .map { date in
+                    var d = calendar.dateComponents([.era, .year, .month, .day, .hour, .minute, .second], from: date)
+                    d.calendar = calendar; d.timeZone = calendar.timeZone
+                    return .init(dateMatching: d, repeats: false)
+                }
         }
     }
 }
 
 // MARK: - 调度边界（UNUserNotificationCenter 协议化，测试用 Mock 替换）
-protocol NotificationScheduling: AnyObject {
+@MainActor protocol NotificationScheduling: AnyObject {
     func requestAuthorization() async throws -> Bool
+    func authorizationStatus() async -> UNAuthorizationStatus
+    func pendingRequests() async -> [UNNotificationRequest]
     func add(_ request: UNNotificationRequest) async throws
-    func removePending(matchingPrefix prefix: String)
+    func removePending(matchingPrefix prefix: String) async
 }
 
 // MARK: - 存储边界（CDReminder：id/petID UUID、type/repeatRule/petName String、hour/minute Int16）
@@ -122,6 +133,7 @@ protocol ReminderRepository: AnyObject {
     func reminders(petID: UUID) throws -> [Reminder]
     func allReminders() throws -> [Reminder]   // M-06：时区/日历变更后全量重排用
     func save(_ reminder: Reminder) throws
+    func delete(id: UUID) throws
     func deleteAll(petID: UUID) throws
 }
 
@@ -138,12 +150,17 @@ final class CoreDataReminderRepository: ReminderRepository {
     }
     func save(_ reminder: Reminder) throws {
         let r = CDReminder.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", reminder.id as CVarArg)
-        reminder.apply(to: try ctx.fetch(r).first ?? stack.insert(CDReminder.self))
-        try ctx.save()
+        try stack.transaction {
+            reminder.apply(to: try ctx.fetch(r).first ?? stack.insert(CDReminder.self))
+        }
     }
     func deleteAll(petID: UUID) throws {
         let r = CDReminder.fetchRequest(); r.predicate = NSPredicate(format: "petID == %@", petID as CVarArg)
-        try ctx.fetch(r).forEach(ctx.delete); try ctx.save()
+        try stack.transaction { try ctx.fetch(r).forEach(ctx.delete) }
+    }
+    func delete(id: UUID) throws {
+        let r = CDReminder.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        try stack.transaction { try ctx.fetch(r).forEach(ctx.delete) }
     }
 }
 
@@ -154,76 +171,179 @@ private extension Reminder {
         self.init(id: e.id ?? UUID(), petID: e.petID ?? UUID(), petName: e.petName ?? "",
                   type: ReminderType(rawValue: e.type ?? "") ?? .feeding,
                   hour: Int(e.hour), minute: Int(e.minute), repeatRule: rule,
-                  advance: AdvanceOption(rawValue: e.advance ?? "") ?? .none)
+                  advance: AdvanceOption(rawValue: e.advance ?? "") ?? .none, isEnabled: e.isEnabled)
     }
     func apply(to e: CDReminder) {
         e.id = id; e.petID = petID; e.petName = petName; e.type = type.rawValue
         e.hour = Int16(hour); e.minute = Int16(minute)
         e.repeatRule = String(data: (try? JSONEncoder().encode(repeatRule)) ?? Data(), encoding: .utf8)
         e.advance = advance.rawValue
+        e.isEnabled = isEnabled
     }
 }
 
-// MARK: - 编排层（权限 + 存库 + 调度；M1 删除宠物时调用 removeAll）
+enum ReminderServiceError: LocalizedError {
+    case invalidConfiguration, capacityExceeded, schedulingFailed
+    var errorDescription: String? {
+        switch self {
+        case .invalidConfiguration: return "请选择有效的日期、时间和至少一个重复星期。"
+        case .capacityExceeded: return "提醒已保存，但通知数量已达系统上限，无法安排全部通知。请减少提醒后重试。"
+        case .schedulingFailed: return "提醒已保存，但通知安排失败。请重试；回到 App 时也会自动补排。"
+        }
+    }
+}
+
+// MARK: - 编排层（异步操作串行化，配置与送达能力分离）
 @MainActor final class ReminderService: ObservableObject {
     enum PermissionState { case unknown, granted, denied }
     @Published private(set) var permission: PermissionState = .unknown
+    @Published var errorMessage: String?
+    @Published private(set) var changeVersion = 0
     private let repo: ReminderRepository
     private let scheduler: NotificationScheduling
+    private let now: () -> Date
+    private let calendar: () -> Calendar
+    private var operationTail: Task<Void, Error>?
     private var timezoneObserver: NSObjectProtocol?
     /// L-01：提醒数据变更钩子（WidgetSnapshotSyncer 注入，重建 widget 快照）
     var onDidChange: (() -> Void)?
-    init(repo: ReminderRepository, scheduler: NotificationScheduling) {
+    private func notifyChange() { changeVersion += 1; onDidChange?() }
+    init(repo: ReminderRepository, scheduler: NotificationScheduling,
+         now: @escaping () -> Date = Date.init,
+         calendar: @escaping () -> Calendar = { .current }) {
         self.repo = repo; self.scheduler = scheduler
+        self.now = now; self.calendar = calendar
         // M-06（PRD §4 要求）：时区变更后按库中配置全量重排，避免提醒漂移
         timezoneObserver = NotificationCenter.default.addObserver(
             forName: NSNotification.Name.NSSystemTimeZoneDidChange, object: nil, queue: .main
         ) { [weak self] _ in Task { @MainActor in await self?.rescheduleAll() } }
     }
     deinit { if let o = timezoneObserver { NotificationCenter.default.removeObserver(o) } }
-    func requestPermission() async {
-        let ok = (try? await scheduler.requestAuthorization()) ?? false
-        permission = ok ? .granted : .denied   // denied → UI 弹 Alert 引导跳系统设置
+    func requestPermission() async throws {
+        let status = await scheduler.authorizationStatus()
+        if status == .notDetermined {
+            permission = try await scheduler.requestAuthorization() ? .granted : .denied
+        } else {
+            applyPermission(status)
+        }
+    }
+    private func applyPermission(_ status: UNAuthorizationStatus) {
+        permission = [.authorized, .provisional, .ephemeral].contains(status) ? .granted : .denied
+    }
+    private func enqueue(_ operation: @escaping @MainActor () async throws -> Void) async throws {
+        let previous = operationTail
+        let task = Task { @MainActor in
+            _ = try? await previous?.value
+            try await operation()
+        }
+        operationTail = task
+        try await task.value
     }
     /// M-03：提醒配置一律落库（用户数据），送达能力与配置解耦——权限不足时仅不调度
     func save(_ r: Reminder, petName: String) async throws {
         var reminder = r; reminder.petName = petName
-        try repo.save(reminder)
-        guard permission == .granted else { onDidChange?(); return }
-        try await schedule(reminder)
-        onDidChange?()
+        guard reminder.repeatRule.isValid, (0...23).contains(reminder.hour),
+              (0...59).contains(reminder.minute) else { throw ReminderServiceError.invalidConfiguration }
+        let saved = reminder
+        try await enqueue { [self] in
+            applyPermission(await scheduler.authorizationStatus())
+            try repo.save(saved)
+            // 即使调度失败，数据库已经保存，应更新快照而不是让它保持旧状态。
+            defer { notifyChange() }
+            if !saved.isEnabled {
+                await scheduler.removePending(matchingPrefix: saved.id.uuidString + "#")
+                return
+            }
+            guard permission == .granted else { return }
+            try await schedule(saved)
+        }
     }
     private func schedule(_ r: Reminder) async throws {
-        scheduler.removePending(matchingPrefix: r.id.uuidString)   // 覆盖旧调度
+        var requests: [UNNotificationRequest] = []
         for (i, t) in ReminderTriggerBuilder.triggers(rule: r.repeatRule,
                                                       hour: r.hour, minute: r.minute).enumerated() {
             let content = ReminderContentBuilder.content(type: r.type, petName: r.petName,
                                                          reminderID: r.id, petID: r.petID)
-            try await scheduler.add(UNNotificationRequest(
+            requests.append(UNNotificationRequest(
                 identifier: "\(r.id.uuidString)#\(i)", content: content, trigger: t))
         }
         // 提前量：主触发器之外再挂一组前移触发器（identifier 加 adv 段，随前缀一并撤销）
         for (i, t) in ReminderTriggerBuilder.advanceTriggers(rule: r.repeatRule, hour: r.hour,
-                                                             minute: r.minute, advance: r.advance).enumerated() {
+                                                             minute: r.minute, advance: r.advance,
+                                                             now: now(), calendar: calendar()).enumerated() {
             let content = ReminderContentBuilder.advanceContent(type: r.type, petName: r.petName,
                                                                 advance: r.advance,
                                                                 reminderID: r.id, petID: r.petID)
-            try await scheduler.add(UNNotificationRequest(
+            requests.append(UNNotificationRequest(
                 identifier: "\(r.id.uuidString)#adv#\(i)", content: content, trigger: t))
+        }
+        let prefix = r.id.uuidString + "#"
+        let pending = await scheduler.pendingRequests()
+        let previous = pending.filter { $0.identifier.hasPrefix(prefix) }
+        guard pending.count - previous.count + requests.count <= 64 else {
+            throw ReminderServiceError.capacityExceeded
+        }
+        // 必须等待查询/撤销结束，再新增相同 id 的请求；串行队列还防止重排与保存互相覆盖。
+        await scheduler.removePending(matchingPrefix: prefix)
+        do {
+            for request in requests { try await scheduler.add(request) }
+        } catch {
+            await scheduler.removePending(matchingPrefix: prefix)
+            for request in previous { try? await scheduler.add(request) }
+            throw ReminderServiceError.schedulingFailed
         }
     }
     /// M-06：时区/日历变更后的全量重排（权限被拒时跳过，权限回补后可手动再触发）
     func rescheduleAll() async {
-        guard permission == .granted,
-              let all = try? repo.allReminders() else { return }
-        for r in all { try? await schedule(r) }
-        onDidChange?()
-    }
-    func removeAll(petID: UUID) throws {
-        for r in try repo.reminders(petID: petID) {   // 先撤销 pending 通知
-            scheduler.removePending(matchingPrefix: r.id.uuidString)
+        do {
+            try await enqueue { [self] in
+                applyPermission(await scheduler.authorizationStatus())
+                let all = try repo.allReminders()
+                defer { notifyChange() }
+                var failure: Error?
+                for r in all {
+                    if !r.isEnabled {
+                        await scheduler.removePending(matchingPrefix: r.id.uuidString + "#")
+                    } else if permission == .granted {
+                        do { try await schedule(r) } catch { failure = failure ?? error }
+                    }
+                }
+                if let failure { throw failure }
+            }
+            errorMessage = nil
+        } catch {
+            errorMessage = "部分提醒未能安排，请重试。\(error.localizedDescription)"
         }
-        try repo.deleteAll(petID: petID)              // 再清库
-        onDidChange?()
+    }
+    func reminderIDs(petID: UUID) throws -> [UUID] {
+        try repo.reminders(petID: petID).map(\.id)
+    }
+    func reminders(petID: UUID) throws -> [Reminder] {
+        try repo.reminders(petID: petID).sorted {
+            if $0.hour != $1.hour { return $0.hour < $1.hour }
+            if $0.minute != $1.minute { return $0.minute < $1.minute }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+    }
+    func remove(id: UUID) async throws {
+        try await enqueue { [self] in
+            try repo.delete(id: id)
+            await scheduler.removePending(matchingPrefix: id.uuidString + "#")
+            notifyChange()
+        }
+    }
+    func cancel(reminderIDs: [UUID]) async {
+        try? await enqueue { [self] in
+            for id in reminderIDs { await scheduler.removePending(matchingPrefix: id.uuidString + "#") }
+            notifyChange()
+        }
+    }
+    func removeAll(petID: UUID) async throws {
+        try await enqueue { [self] in
+            let ids = try reminderIDs(petID: petID)
+            try repo.deleteAll(petID: petID)
+            for id in ids { await scheduler.removePending(matchingPrefix: id.uuidString + "#") }
+            notifyChange()
+        }
     }
 }

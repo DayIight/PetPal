@@ -56,7 +56,7 @@ struct RootTabView: View {
     @StateObject private var petListVM = PetListViewModel(repo: CoreDataPetRepository())
     @StateObject private var currentPet: CurrentPetStore
     @StateObject private var reminderService = ReminderService(
-        repo: CoreDataReminderRepository(), scheduler: UNNotificationScheduler())
+        repo: CoreDataReminderRepository(), scheduler: AppNotificationScheduler.make())
     @State private var selection: Tab = .home
     @State private var lastContentTab: Tab = .home   // 最近一个内容 tab，发布拦截后恢复
     @State private var showPublish = false
@@ -73,7 +73,8 @@ struct RootTabView: View {
         let current = CurrentPetStore(repo: CoreDataPetRepository())
         _currentPet = StateObject(wrappedValue: current)
         _snapshotSyncer = State(wrappedValue: WidgetSnapshotSyncer(
-            reminderRepo: CoreDataReminderRepository(), currentPet: current))
+            reminderRepo: CoreDataReminderRepository(), currentPet: current,
+            directory: { CoreDataStack.uiTestDirectory ?? WidgetSnapshotStore.sharedDirectory }))
     }
 
     var body: some View {
@@ -96,18 +97,28 @@ struct RootTabView: View {
         }
         .onAppear {
             storeError = CoreDataStack.shared.loadError
-            // H-02：删除宠物前先撤销其 pending 通知
-            petListVM.reminderCleanup = { [reminderService] id in
-                try reminderService.removeAll(petID: id)
+            // 先收集通知 id，数据库级联删除成功后再撤销，失败时保留原提醒。
+            petListVM.reminderIDs = { [reminderService] id in
+                try reminderService.reminderIDs(petID: id)
+            }
+            petListVM.reminderCleanup = { [reminderService] ids in
+                await reminderService.cancel(reminderIDs: ids)
             }
             // L-01：提醒增删/重排后重建 widget 快照
             reminderService.onDidChange = { [snapshotSyncer] in snapshotSyncer.sync() }
             snapshotSyncer.sync()
         }
-        // L-01：回前台刷新快照（跨日/跨时区后 widget 数据保鲜）
-        .onChange(of: scenePhase) { phase in
-            if phase == .active { snapshotSyncer.sync() }
+        // 启动/回前台重新读取系统权限，补排设置中刚启用的通知及滚动提前提醒。
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            await reminderService.rescheduleAll()
+            snapshotSyncer.sync()
         }
+        .alert("提醒安排失败", isPresented: .init(get: { reminderService.errorMessage != nil },
+                                              set: { if !$0 { reminderService.errorMessage = nil } })) {
+            Button("重试") { Task { await reminderService.rescheduleAll() } }
+            Button("稍后", role: .cancel) {}
+        } message: { Text(reminderService.errorMessage ?? "") }
         // L-01：widget 点击深链 petpal://pet/<uuid>
         .onOpenURL { router.handle(url: $0) }
         // H-06：通知点击深链落点在「我的」tab 的导航栈，路径入栈时先切到该 tab

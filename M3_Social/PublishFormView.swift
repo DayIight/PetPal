@@ -79,12 +79,15 @@ struct PublishFormView: View {
         guard let petID else { return }
         isPublishing = true
         // 照片先经 AvatarStore 压缩落盘（≤1080px、JPEG 0.8），以 file URL 交给信息流按 URL 加载
-        let imageURLs = pickedImages.compactMap { AvatarStore.save($0).map(AvatarStore.url(for:)) }
         Task {
+            var savedFiles: [String] = []
             do {
+                for image in pickedImages { savedFiles.append(try AvatarStore.save(image)) }
+                let imageURLs = savedFiles.map(AvatarStore.url(for:))
                 try await vm.publish(text: text, petID: petID, imageURLs: imageURLs, visibility: visibility)
                 dismiss()
             } catch {
+                savedFiles.forEach(AvatarStore.delete(fileName:))
                 isPublishing = false
                 errorMessage = "发布失败，请重试"
             }

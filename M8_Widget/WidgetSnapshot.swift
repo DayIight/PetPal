@@ -1,8 +1,7 @@
 import Foundation
 
 // MARK: - Widget 快照模型（L-01；App 与 Widget Extension 共享编译，本文件不得 import WidgetKit/SwiftUI）
-// 契约：reminders 仅含「当天会触发」的提醒（Syncer 已按 RepeatRule 与当天日历过滤），
-// Widget 侧只需再按当前时刻过滤「未过」项即可。
+// 快照保存完整重复规则，Widget 独立计算任意日期，不依赖 App 每日打开。
 struct WidgetSnapshot: Codable, Equatable {
     struct PetEntry: Codable, Equatable, Identifiable {
         var id: UUID
@@ -17,6 +16,7 @@ struct WidgetSnapshot: Codable, Equatable {
         var type: String               // ReminderType.rawValue
         var hour: Int                  // 0-23
         var minute: Int                // 0-59
+        var repeatRule: RepeatRule? = nil // nil 兼容旧版当天快照；过期后不再沿用
     }
     var generatedAt: Date
     var currentPetID: UUID?
@@ -24,16 +24,30 @@ struct WidgetSnapshot: Codable, Equatable {
     var reminders: [ReminderEntry]
 }
 
-// MARK: - 共享容器读写（App Group 不可用时回退 Documents，widget 侧读到 nil 走引导态，不崩）
+struct WidgetReminderState: Equatable {
+    var date: Date
+    var remaining: [WidgetSnapshot.ReminderEntry]
+}
+
+struct WidgetReminderTimeline {
+    var states: [WidgetReminderState]
+    var refreshAfter: Date
+}
+
+// MARK: - 共享容器读写（两端只使用 App Group，私有 Documents 无法跨进程共享）
+enum WidgetSnapshotStoreError: LocalizedError {
+    case sharedContainerUnavailable
+    var errorDescription: String? { "小组件共享容器不可用，请检查应用和扩展的 App Group 配置与构建签名。" }
+}
+
 enum WidgetSnapshotStore {
     static let appGroupID = "group.com.petpal.prototype"
     static let snapshotFileName = "widget-snapshot.json"
     static let avatarsDirName = "avatars"
 
-    /// App Group 共享容器；未签名/沙箱限制导致 nil 时回退 Documents（仅 App 可读，widget 显示空态）
-    static var sharedDirectory: URL {
+    /// 未获得共享权限时返回 nil，不能用只有 App 可读的 Documents 假装同步成功。
+    static var sharedDirectory: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)
-            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
     static func write(_ snapshot: WidgetSnapshot, to directory: URL) throws {
@@ -68,20 +82,53 @@ enum WidgetSnapshotQueries {
         if let id = snapshot.currentPetID, let p = snapshot.pets.first(where: { $0.id == id }) { return p }
         return snapshot.pets.first
     }
-    /// 当前宠物今日「未过」的提醒，按时分升序（snapshot.reminders 已是当天会触发的全集）
+    private static func fires(_ reminder: WidgetSnapshot.ReminderEntry, in snapshot: WidgetSnapshot,
+                              on date: Date, calendar: Calendar) -> Bool {
+        reminder.repeatRule?.fires(on: date, calendar: calendar)
+            ?? calendar.isDate(date, inSameDayAs: snapshot.generatedAt)
+    }
+
+    /// 按查询日期过滤规则，再过滤已过时刻；旧快照仅允许在其生成当天使用。
     static func remainingReminders(in snapshot: WidgetSnapshot,
                                    now: Date = Date(),
                                    calendar: Calendar = .current) -> [WidgetSnapshot.ReminderEntry] {
         guard let pet = currentPet(in: snapshot) else { return [] }
-        let hour = calendar.component(.hour, from: now)
-        let minute = calendar.component(.minute, from: now)
         return snapshot.reminders
-            .filter { $0.petID == pet.id && ($0.hour, $0.minute) > (hour, minute) }
+            .filter { r in
+                guard r.petID == pet.id, fires(r, in: snapshot, on: now, calendar: calendar),
+                      let date = ReminderOccurrenceBuilder.time(hour: r.hour, minute: r.minute,
+                                                                on: now, calendar: calendar) else { return false }
+                return date > now
+            }
             .sorted { ($0.hour, $0.minute) < ($1.hour, $1.minute) }
     }
     static func nextReminder(in snapshot: WidgetSnapshot,
                              now: Date = Date(),
                              calendar: Calendar = .current) -> WidgetSnapshot.ReminderEntry? {
         remainingReminders(in: snapshot, now: now, calendar: calendar).first
+    }
+
+    /// 为未来一周的过点和午夜预生成状态；系统只负责按时间展示，不需要 App 刷新快照。
+    static func timeline(in snapshot: WidgetSnapshot, now: Date = Date(),
+                         days: Int = 7, calendar: Calendar = .current) -> WidgetReminderTimeline {
+        let start = calendar.startOfDay(for: now)
+        let horizon = max(1, days)
+        let end = calendar.date(byAdding: .day, value: horizon, to: start) ?? now.addingTimeInterval(86400)
+        var changes = Set([now])
+        let petID = currentPet(in: snapshot)?.id
+        for offset in 0..<horizon {
+            guard let day = calendar.date(byAdding: .day, value: offset, to: start) else { continue }
+            if day > now { changes.insert(day) }
+            for r in snapshot.reminders where r.petID == petID {
+                guard fires(r, in: snapshot, on: day, calendar: calendar),
+                      let fireDate = ReminderOccurrenceBuilder.time(hour: r.hour, minute: r.minute,
+                                                                    on: day, calendar: calendar),
+                      fireDate > now, fireDate < end else { continue }
+                changes.insert(fireDate)
+            }
+        }
+        return WidgetReminderTimeline(states: changes.sorted().map {
+            .init(date: $0, remaining: remainingReminders(in: snapshot, now: $0, calendar: calendar))
+        }, refreshAfter: end)
     }
 }

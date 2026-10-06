@@ -36,6 +36,7 @@ public class CDRecord: NSManagedObject {
     @NSManaged public var photoFileNames: [String]?
     @NSManaged public var createdAt: Date?
     @NSManaged public var templateName: String?
+    @NSManaged public var templateSnapshot: String?
 }
 
 extension CDRecord {
@@ -68,6 +69,7 @@ public class CDReminder: NSManagedObject {
     @NSManaged public var petName: String?
     @NSManaged public var repeatRule: String?
     @NSManaged public var advance: String?
+    @NSManaged public var isEnabled: Bool
 }
 
 extension CDReminder {

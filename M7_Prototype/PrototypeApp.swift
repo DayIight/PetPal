@@ -60,13 +60,44 @@ final class UNNotificationScheduler: NotificationScheduling {
     func add(_ request: UNNotificationRequest) async throws {
         try await center.add(request)
     }
-    func removePending(matchingPrefix prefix: String) {
-        center.getPendingNotificationRequests { reqs in
-            let ids = reqs.filter { $0.identifier.hasPrefix(prefix) }.map(\.identifier)
-            self.center.removePendingNotificationRequests(withIdentifiers: ids)
-        }
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await center.notificationSettings().authorizationStatus
+    }
+    func pendingRequests() async -> [UNNotificationRequest] {
+        await center.pendingNotificationRequests()
+    }
+    func removePending(matchingPrefix prefix: String) async {
+        let requests = await pendingRequests()
+        let ids = requests.filter { $0.identifier.hasPrefix(prefix) }.map(\.identifier)
+        center.removePendingNotificationRequests(withIdentifiers: ids)
     }
 }
+
+@MainActor enum AppNotificationScheduler {
+    static func make() -> NotificationScheduling {
+        #if DEBUG
+        if CoreDataStack.uiTestDirectory != nil { return UITestNotificationScheduler() }
+        #endif
+        return UNNotificationScheduler()
+    }
+}
+
+#if DEBUG
+/// 仅隔离 UI 测试中的系统弹窗和通知。Service 的真实异步调度契约另由集成测试验证。
+@MainActor private final class UITestNotificationScheduler: NotificationScheduling {
+    private var requests: [UNNotificationRequest] = []
+    func requestAuthorization() async throws -> Bool { true }
+    func authorizationStatus() async -> UNAuthorizationStatus { .authorized }
+    func pendingRequests() async -> [UNNotificationRequest] { requests }
+    func add(_ request: UNNotificationRequest) async throws {
+        requests.removeAll { $0.identifier == request.identifier }; requests.append(request)
+    }
+    func removePending(matchingPrefix prefix: String) async {
+        await Task.yield()
+        requests.removeAll { $0.identifier.hasPrefix(prefix) }
+    }
+}
+#endif
 
 // MARK: - 当前宠物选择（H-07：多宠物家庭可切换，选择持久化；全 App 共享一份，跨 tab 一致）
 @MainActor final class CurrentPetStore: ObservableObject {
