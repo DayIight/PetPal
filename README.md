@@ -5,7 +5,7 @@
 ![Platform](https://img.shields.io/badge/platform-iOS%2016.0%2B-lightgrey)
 ![Swift](https://img.shields.io/badge/Swift%205.9%2B-orange?logo=swift&logoColor=white)
 ![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-blue)
-![Tests](https://img.shields.io/badge/tests-120%20unit%20%2B%2015%20UI-brightgreen)
+![Tests](https://img.shields.io/badge/tests-135%20unit%20%2B%2018%20UI-brightgreen)
 [![iOS CI](https://github.com/DayIight/PetPal/actions/workflows/ios-ci.yml/badge.svg)](https://github.com/DayIight/PetPal/actions/workflows/ios-ci.yml)
 
 以宠物为中心的本地生活记录工具：档案管理、日常记录、重复提醒、成长看板，
@@ -14,8 +14,8 @@
 ## 功能一览
 
 - **宠物档案**：增删改查、品种目录、头像压缩、多宠物切换、删除级联清理与二次确认
-- **日常记录**：7 类预设模板 + 自定义模板，时间轴 / 日历双视图，备注与心情，记录编辑
-- **提醒**：每日/每周/每月/每年重复与提前量、通知权限申请与恢复补排、点击通知深链到宠物详情
+- **日常记录**：7 类预设模板 + 自定义模板，时间轴 / 日历双视图，备注与心情，详情/编辑/删除与照片附件
+- **提醒**：每日/每周/每月/每年重复与提前量、提醒列表/编辑/暂停/删除、通知权限申请与恢复补排、点击通知深链到宠物详情
 - **成长看板**：体重折线图（月/年聚合）、月度打卡热力图、疫苗/体检时间线、A4 PDF 导出分享
 - **宠友社交（Mock）**：信息流分页、点赞、两级评论、表情回应、收藏、系统分享
 - **互动消息**：点赞/评论/回复通知，点击跳转对应动态的评论区并定位高亮目标评论
@@ -44,7 +44,15 @@
 | M7 原型 | `M7_Prototype/` | App 入口、五标签栏、体重录入、UI 自动化 |
 | M8 小组件 | `M8_Widget/` + `PetPalWidget/` | WidgetKit 快照同步与今日提醒卡片 |
 
-## 最近更新（2026-10-05）
+## 最近更新（2026-10-06）
+
+- P2 修复：自定义记录保存有版本的字段定义快照，模板变更/删除后历史记录仍可读；旧记录保留答案并说明字段名称缺失。
+- 时间轴和日历接入记录详情、编辑、确认删除及照片附件；失败回滚、提交后清理旧照片，所有记录视图同步刷新。
+- 提醒列表支持编辑、暂停/恢复和单条删除；暂停项不再调度，也不进入小组件快照。
+- PDF 导出增加真实文件预览和页数；UI 用例使用独立 SQLite 数据库，支持重启持久化验证，避免依赖用户已有数据。
+- Core Data 保留旧模型并增加 V2，自动迁移字段快照与提醒启用状态。
+
+## 历史更新（2026-10-05）
 
 - P1 修复：提醒保存错误反馈与串行调度；月/年提前日期按实际发生日期计算；
   图片原子写入与数据库失败回滚；小组件保留重复规则并预生成跨日时间线；
@@ -93,6 +101,8 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 ```sh
 ./scripts/test-ios.sh
 ```
+
+UI 测试在 Debug 构建中使用每个用例独立的临时数据库、照片/快照目录与通知调度替身；业务调度与失败处理由单元和集成测试验证。测试不会清空原数据库或创建系统通知。
 
 如需修改工程配置，请编辑 `project.yml` 后执行 `xcodegen generate`。
 `project.yml` 包含 `Assets.xcassets`、现有 `PetPalSocial.icon`、Widget 共享规则文件与 URL scheme；

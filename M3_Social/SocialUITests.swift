@@ -9,6 +9,7 @@ final class SocialUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
         app = XCUIApplication()
+        app.launchEnvironment["PETPAL_UI_TEST_STORE_ID"] = UUID().uuidString
         // Springboard 残留弹窗兜底（如 Safari「添加到阅读列表」）：点取消类按钮消掉，避免遮挡后续事件
         interruptionToken = addUIInterruptionMonitor(withDescription: "Springboard 弹窗兜底") { alert in
             for title in ["不添加", "稍后", "取消", "Cancel", "Close"] where alert.buttons[title].exists {

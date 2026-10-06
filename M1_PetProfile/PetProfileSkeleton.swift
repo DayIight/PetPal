@@ -73,14 +73,32 @@ enum RepositoryError: Error { case notFound }
 
 final class CoreDataStack {
     static let shared = CoreDataStack()
+    /// UI 用例使用独立 SQLite 目录；重新启动同一用例仍可验证持久化，不清空用户数据。
+    static var uiTestDirectory: URL? {
+        #if DEBUG
+        guard let raw = ProcessInfo.processInfo.environment["PETPAL_UI_TEST_STORE_ID"],
+              let id = UUID(uuidString: raw) else { return nil }
+        return FileManager.default.temporaryDirectory.appendingPathComponent("PetPalUITests/\(id.uuidString)")
+        #else
+        return nil
+        #endif
+    }
     let container: NSPersistentContainer
     /// 持久化加载失败时非 nil（H-03：不再静默吞错，UI 层据此展示错误态）
     private(set) var loadError: Error?
     private let persist: (NSManagedObjectContext) throws -> Void
-    init(inMemory: Bool = false,
+    init(inMemory: Bool = false, storeURL: URL? = nil,
          saveContext: @escaping (NSManagedObjectContext) throws -> Void = { try $0.save() }) {
         persist = saveContext
         container = NSPersistentContainer(name: "PetPal")
+        if let description = container.persistentStoreDescriptions.first {
+            description.shouldMigrateStoreAutomatically = true
+            description.shouldInferMappingModelAutomatically = true
+            if let url = storeURL ?? Self.uiTestDirectory?.appendingPathComponent("PetPal.sqlite") {
+                try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                description.url = url
+            }
+        }
         if inMemory, let description = container.persistentStoreDescriptions.first {
             description.type = NSInMemoryStoreType
             description.url = nil
@@ -203,7 +221,11 @@ private extension Pet {   // 值类型 <-> CDPet 映射
 // MARK: - 头像压缩（最长边≤1080px，JPEG 0.8）与媒体文件清理（M-04）
 enum AvatarStore {
     private static var directory: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        if let directory = CoreDataStack.uiTestDirectory {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            return directory
+        }
+        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
     static func save(_ image: UIImage, to targetDirectory: URL? = nil) throws -> String {
         guard image.size.width > 0, image.size.height > 0 else { throw CocoaError(.fileWriteUnknown) }

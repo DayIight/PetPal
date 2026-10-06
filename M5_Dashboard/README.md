@@ -3,7 +3,7 @@
 MVP 范围：体重变化折线图（按月/按年切换、Y 轴自适应、多宠物曲线叠加不同颜色）。
 已交付增强（见 DashboardView.swift）：月度打卡热力图（5 档主题色透明度 + 每格 a11y 朗读）、
 疫苗/体检时间线（nextDue 过期/待进行/已完成三态）、A4 PDF 导出（UIGraphicsPDFRenderer 三页：
-基本信息/图表快照/原始数据表格，导出前检查磁盘剩余空间）与系统分享面板（UIActivityViewController）。
+基本信息/图表快照/原始数据表格，导出前检查磁盘剩余空间）与 PDFKit 报告预览、系统分享（ShareLink）。
 
 ## 架构说明（本轮输出形式：架构说明）
 关键技术决策：最低部署目标已上调至 iOS 16，MVP 渲染层直接使用 **Swift Charts**
@@ -51,3 +51,7 @@ DashboardView
 - [ ] 折线数据点支持 VoiceOver 朗读「月份，体重」
 - [ ] 深色模式下图表网格/文本使用语义化颜色
 - [ ] Builder/Repository 单测通过
+
+## P2 导出验证（2026-10-06）
+
+导出成功后先打开真实 PDF 文件的预览，显示页数并提供分享入口。报告生成器独立在 `DashboardPDFBuilder.swift`，预览在 `DashboardPDFPreview.swift`。单元测试校验文件头、可读性、三页基础报告、宠物信息、空数据提示、分页后的最后一行以及写入失败；UI 测试断言实际报告页数和分享按钮。

@@ -248,6 +248,7 @@ final class WidgetSyncerRegressionTests: XCTestCase {
         func reminders(petID: UUID) throws -> [Reminder] { [] }
         func allReminders() throws -> [Reminder] { throw CocoaError(.fileReadUnknown) }
         func save(_ reminder: Reminder) throws { }
+        func delete(id: UUID) throws { }
         func deleteAll(petID: UUID) throws { }
     }
 
@@ -272,6 +273,22 @@ final class WidgetSyncerRegressionTests: XCTestCase {
         let snapshot = try XCTUnwrap(WidgetSnapshotStore.read(from: directory))
         XCTAssertEqual(snapshot.reminders.map(\.id), [r.id])
         XCTAssertEqual(snapshot.reminders.first?.repeatRule, .weekly([nextWeekday]))
+    }
+
+    @MainActor func test_syncer_excludesPausedReminders() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let stack = CoreDataStack(inMemory: true)
+        let repo = CoreDataReminderRepository(stack: stack)
+        let petID = UUID()
+        let enabled = Reminder(petID: petID, type: .feeding, hour: 8, minute: 0)
+        let paused = Reminder(petID: petID, type: .medication, hour: 12, minute: 0, isEnabled: false)
+        try repo.save(enabled); try repo.save(paused)
+        let current = CurrentPetStore(repo: CoreDataPetRepository(stack: stack))
+        let syncer = WidgetSnapshotSyncer(reminderRepo: repo, currentPet: current, directory: { directory })
+        syncer.reloadTimelines = {}
+        syncer.sync()
+        XCTAssertEqual(WidgetSnapshotStore.read(from: directory)?.reminders.map(\.id), [enabled.id])
     }
 
     @MainActor func test_failedRead_preservesLastGoodSnapshot_withoutReload() throws {

@@ -7,6 +7,7 @@ final class WeightUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
         app = XCUIApplication()
+        app.launchEnvironment["PETPAL_UI_TEST_STORE_ID"] = UUID().uuidString
         app.launch()
     }
 
