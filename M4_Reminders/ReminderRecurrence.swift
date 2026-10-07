@@ -19,7 +19,9 @@ enum RepeatRule: Codable, Equatable {
             return "每周" + days.sorted().filter { (1...7).contains($0) }.map { names[$0 - 1] }.joined(separator: "、")
         case .monthly(let day): return "每月\(day)日（不足则月底）"
         case .yearly(let month, let day): return "每年\(month)月\(day)日（不足则月底）"
-        case .once(let date): return "仅一次 · " + date.formatted(date: .abbreviated, time: .shortened)
+        case .once(let date):
+            guard ReminderRecurrence.isSupportedDate(date) else { return "仅一次 · 日期无效" }
+            return "仅一次 · " + date.formatted(date: .abbreviated, time: .shortened)
         }
     }
 }
@@ -44,6 +46,10 @@ enum AdvanceOption: String, Codable, CaseIterable, Identifiable {
 }
 
 enum ReminderRecurrence {
+    /// Foundation 的标准日期边界；过期日期仍合法，是否排入通知由 dates 判断。
+    static func isSupportedDate(_ date: Date) -> Bool {
+        date.timeIntervalSinceReferenceDate.isFinite && date >= .distantPast && date <= .distantFuture
+    }
     static func validationError(rule: RepeatRule, hour: Int, minute: Int, advance: AdvanceOption) -> String? {
         guard (0...23).contains(hour), (0...59).contains(minute) else { return "提醒时间无效" }
         switch rule {
@@ -54,7 +60,7 @@ enum ReminderRecurrence {
             var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(secondsFromGMT: 0)!
             guard (1...12).contains(month), let first = cal.date(from: DateComponents(year: 2000, month: month, day: 1)),
                   let days = cal.range(of: .day, in: .month, for: first), days.contains(day) else { return "所选月份不存在该日期" }
-        case .once: break
+        case .once(let date): if !isSupportedDate(date) { return "一次性提醒日期超出支持范围" }
         }
         return nil
     }
@@ -67,14 +73,15 @@ enum ReminderRecurrence {
         case .weekly(let days): return days.contains(calendar.component(.weekday, from: date))
         case .monthly(let requested): return day == min(requested, last)
         case .yearly(let month, let requested): return calendar.component(.month, from: date) == month && day == min(requested, last)
-        case .once(let due): return calendar.isDate(due, inSameDayAs: date)
+        case .once(let due): return isSupportedDate(due) && calendar.isDate(due, inSameDayAs: date)
         }
     }
 
     /// 使用日历日偏移，保持夏令时前后的当地钟点；重复的秋季钟点取第一次。
     static func dates(rule: RepeatRule, hour: Int, minute: Int, after start: Date, through end: Date,
-                      calendar: Calendar = .current) -> [Date] {
-        guard validationError(rule: rule, hour: hour, minute: minute, advance: .none) == nil else { return [] }
+                      calendar: Calendar = .current, maximumCount: Int = .max) -> [Date] {
+        guard maximumCount > 0,
+              validationError(rule: rule, hour: hour, minute: minute, advance: .none) == nil else { return [] }
         if case .once(let due) = rule { return due > start && due <= end ? [due] : [] }
         var day = calendar.startOfDay(for: start)
         switch rule {
@@ -99,7 +106,10 @@ enum ReminderRecurrence {
             if let occurrenceDay,
                let due = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: occurrenceDay,
                                        matchingPolicy: .nextTimePreservingSmallerComponents, repeatedTimePolicy: .first),
-               due > start, due <= end { result.append(due) }
+               due > start, due <= end {
+                result.append(due)
+                if result.count == maximumCount { break }
+            }
             guard let next = calendar.date(byAdding: stride, value: 1, to: day), next > day else { break }
             day = next
         }

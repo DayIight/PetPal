@@ -7,7 +7,7 @@ import UserNotifications
 extension Notification.Name { static let backupDidRestore = Notification.Name("PetPal.backupDidRestore") }
 
 enum BackupError: LocalizedError {
-    case unavailable, unsupportedVersion, damaged, missingMedia(String), unsavedChanges, tooLarge
+    case unavailable, unsupportedVersion, damaged, missingMedia(String), unsavedChanges, tooLarge, tooManyRows
     var errorDescription: String? {
         switch self {
         case .unavailable: return "数据库暂时无法读取，无法创建完整备份。"
@@ -16,6 +16,7 @@ enum BackupError: LocalizedError {
         case .missingMedia(let name): return "照片文件缺失（\(name)），请修复后重新备份。"
         case .unsavedChanges: return "有尚未保存的操作，请完成后再备份或恢复。"
         case .tooLarge: return "此版本支持最大 200 MB 的完整备份。"
+        case .tooManyRows: return "备份中的数据条数超过此版本支持的 100000 条，原数据未被替换。"
         }
     }
 }
@@ -37,6 +38,7 @@ struct PortableBackup: Codable {
     var database: Blob
     var media: [String: Blob]
     static let maxBytes = 200 * 1024 * 1024
+    static let maxDatabaseRows = 100_000
     static func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
     static func safeName(_ name: String) -> Bool {
         name.range(of: #"^[A-Za-z0-9_-]+\.(jpg|jpeg|png)$"#, options: .regularExpression) != nil
@@ -98,6 +100,7 @@ struct PortableBackup: Codable {
         try archive.database.data.write(to: source, options: .atomic)
         let staged = try openSnapshot(source, model: stack.container.managedObjectModel)
         defer { try? close(staged) }
+        try validateRowBudget(staged)
         try HealthDataMigration.linkLegacyWeights(in: staged.viewContext)
         let references = try validateDatabase(staged)
         guard references == Set(archive.media.keys) else { throw BackupError.damaged }
@@ -165,7 +168,18 @@ struct PortableBackup: Codable {
         container.viewContext.reset()
         for store in container.persistentStoreCoordinator.persistentStores { try container.persistentStoreCoordinator.remove(store) }
     }
+    private static func validateRowBudget(_ container: NSPersistentContainer) throws {
+        var remaining = maxDatabaseRows
+        for entity in container.managedObjectModel.entities {
+            guard let name = entity.name else { throw BackupError.damaged }
+            // count 不物化对象；在迁移、全量校验和媒体写入之前限制总工作量。
+            let count = try container.viewContext.count(for: NSFetchRequest<NSFetchRequestResult>(entityName: name))
+            guard count >= 0, count <= remaining else { throw BackupError.tooManyRows }
+            remaining -= count
+        }
+    }
     private static func validateDatabase(_ container: NSPersistentContainer) throws -> Set<String> {
+        try validateRowBudget(container)
         let ctx = container.viewContext
         let pets = try ctx.fetch(CDPet.fetchRequest())
         let petIDs = Set(pets.compactMap(\.id))
@@ -200,10 +214,10 @@ struct PortableBackup: Codable {
             }
         }
         for r in try ctx.fetch(CDReminder.fetchRequest()) {
-            guard (0...23).contains(r.hour), (0...59).contains(r.minute),
-                  ReminderType(rawValue: r.type ?? "") != nil,
-                  AdvanceOption(rawValue: r.advance ?? "准时") != nil,
-                  let rule = r.repeatRule, (try? JSONDecoder().decode(RepeatRule.self, from: Data(rule.utf8))) != nil else { throw BackupError.damaged }
+            guard ReminderType(rawValue: r.type ?? "") != nil,
+                  let advance = AdvanceOption(rawValue: r.advance ?? "准时"),
+                  let raw = r.repeatRule, let rule = try? JSONDecoder().decode(RepeatRule.self, from: Data(raw.utf8)),
+                  ReminderRecurrence.validationError(rule: rule, hour: Int(r.hour), minute: Int(r.minute), advance: advance) == nil else { throw BackupError.damaged }
             if let source = r.sourceRecordID {
                 guard let record = recordsByID[source], record.petID == r.petID else { throw BackupError.damaged }
             }

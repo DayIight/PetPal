@@ -102,16 +102,63 @@ struct ReminderSchedulePlan {
     var requests: [UNNotificationRequest] = []
     var scheduledThrough: [UUID: Date] = [:]
     var incomplete: Set<UUID> = []
+    typealias RequestFactory = (String, UNNotificationContent, UNNotificationTrigger) -> UNNotificationRequest
+    private struct Occurrence {
+        let reminder: Reminder
+        let due: Date
+        let end: Date
+        let orderKey: String
+    }
+    /// 每条有限规则只保留下一次日期，不保留八年的请求对象。
+    private struct OccurrenceHeap {
+        var items: [Occurrence]
+        init(_ items: [Occurrence]) {
+            self.items = items
+            if items.count > 1 {
+                for index in stride(from: items.count / 2 - 1, through: 0, by: -1) { siftDown(index) }
+            }
+        }
+        private func precedes(_ lhs: Occurrence, _ rhs: Occurrence) -> Bool {
+            lhs.due == rhs.due ? lhs.orderKey < rhs.orderKey : lhs.due < rhs.due
+        }
+        private mutating func siftDown(_ start: Int) {
+            var index = start
+            while index * 2 + 1 < items.count {
+                var child = index * 2 + 1
+                if child + 1 < items.count, precedes(items[child + 1], items[child]) { child += 1 }
+                guard precedes(items[child], items[index]) else { break }
+                items.swapAt(index, child); index = child
+            }
+        }
+        mutating func pop() -> Occurrence? {
+            guard !items.isEmpty else { return nil }
+            if items.count == 1 { return items.removeLast() }
+            let first = items[0]; items[0] = items.removeLast(); siftDown(0)
+            return first
+        }
+        mutating func push(_ item: Occurrence) {
+            items.append(item)
+            var index = items.count - 1
+            while index > 0 {
+                let parent = (index - 1) / 2
+                guard precedes(items[index], items[parent]) else { break }
+                items.swapAt(index, parent); index = parent
+            }
+        }
+    }
     // 保守地把整个 App 的待发送提醒限制为 64 条，月/年窗口随可用名额滚动。
     static func build(_ reminders: [Reminder], now: Date = Date(), calendar: Calendar = .current,
-                      limit: Int = 64) -> Self {
+                      limit: Int = 64, requestFactory: RequestFactory = {
+                          UNNotificationRequest(identifier: $0, content: $1, trigger: $2)
+                      }) -> Self {
         var plan = Self()
-        var finite: [(reminder: Reminder, due: Date, requests: [UNNotificationRequest])] = []
+        let budget = min(max(limit, 0), 64)
+        var finite: [Occurrence] = []
         func request(_ r: Reminder, trigger: UNCalendarNotificationTrigger, suffix: String, early: Bool) -> UNNotificationRequest {
             let content = early
                 ? ReminderContentBuilder.advanceContent(type: r.type, petName: r.petName, advance: r.advance, reminderID: r.id, petID: r.petID)
                 : ReminderContentBuilder.content(type: r.type, petName: r.petName, reminderID: r.id, petID: r.petID)
-            return .init(identifier: "\(r.id)#\(early ? "adv#" : "")\(suffix)", content: content, trigger: trigger)
+            return requestFactory("\(r.id)#\(early ? "adv#" : "")\(suffix)", content, trigger)
         }
         for r in reminders.filter({ $0.isEnabled }).sorted(by: { $0.id.uuidString < $1.id.uuidString }) {
             guard ReminderRecurrence.validationError(rule: r.repeatRule, hour: r.hour, minute: r.minute, advance: r.advance) == nil else {
@@ -119,30 +166,48 @@ struct ReminderSchedulePlan {
             }
             switch r.repeatRule {
             case .daily, .weekly:
+                let mainCount: Int
+                if case .weekly(let days) = r.repeatRule { mainCount = days.count } else { mainCount = 1 }
+                let count = mainCount * (r.advance == .none ? 1 : 2)
+                guard count <= budget - plan.requests.count else { plan.incomplete.insert(r.id); continue }
                 let main = ReminderTriggerBuilder.triggers(rule: r.repeatRule, hour: r.hour, minute: r.minute)
                 let advance = ReminderTriggerBuilder.advanceTriggers(rule: r.repeatRule, hour: r.hour, minute: r.minute, advance: r.advance)
                 let group = main.enumerated().map { request(r, trigger: $0.element, suffix: String($0.offset), early: false) }
                     + advance.enumerated().map { request(r, trigger: $0.element, suffix: String($0.offset), early: true) }
-                if plan.requests.count + group.count <= limit { plan.requests += group }
-                else { plan.incomplete.insert(r.id) }
+                plan.requests += group
             default:
                 let end: Date
                 if case .once(let date) = r.repeatRule { end = date } else { end = calendar.date(byAdding: .year, value: 8, to: now) ?? now }
-                for due in ReminderRecurrence.dates(rule: r.repeatRule, hour: r.hour, minute: r.minute, after: now, through: end, calendar: calendar) {
-                    let suffix = String(Int(due.timeIntervalSince1970))
-                    var group = [request(r, trigger: ReminderTriggerBuilder.concrete(due, calendar: calendar), suffix: suffix, early: false)]
-                    let early = r.advance.fireDate(for: due, calendar: calendar)
-                    if r.advance != .none, early > now { group.append(request(r, trigger: ReminderTriggerBuilder.concrete(early, calendar: calendar), suffix: suffix, early: true)) }
-                    finite.append((r, due, group))
+                if let due = ReminderRecurrence.dates(rule: r.repeatRule, hour: r.hour, minute: r.minute,
+                    after: now, through: end, calendar: calendar, maximumCount: 1).first {
+                    finite.append(Occurrence(reminder: r, due: due, end: end, orderKey: r.id.uuidString))
                 }
             }
         }
-        // 每次实际发生的主提醒和提前提醒一起分配名额，不留下只有提前提醒的半组。
-        for item in finite.sorted(by: { $0.due == $1.due ? $0.reminder.id.uuidString < $1.reminder.id.uuidString : $0.due < $1.due }) {
-            if plan.incomplete.contains(item.reminder.id) { continue }
-            if plan.requests.count + item.requests.count <= limit {
-                plan.requests += item.requests; plan.scheduledThrough[item.reminder.id] = item.due
-            } else { plan.incomplete.insert(item.reminder.id) }
+        var heap = OccurrenceHeap(finite)
+        // 先分配整组名额，再创建框架对象；溢出的规则不再推进日期。
+        while !heap.items.isEmpty {
+            if plan.requests.count == budget {
+                plan.incomplete.formUnion(heap.items.map { $0.reminder.id }); break
+            }
+            guard let item = heap.pop() else { break }
+            let r = item.reminder
+            if plan.incomplete.contains(r.id) { continue }
+            let early = r.advance.fireDate(for: item.due, calendar: calendar)
+            let hasAdvance = r.advance != .none && early > now
+            let count = hasAdvance ? 2 : 1
+            guard count <= budget - plan.requests.count,
+                  let timestamp = Int(exactly: item.due.timeIntervalSince1970.rounded(.towardZero)) else {
+                plan.incomplete.insert(r.id); continue
+            }
+            let suffix = String(timestamp)
+            plan.requests.append(request(r, trigger: ReminderTriggerBuilder.concrete(item.due, calendar: calendar), suffix: suffix, early: false))
+            if hasAdvance { plan.requests.append(request(r, trigger: ReminderTriggerBuilder.concrete(early, calendar: calendar), suffix: suffix, early: true)) }
+            plan.scheduledThrough[r.id] = item.due
+            if let due = ReminderRecurrence.dates(rule: r.repeatRule, hour: r.hour, minute: r.minute,
+                after: item.due, through: item.end, calendar: calendar, maximumCount: 1).first {
+                heap.push(Occurrence(reminder: r, due: due, end: item.end, orderKey: item.orderKey))
+            }
         }
         return plan
     }
@@ -260,10 +325,19 @@ extension Notification.Name { static let remindersDidChange = Notification.Name(
             await refreshPermission()
         }
     }
+    /// 已落库的无效日期只能原样暂停；不能借暂停新增或改写无效配置。
+    private func canPauseInvalidOnce(_ r: Reminder) throws -> Bool {
+        guard !r.isEnabled, case .once(let date) = r.repeatRule,
+              !ReminderRecurrence.isSupportedDate(date),
+              var existing = try repo.reminders(petID: r.petID).first(where: { $0.id == r.id }) else { return false }
+        existing.isEnabled = false
+        return existing == r
+    }
     /// 返回的是配置保存后的送达提示；数据库写入失败则抛错，表单保留草稿。
     @discardableResult func save(_ r: Reminder, petName: String) async throws -> String? {
         try await serial { [self] in
-            if let error = ReminderRecurrence.validationError(rule: r.repeatRule, hour: r.hour, minute: r.minute, advance: r.advance) {
+            if let error = ReminderRecurrence.validationError(rule: r.repeatRule, hour: r.hour, minute: r.minute, advance: r.advance),
+               try !canPauseInvalidOnce(r) {
                 throw NSError(domain: "PetPal.Reminder", code: 1, userInfo: [NSLocalizedDescriptionKey: error])
             }
             var reminder = r; reminder.petName = petName

@@ -50,8 +50,14 @@ struct ReminderFormView: View {
                 }
                 Picker("提醒类型", selection: $type) { ForEach(ReminderType.allCases) { Text($0.rawValue).tag($0) } }
                     .disabled(original?.sourceRecordID != nil)
-                DatePicker("提醒时间", selection: $time, displayedComponents: repeatMode == .once ? [.date, .hourAndMinute] : [.hourAndMinute])
-                    .disabled(original?.sourceRecordID != nil)
+                if ReminderRecurrence.isSupportedDate(time) {
+                    DatePicker("提醒时间", selection: $time, in: Date.distantPast...Date.distantFuture,
+                               displayedComponents: repeatMode == .once ? [.date, .hourAndMinute] : [.hourAndMinute])
+                        .disabled(original?.sourceRecordID != nil)
+                } else {
+                    Text("这条提醒的日期无效。可返回列表暂停或删除，并重新创建提醒。")
+                        .foregroundStyle(.red).accessibilityIdentifier("reminder.invalidDate")
+                }
                 Picker("重复", selection: $repeatMode) { ForEach(RepeatMode.allCases) { Text($0.rawValue).tag($0) } }
                     .accessibilityIdentifier("reminder.repeat")
                     .disabled(original?.sourceRecordID != nil)
@@ -83,7 +89,7 @@ struct ReminderFormView: View {
             .navigationTitle(original == nil ? "新增提醒" : "编辑提醒")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() }.disabled(busy) }
-                ToolbarItem(placement: .confirmationAction) { Button("保存") { save() }.disabled(busy).accessibilityIdentifier("reminder.save") }
+                ToolbarItem(placement: .confirmationAction) { Button("保存") { save() }.disabled(busy || !ReminderRecurrence.isSupportedDate(time)).accessibilityIdentifier("reminder.save") }
             }
             .interactiveDismissDisabled(busy)
             .onChange(of: repeatMode) { _ in if !advanceChoices.contains(advance) { advance = .h1 } }
@@ -118,6 +124,7 @@ struct ReminderFormView: View {
         }
     }
     private func save() {
+        guard ReminderRecurrence.isSupportedDate(time) else { error = "一次性提醒日期超出支持范围"; return }
         let c = Calendar.current.dateComponents([.hour, .minute], from: time)
         if let message = ReminderRecurrence.validationError(rule: rule, hour: c.hour ?? 8, minute: c.minute ?? 0, advance: advance) { error = message; return }
         if enabled, case .once(let due) = rule, due <= Date() { error = "一次性提醒请选择未来时间"; return }

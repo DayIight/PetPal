@@ -201,11 +201,18 @@ enum HealthDataMigration {
         }
         let eligible = records.compactMap { r in key(r).map { ($0, r) } }
         let grouped = Dictionary(grouping: eligible, by: { $0.0 })
+        var linkedRecordIDs = Set(samples.compactMap(\.sourceRecordID))
+        var candidatesByKey: [Key: [CDWeightSample]] = [:]
+        for sample in samples where sample.sourceRecordID == nil {
+            guard let petID = sample.petID, let date = sample.date, WeightValidator.isValid(sample.kg) else { continue }
+            candidatesByKey[Key(petID: petID, date: date, kg: sample.kg), default: []].append(sample)
+        }
         for (key, matches) in grouped where matches.count == 1 {
             let record = matches[0].1
-            guard let id = record.id, !samples.contains(where: { $0.sourceRecordID == id }) else { continue }
-            let candidates = samples.filter { $0.sourceRecordID == nil && $0.petID == key.petID && $0.date == key.date && $0.kg == key.kg }
-            if candidates.count == 1 { candidates[0].sourceRecordID = id }
+            guard let id = record.id, !linkedRecordIDs.contains(id),
+                  let candidates = candidatesByKey[key], candidates.count == 1 else { continue }
+            candidates[0].sourceRecordID = id
+            linkedRecordIDs.insert(id)
         }
     }
 }

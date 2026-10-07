@@ -203,6 +203,57 @@ final class PortableBackupTests: XCTestCase {
         archive.version = 999
         try assertRejected(JSONEncoder().encode(archive))
     }
+    func test_extremeOnceDate_isRejectedBeforeReplacingLiveData() throws {
+        let data = try populatedArchive().0
+        for interval in [1e20, -1e20] {
+            var archive = try JSONDecoder().decode(PortableBackup.self, from: data)
+            let url = directory.appendingPathComponent("tampered-\(UUID()).sqlite")
+            try archive.database.data.write(to: url)
+            let tampered = CoreDataStack(storeURL: url)
+            stacks.append(tampered)
+            let reminder = try XCTUnwrap(tampered.container.viewContext.fetch(CDReminder.fetchRequest()).first)
+            reminder.repeatRule = String(data: try JSONEncoder().encode(RepeatRule.once(at: Date(timeIntervalSinceReferenceDate: interval))), encoding: .utf8)
+            reminder.isEnabled = interval > 0
+            try tampered.save()
+            tampered.container.viewContext.reset()
+            for store in tampered.container.persistentStoreCoordinator.persistentStores {
+                try tampered.container.persistentStoreCoordinator.remove(store)
+            }
+            archive.database = .init(try Data(contentsOf: url))
+            try assertRejected(JSONEncoder().encode(archive))
+        }
+    }
+    func test_overBudgetDatabase_isRejectedBeforeReplacingLiveData() throws {
+        let source = stack("rowBudget")
+        let pet = Pet(nickname: "备份宠物", breed: "柯基")
+        try CoreDataPetRepository(stack: source).create(pet)
+        var archive = try JSONDecoder().decode(PortableBackup.self,
+            from: PortableBackup.create(stack: source, mediaDirectory: media, defaults: defaults))
+        var index = 0
+        let insert = NSBatchInsertRequest(entityName: "CDRecord", dictionaryHandler: { row in
+            guard index < PortableBackup.maxDatabaseRows else { return true }
+            row.setDictionary(["id": UUID(), "petID": pet.id, "kind": RecordKind.checkup.rawValue,
+                               "createdAt": Date(timeIntervalSince1970: Double(index))])
+            index += 1
+            return false
+        })
+        try source.container.viewContext.execute(insert)
+        XCTAssertEqual(try source.container.viewContext.count(for: CDRecord.fetchRequest()), PortableBackup.maxDatabaseRows)
+        source.container.viewContext.reset()
+        for store in source.container.persistentStoreCoordinator.persistentStores {
+            try source.container.persistentStoreCoordinator.remove(store)
+        }
+        archive.database = .init(try Data(contentsOf: try XCTUnwrap(source.storeURL)))
+        let data = try JSONEncoder().encode(archive)
+        XCTAssertLessThan(data.count, PortableBackup.maxBytes)
+        let target = stack("rowBudgetTarget")
+        try CoreDataPetRepository(stack: target).create(Pet(nickname: "原宠物", breed: "柯基"))
+        XCTAssertThrowsError(try PortableBackup.restore(data, stack: target, mediaDirectory: media, defaults: defaults)) { error in
+            guard case BackupError.tooManyRows = error else { return XCTFail("应在迁移前拒绝超出条数上限的数据库：\(error)") }
+        }
+        XCTAssertEqual(try target.container.viewContext.fetch(CDPet.fetchRequest()).map(\.nickname), ["原宠物"])
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: media.path).isEmpty)
+    }
     func test_corruptDatabaseHash_isRejectedWithoutReplacingData() throws {
         var archive = try JSONDecoder().decode(PortableBackup.self, from: populatedArchive().0)
         archive.database.data = Data("broken".utf8)

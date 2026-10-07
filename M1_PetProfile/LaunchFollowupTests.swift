@@ -2,6 +2,8 @@ import XCTest
 import CoreData
 import Combine
 import UserNotifications
+import SwiftUI
+import UIKit
 @testable import PetPal
 
 final class RecurrenceBoundaryTests: XCTestCase {
@@ -37,6 +39,15 @@ final class RecurrenceBoundaryTests: XCTestCase {
         XCTAssertEqual(ReminderRecurrence.dates(rule: .once(at: due), hour: 9, minute: 0, after: date(2026, 10, 7), through: date(2026, 10, 9), calendar: calendar), [due])
         XCTAssertTrue(ReminderRecurrence.dates(rule: .once(at: due), hour: 9, minute: 0, after: due, through: date(2026, 10, 9), calendar: calendar).isEmpty)
     }
+    func test_onceRejectsExtremeAndNonfiniteDatesButKeepsOrdinaryDates() {
+        for interval in [1e20, -1e20, Double.infinity, -Double.infinity, Double.nan] {
+            let rule = RepeatRule.once(at: Date(timeIntervalSinceReferenceDate: interval))
+            XCTAssertNotNil(ReminderRecurrence.validationError(rule: rule, hour: 9, minute: 0, advance: .none))
+        }
+        for due in [date(2020, 1, 1), date(2040, 1, 1).addingTimeInterval(0.5)] {
+            XCTAssertNil(ReminderRecurrence.validationError(rule: .once(at: due), hour: 9, minute: 0, advance: .d1))
+        }
+    }
     func test_dayAdvancePreservesWallClockAcrossDST() {
         var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "America/Los_Angeles")!
         let due = c.date(from: DateComponents(year: 2026, month: 3, day: 9, hour: 9))!
@@ -61,9 +72,145 @@ final class RecurrenceBoundaryTests: XCTestCase {
         let monthly = (0..<40).map { _ in Reminder(petID: UUID(), type: .feeding, hour: 9, minute: 0, repeatRule: .monthly(day: 31), advance: .d1) }
         XCTAssertLessThanOrEqual(ReminderSchedulePlan.build(monthly, now: date(2026, 1, 1), calendar: calendar).requests.count, 64)
     }
+    func test_largeMonthlyPlanConstructsOnlyAdmittedRequests() {
+        let monthly = (0..<10_000).map { _ in
+            Reminder(petID: UUID(), type: .feeding, hour: 9, minute: 0, repeatRule: .monthly(day: 31), advance: .d3)
+        }
+        var constructed = 0
+        let plan = ReminderSchedulePlan.build(monthly, now: date(2026, 1, 1), calendar: calendar, requestFactory: {
+            constructed += 1
+            return UNNotificationRequest(identifier: $0, content: $1, trigger: $2)
+        })
+        XCTAssertEqual(constructed, 64)
+        XCTAssertEqual(plan.requests.count, 64)
+        XCTAssertEqual(Set(plan.scheduledThrough.keys), Set(monthly.sorted { $0.id.uuidString < $1.id.uuidString }.prefix(32).map(\.id)))
+        XCTAssertEqual(plan.incomplete.count, monthly.count)
+    }
+    func test_dailyBudgetDoesNotConstructRejectedGroupsAndClampsLimits() {
+        let reminders = (0..<100).map { _ in Reminder(petID: UUID(), type: .feeding, hour: 9, minute: 0) }
+        for (limit, expected) in [(-1, 0), (0, 0), (3, 3), (Int.max, 64)] {
+            var constructed = 0
+            let plan = ReminderSchedulePlan.build(reminders, limit: limit, requestFactory: {
+                constructed += 1
+                return UNNotificationRequest(identifier: $0, content: $1, trigger: $2)
+            })
+            XCTAssertEqual(constructed, expected)
+            XCTAssertEqual(plan.requests.count, expected)
+            XCTAssertEqual(plan.incomplete.count, reminders.count - expected)
+        }
+    }
+    func test_finitePairOverflowLeavesLastSlotForLaterSingle() {
+        let pair = Reminder(petID: UUID(), type: .vaccine, hour: 9, minute: 0,
+            repeatRule: .once(at: date(2026, 1, 3, 9)), advance: .d1)
+        let single = Reminder(petID: UUID(), type: .vaccine, hour: 9, minute: 0,
+            repeatRule: .once(at: date(2026, 1, 4, 9)))
+        let plan = ReminderSchedulePlan.build([single, pair], now: date(2026, 1, 1), calendar: calendar, limit: 1)
+        XCTAssertEqual(plan.requests.count, 1)
+        XCTAssertTrue(plan.requests[0].identifier.hasPrefix(single.id.uuidString))
+        XCTAssertTrue(plan.incomplete.contains(pair.id))
+        XCTAssertFalse(plan.incomplete.contains(single.id))
+    }
+    func test_repeatingPriorityAndFiniteChronologyArePreserved() {
+        let daily = Reminder(petID: UUID(), type: .feeding, hour: 9, minute: 0)
+        let later = Reminder(petID: UUID(), type: .vaccine, hour: 9, minute: 0, repeatRule: .once(at: date(2026, 1, 4, 9)))
+        let earlier = Reminder(petID: UUID(), type: .vaccine, hour: 9, minute: 0, repeatRule: .once(at: date(2026, 1, 3, 9)))
+        let plan = ReminderSchedulePlan.build([later, earlier, daily], now: date(2026, 1, 1), calendar: calendar, limit: 2)
+        XCTAssertEqual(plan.requests.map { String($0.identifier.prefix(36)) }, [daily.id.uuidString, earlier.id.uuidString])
+        XCTAssertTrue(plan.incomplete.contains(later.id))
+    }
+    func test_onceBeyondRollingHorizonAndFractionalSecondsRemainSupported() {
+        let due = date(2040, 1, 1, 9).addingTimeInterval(0.5)
+        let r = Reminder(petID: UUID(), type: .vaccine, hour: 9, minute: 0, repeatRule: .once(at: due))
+        let plan = ReminderSchedulePlan.build([r], now: date(2026, 1, 1), calendar: calendar)
+        XCTAssertEqual(plan.requests.count, 1)
+        XCTAssertEqual(plan.scheduledThrough[r.id], due)
+        XCTAssertTrue(plan.requests[0].identifier.hasSuffix(String(Int(due.timeIntervalSince1970))))
+        XCTAssertTrue(plan.incomplete.isEmpty)
+    }
+    func test_expiredAdvanceUsesSingleSlotAndNextDateQueryIsBounded() {
+        let r = Reminder(petID: UUID(), type: .vaccine, hour: 9, minute: 0,
+            repeatRule: .once(at: date(2026, 1, 2, 9)), advance: .d3)
+        let plan = ReminderSchedulePlan.build([r], now: date(2026, 1, 1), calendar: calendar, limit: 1)
+        XCTAssertEqual(plan.requests.count, 1)
+        XCTAssertTrue(plan.incomplete.isEmpty)
+        let all = ReminderRecurrence.dates(rule: .monthly(day: 31), hour: 9, minute: 0,
+            after: date(2026, 1, 1), through: date(2034, 1, 1), calendar: calendar)
+        XCTAssertEqual(ReminderRecurrence.dates(rule: .monthly(day: 31), hour: 9, minute: 0,
+            after: date(2026, 1, 1), through: date(2034, 1, 1), calendar: calendar, maximumCount: 1), Array(all.prefix(1)))
+    }
+}
+
+final class ReminderEditorBoundaryTests: XCTestCase {
+    @MainActor func test_invalidOnceDatesNeverReachDatePicker() async throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        window.frame = scene.coordinateSpace.bounds
+        defer { window.isHidden = true; window.rootViewController = nil; previous?.makeKeyAndVisible() }
+        let pet = Pet(nickname: "小白", breed: "柯基")
+        let service = ReminderService(repo: CoreDataReminderRepository(stack: CoreDataStack(inMemory: true)), scheduler: MockNotificationScheduler())
+        func pickerCount(_ view: UIView) -> Int {
+            (view is UIDatePicker ? 1 : 0) + view.subviews.reduce(0) { $0 + pickerCount($1) }
+        }
+        for interval in [Date().timeIntervalSinceReferenceDate, 1e20, -1e20, Double.infinity, Double.nan] {
+            let date = Date(timeIntervalSinceReferenceDate: interval)
+            let reminder = Reminder(petID: pet.id, type: .vaccine, hour: 9, minute: 0, repeatRule: .once(at: date))
+            let appeared = expectation(description: "提醒编辑页已挂载")
+            let controller = UIHostingController(rootView: ReminderFormView(pet: pet, service: service, editing: reminder)
+                .onAppear { appeared.fulfill() })
+            window.rootViewController = controller; window.makeKeyAndVisible()
+            await fulfillment(of: [appeared], timeout: 3)
+            try await Task.sleep(nanoseconds: 100_000_000)
+            controller.view.layoutIfNeeded()
+            if ReminderRecurrence.isSupportedDate(date) {
+                XCTAssertGreaterThan(pickerCount(controller.view), 0, "正常日期应保留日期选择器")
+            } else {
+                XCTAssertEqual(pickerCount(controller.view), 0, "无效日期不能交给 UIKit 日期选择器")
+            }
+        }
+    }
 }
 
 final class ReminderLifecycleTests: XCTestCase {
+    @MainActor func test_existingInvalidOnceCanOnlyBePaused() async throws {
+        let repo = CoreDataReminderRepository(stack: CoreDataStack(inMemory: true))
+        let scheduler = MockNotificationScheduler()
+        let service = ReminderService(repo: repo, scheduler: scheduler)
+        var r = Reminder(petID: UUID(), petName: "旧昵称", type: .vaccine, hour: 9, minute: 0,
+            repeatRule: .once(at: Date(timeIntervalSinceReferenceDate: 1e20)))
+        try repo.save(r)
+        r.isEnabled = false
+        do { try await service.save(r, petName: "当前昵称") }
+        catch { XCTFail("已有无效日期提醒仍应允许暂停：\(error)") }
+        let paused = try XCTUnwrap(repo.allReminders().first)
+        XCTAssertFalse(paused.isEnabled)
+        XCTAssertEqual(paused.repeatRule, r.repeatRule)
+        XCTAssertTrue(scheduler.added.isEmpty)
+        var enabled = paused; enabled.isEnabled = true
+        var rewritten = paused; rewritten.hour = 10
+        var inserted = paused; inserted.id = UUID()
+        for rejected in [enabled, rewritten, inserted] {
+            do { try await service.save(rejected, petName: rejected.petName); XCTFail("无效日期不得重新启用、改写或新增") }
+            catch {}
+        }
+        XCTAssertEqual(try repo.allReminders(), [paused])
+    }
+    @MainActor func test_persistedExtremeDateIsSkippedWhenPermissionBecomesGranted() async throws {
+        let repo = CoreDataReminderRepository(stack: CoreDataStack(inMemory: true))
+        let r = Reminder(petID: UUID(), type: .vaccine, hour: 9, minute: 0,
+            repeatRule: .once(at: Date(timeIntervalSinceReferenceDate: 1e20)))
+        try repo.save(r) // 模拟升级前已落库，绕开表单与导入校验。
+        let scheduler = MockNotificationScheduler(); scheduler.authorized = false
+        let service = ReminderService(repo: repo, scheduler: scheduler)
+        await service.rescheduleAll()
+        XCTAssertTrue(scheduler.added.isEmpty)
+        scheduler.authorized = true
+        await service.rescheduleAll()
+        XCTAssertTrue(scheduler.added.isEmpty)
+        XCTAssertTrue(service.incomplete.contains(r.id))
+        XCTAssertNotNil(service.scheduleError)
+        XCTAssertEqual(r.repeatRule.label, "仅一次 · 日期无效")
+    }
     @MainActor func test_foregroundRefreshRecognizesPermissionGrantedInSettings() async throws {
         let repo = CoreDataReminderRepository(stack: CoreDataStack(inMemory: true))
         let scheduler = MockNotificationScheduler(); scheduler.authorized = false
@@ -265,6 +412,46 @@ final class WidgetRecurrenceTests: XCTestCase {
 }
 
 final class DataVersionMigrationTests: XCTestCase {
+    func test_largeUnmatchedLegacyCollectionsFinishWithoutLinkingManualSamples() throws {
+        let stack = CoreDataStack(inMemory: true)
+        let petID = UUID(); let base = Date(timeIntervalSince1970: 1_700_000_000)
+        for index in 0..<10_000 {
+            let r = stack.insert(CDRecord.self)
+            r.id = UUID(); r.petID = petID; r.kind = RecordKind.checkup.rawValue
+            r.createdAt = base.addingTimeInterval(Double(index)); r.answers = ["weightKg": "8"]
+            let s = stack.insert(CDWeightSample.self)
+            s.id = UUID(); s.petID = petID; s.kg = 8
+            s.date = base.addingTimeInterval(Double(index + 100_000))
+        }
+        try stack.save()
+        let started = ProcessInfo.processInfo.systemUptime
+        try HealthDataMigration.linkLegacyWeights(in: stack.container.viewContext)
+        XCTAssertLessThan(ProcessInfo.processInfo.systemUptime - started, 5, "大规模未匹配数据不应重复扫描全部样本")
+        XCTAssertTrue(try stack.container.viewContext.fetch(CDWeightSample.fetchRequest()).allSatisfy { $0.sourceRecordID == nil })
+        XCTAssertFalse(stack.container.viewContext.hasChanges)
+    }
+    func test_ambiguousRecordsAndExistingSourcesArePreservedAndMigrationIsIdempotent() throws {
+        let stack = CoreDataStack(inMemory: true); let petID = UUID(); let base = Date()
+        func record(_ offset: Double) -> CDRecord {
+            let r = stack.insert(CDRecord.self)
+            r.id = UUID(); r.petID = petID; r.kind = RecordKind.checkup.rawValue
+            r.createdAt = base.addingTimeInterval(offset); r.answers = ["weightKg": "8"]
+            return r
+        }
+        func sample(_ offset: Double, source: UUID? = nil) -> CDWeightSample {
+            let s = stack.insert(CDWeightSample.self)
+            s.id = UUID(); s.petID = petID; s.kg = 8; s.date = base.addingTimeInterval(offset); s.sourceRecordID = source
+            return s
+        }
+        _ = record(0); _ = record(0); let ambiguous = sample(0)
+        let existing = record(1); let linked = sample(99, source: existing.id); let manual = sample(1)
+        let unique = record(2); let eligible = sample(2)
+        try stack.save(); try HealthDataMigration.linkLegacyWeights(in: stack.container.viewContext)
+        XCTAssertNil(ambiguous.sourceRecordID); XCTAssertNil(manual.sourceRecordID)
+        XCTAssertEqual(linked.sourceRecordID, existing.id); XCTAssertEqual(eligible.sourceRecordID, unique.id)
+        try stack.save(); try HealthDataMigration.linkLegacyWeights(in: stack.container.viewContext)
+        XCTAssertFalse(stack.container.viewContext.hasChanges)
+    }
     private func legacyStore(at url: URL) throws -> UUID {
         let momd = try XCTUnwrap(Bundle.main.url(forResource: "PetPal", withExtension: "momd"))
         let model = try XCTUnwrap(NSManagedObjectModel(contentsOf: momd.appendingPathComponent("PetPal.mom")))
