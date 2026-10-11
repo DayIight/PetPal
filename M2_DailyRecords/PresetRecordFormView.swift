@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - 预设模板通用动态记录表单（按 kind.fields 渲染全部 7 类预设模板；
+// MARK: - 预设模板通用动态记录表单（按 kind.fields 渲染全部 8 类预设模板；
 // 原写死的 FeedingFormView 由本视图取代，字段 key/校验与 RecordFormViewModel 完全一致）
 // 双模式：init(petID:kind:) 新建；init(editing:) 编辑已有记录（详情页入口，update 保留原 createdAt）
 struct PresetRecordFormView: View {
@@ -28,6 +28,17 @@ struct PresetRecordFormView: View {
             repo: CoreDataRecordRepository(), petID: petID, kind: kind,
             weightRepo: CoreDataWeightRepository()))
         self.onSaved = onSaved
+    }
+
+    init(completing task: ReminderTask) {
+        let vm = RecordFormViewModel(repo: CoreDataRecordRepository(), petID: task.reminder.petID,
+                                    kind: task.reminder.type.recordKind, weightRepo: CoreDataWeightRepository())
+        vm.draft.completedReminderID = task.reminder.id
+        vm.draft.completedDueAt = task.due
+        vm.draft.completedDay = task.day
+        vm.draft.eventDate = Date()
+        _vm = StateObject(wrappedValue: vm)
+        self.onSaved = {}
     }
 
     init(editing record: Record, onSaved: @escaping () -> Void = {}) {
@@ -58,6 +69,19 @@ struct PresetRecordFormView: View {
 
     var body: some View {
         Form {
+            if let due = vm.draft.completedDueAt {
+                Section("完成本次提醒") {
+                    Text("计划时间：" + due.formatted(date: .abbreviated, time: .shortened))
+                    Text("请填写实际发生时间和内容。保存成功后才会标记本次任务已完成。")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            Section("发生时间") {
+                DatePicker("日期与时间", selection: $vm.draft.eventDate, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                    .accessibilityIdentifier("record.occurredAt")
+                Text("可补录过去的记录，日历和成长趋势按发生时间统计。")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
             ForEach(vm.draft.kind.fields, id: \.key) { field in
                 Section(field.title) {
                     fieldView(field)
@@ -107,6 +131,7 @@ struct PresetRecordFormView: View {
         .navigationTitle(vm.isEditing ? "编辑\(vm.draft.kind.rawValue)记录" : "\(vm.draft.kind.rawValue)记录")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() }.disabled(busy) }
             ToolbarItem(placement: .confirmationAction) {
                 Button(busy ? "保存中…" : "保存") { save() }.disabled(busy)
                     .accessibilityIdentifier("record.save")
@@ -203,6 +228,10 @@ struct PresetRecordFormView: View {
                 else if let error = ReminderService.shared.scheduleError { savedNotice = error }
                 else { finish() }
             }
-        } else { finish() }
+        } else {
+            // 记录已经提交，界面返回无需等待其他宠物的通知重排。
+            finish()
+            Task { await ReminderService.shared.rescheduleAll() }
+        }
     }
 }

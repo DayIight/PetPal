@@ -27,6 +27,10 @@ extension CDPet {
 
 @objc(CDRecord)
 public class CDRecord: NSManagedObject {
+    @NSManaged public var occurredAt: Date?
+    @NSManaged public var completedReminderID: UUID?
+    @NSManaged public var completedDueAt: Date?
+    @NSManaged public var completedDay: String?
     @NSManaged public var wantsNextReminder: Bool
     @NSManaged public var nextReminderHour: Int16
     @NSManaged public var nextReminderMinute: Int16
@@ -66,6 +70,7 @@ extension CDCustomTemplate {
 
 @objc(CDReminder)
 public class CDReminder: NSManagedObject {
+    @NSManaged public var trackingSince: Date?
     @NSManaged public var isEnabled: Bool
     @NSManaged public var sourceRecordID: UUID?
     @NSManaged public var id: UUID?

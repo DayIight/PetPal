@@ -23,8 +23,15 @@ import WidgetKit
     }
 
     func sync() {
+        // 演示资料使用内存库，不能通过自动订阅写入真实 App Group。
+        guard !PreviewFixtures.enabled else { return }
         let now = Date()
-        let all = (try? reminderRepo.allReminders()) ?? []
+        let all: [Reminder]
+        let completed: Set<String>
+        do {
+            all = try reminderRepo.allReminders()
+            completed = Set(try reminderRepo.completedRecords().compactMap(\.completionKey))
+        } catch { NSLog("widget 状态读取失败：%@", error.localizedDescription); return }
         let snapshot = WidgetSnapshot(
             generatedAt: now,
             currentPetID: currentPet.current?.id,
@@ -34,7 +41,7 @@ import WidgetKit
             },
             reminders: all
                 .map { .init(id: $0.id, petID: $0.petID, petName: $0.petName,
-                             type: $0.type.rawValue, hour: $0.hour, minute: $0.minute, repeatRule: $0.repeatRule, advance: $0.advance, isEnabled: $0.isEnabled) })
+                             type: $0.type.rawValue, hour: $0.hour, minute: $0.minute, repeatRule: $0.repeatRule, advance: $0.advance, isEnabled: $0.isEnabled) }, completedTaskKeys: completed)
         let directory = WidgetSnapshotStore.sharedDirectory
         do {
             try WidgetSnapshotStore.write(snapshot, to: directory)

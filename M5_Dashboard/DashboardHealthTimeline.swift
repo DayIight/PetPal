@@ -1,56 +1,68 @@
 import SwiftUI
 import Combine
 
-// MARK: - 疫苗/体检时间线
+/// 历史事实与下一次计划分开展示，完成记录永远不会因为下次日期过去而变成“未完成”。
 struct HealthEvent: Identifiable {
-    enum Status: String {
-        case done = "已完成", pending = "待进行", overdue = "已过期"
-    }
+    enum Status: String { case done = "已完成", pending = "待进行", overdue = "已逾期" }
     let id: UUID
     let title: String
     let detail: String
     let date: Date
-    let status: Status
+    let status: Status = .done
+    let nextDue: Date?
+    let nextCompleted: Bool
+    let nextPaused: Bool
+    let hasNotification: Bool
+    func nextStatus(now: Date = Date(), calendar: Calendar = .current) -> Status? {
+        guard let nextDue else { return nil }
+        if nextCompleted { return .done }
+        // 未设置通知钟点的日期按整天判定；明确的提醒则按实际时刻判定。
+        return nextDue < (hasNotification ? now : calendar.startOfDay(for: now)) ? .overdue : .pending
+    }
+    static func build(records: [Record], reminders: [Reminder]) -> [HealthEvent] {
+        records.filter { [.vaccine, .deworming, .checkup].contains($0.kind) }
+            .sorted { $0.eventDate < $1.eventDate }
+            .map { record in
+                let reminder = reminders.first { $0.sourceRecordID == record.id }
+                let due: Date?
+                if let reminder, case .once(let date) = reminder.repeatRule { due = date }
+                else { due = record.answers["nextDue"].flatMap(RecordAnswerDate.parse) }
+                let completed = reminder.map { reminder in
+                    guard let due else { return false }
+                    let key = ReminderTaskKey.make(reminderID: reminder.id,
+                        day: ReminderTaskKey.day(rule: reminder.repeatRule, due: due), type: reminder.type.rawValue)
+                    return records.contains { $0.completionKey == key }
+                } ?? false
+                let title: String
+                switch record.kind {
+                case .vaccine: title = record.answers["vaccineName"] ?? "疫苗接种"
+                case .deworming: title = "驱虫 · " + (record.answers["drug"] ?? "")
+                default: title = "体检"
+                }
+                let detail = [record.answers["hospital"], record.answers["conclusion"]]
+                    .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+                return .init(id: record.id, title: title, detail: detail, date: record.eventDate,
+                    nextDue: due, nextCompleted: completed, nextPaused: reminder?.isEnabled == false,
+                    hasNotification: reminder != nil)
+            }
+    }
 }
 
 @MainActor final class HealthTimelineModel: ObservableObject {
     @Published private(set) var events: [HealthEvent] = []
     private var bag = Set<AnyCancellable>()
-    // 必须持有 repo：repo deinit 会移除 recordsDidChange 观察者，广播链路随之断开
     private let repo: RecordRepository
-
-    init(repo: RecordRepository, petID: UUID) {
-        self.repo = repo
+    private let reminderRepo: ReminderRepository
+    private var records: [Record] = []
+    private let petID: UUID
+    init(repo: RecordRepository, petID: UUID, reminderRepo: ReminderRepository = CoreDataReminderRepository()) {
+        self.repo = repo; self.petID = petID; self.reminderRepo = reminderRepo
         repo.recordsPublisher(petID: petID).receive(on: DispatchQueue.main)
-            .sink { [weak self] in self?.apply($0) }
-            .store(in: &bag)
+            .sink { [weak self] in self?.records = $0; self?.refresh() }.store(in: &bag)
+        NotificationCenter.default.publisher(for: .remindersDidChange).receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.refresh() }.store(in: &bag)
     }
-
-    private func apply(_ records: [Record]) {
-        events = records
-            .filter { $0.kind == .vaccine || $0.kind == .checkup }
-            .sorted { $0.createdAt < $1.createdAt }   // 时间正序
-            .map(HealthEvent.init)
-    }
-}
-
-private extension HealthEvent {
-    init(_ r: Record) {
-        id = r.id
-        let isVaccine = r.kind == .vaccine
-        title = isVaccine ? (r.answers["vaccineName"] ?? "疫苗接种") : "体检"
-        var parts: [String] = []
-        if let hospital = r.answers["hospital"], !hospital.isEmpty { parts.append(hospital) }
-        if !isVaccine, let conclusion = r.answers["conclusion"], !conclusion.isEmpty {
-            parts.append(conclusion)
-        }
-        detail = parts.joined(separator: " · ")
-        date = r.createdAt
-        // 状态判定：有 nextDue 且早于今天 → 已过期；nextDue 在未来 → 待进行；无 nextDue → 已完成
-        if let nextDue = r.answers["nextDue"].flatMap(RecordAnswerDate.parse) {
-            status = nextDue < Calendar.current.startOfDay(for: Date()) ? .overdue : .pending
-        } else {
-            status = .done
-        }
+    private func refresh() {
+        events = HealthEvent.build(records: records, reminders: (try? reminderRepo.reminders(petID: petID)) ?? [])
     }
 }

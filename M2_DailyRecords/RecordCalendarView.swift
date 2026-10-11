@@ -26,13 +26,10 @@ import Combine
         let cal = Calendar.current
         counts = CalendarGridBuilder.countsByDay(records)
         let thisMonth = cal.date(from: cal.dateComponents([.year, .month], from: Date()))!
-        guard let earliest = records.map(\.createdAt).min() else {
+        guard let earliest = records.map(\.eventDate).min() else {
             months = [thisMonth]; selectedMonth = thisMonth; return
         }
-        var first = cal.date(from: cal.dateComponents([.year, .month], from: earliest))!
-        if let limit = cal.date(byAdding: .month, value: -23, to: thisMonth), first < limit {
-            first = limit   // 历史月份上限 24 个，超出截断
-        }
+        let first = cal.date(from: cal.dateComponents([.year, .month], from: earliest))!
         var result: [Date] = []
         var cursor = first
         while cursor <= thisMonth {
@@ -187,8 +184,8 @@ struct RecordCalendarContentView: View {
     }
 
     private var dayRecords: [Record] {
-        vm.records.filter { cal.isDate($0.createdAt, inSameDayAs: selectedDate) }
-            .sorted { $0.createdAt > $1.createdAt }
+        vm.records.filter { cal.isDate($0.eventDate, inSameDayAs: selectedDate) }
+            .sorted { $0.eventDate > $1.eventDate }
     }
 
     private func recordRow(_ record: Record) -> some View {
@@ -317,7 +314,12 @@ struct RecordDetailView: View {
             Form {
                 Section("记录") {
                     LabeledContent("类型", value: record.displayKind)
-                    LabeledContent("时间", value: timeText)
+                    LabeledContent("发生时间", value: timeText)
+                    if let due = record.completedDueAt {
+                        LabeledContent("提醒计划时间", value: due.formatted(date: .abbreviated, time: .shortened))
+                        Text("本条记录已完成对应任务；删除记录会恢复该次待办。")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                 }
                 // 预设模板：按 kind.fields 的标题展示；自定义模板：标题仅存于模板内，
                 // 记录里只有字段 UUID key，无法反解，直接列出原始键值
@@ -420,11 +422,6 @@ struct RecordDetailView: View {
     }
 
     private var timeText: String {
-        let m = cal.component(.month, from: record.createdAt)
-        let d = cal.component(.day, from: record.createdAt)
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "HH:mm"
-        return "\(m)月\(d)日 \(f.string(from: record.createdAt))"
+        record.eventDate.formatted(date: .abbreviated, time: .shortened)
     }
 }

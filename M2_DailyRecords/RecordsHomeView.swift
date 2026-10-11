@@ -182,7 +182,7 @@ private struct TimelineRecordsView: View {
     private func dayTitle(_ day: Date) -> String {
         let m = cal.component(.month, from: day)
         let d = cal.component(.day, from: day)
-        return cal.isDateInToday(day) ? "今天（\(m)月\(d)日）" : "\(m)月\(d)日"
+        return cal.isDateInToday(day) ? "今天（\(m)月\(d)日）" : day.formatted(date: .abbreviated, time: .omitted)
     }
 
     /// 行：类型圆标 + displayKind + summary + 心情 + 时间（卡片样式）
@@ -205,7 +205,7 @@ private struct TimelineRecordsView: View {
                 }
                 Spacer(minLength: DS.Spacing.sm)
                 VStack(alignment: .trailing, spacing: DS.Spacing.xs) {
-                    Text(timeText(record.createdAt)).font(.caption)
+                    Text(timeText(record.eventDate)).font(.caption)
                         .foregroundStyle(.secondary)
                     if !record.mood.isEmpty {
                         Text(record.mood).font(.body)
@@ -236,6 +236,7 @@ extension RecordKind {
         case .deworming: return "pill.fill"
         case .vaccine: return "syringe.fill"
         case .checkup: return "stethoscope"
+        case .medication: return "pills.fill"
         case .grooming: return "scissors"
         case .custom: return "note.text"
         }

@@ -82,6 +82,8 @@ struct ReminderFormView: View {
                 Picker("提前提醒", selection: $advance) { ForEach(advanceChoices) { Text($0.rawValue).tag($0) } }
                     .accessibilityIdentifier("reminder.advance")
                 Toggle("启用提醒", isOn: $enabled)
+                Text("修改类型、时间或重复规则，以及重新启用时，从当天重新生成待办；历史完成记录保留。")
+                    .font(.footnote).foregroundStyle(.secondary)
                 if let error { Text(error).foregroundStyle(.red).accessibilityIdentifier("reminder.error") }
                 if busy { ProgressView("正在保存与安排通知…") }
             }

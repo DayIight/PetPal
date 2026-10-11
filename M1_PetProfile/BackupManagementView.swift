@@ -15,6 +15,7 @@ struct BackupDocument: FileDocument {
 }
 
 struct BackupManagementView: View {
+    @ObservedObject private var stack = CoreDataStack.shared
     @State private var backups: [URL] = []
     @State private var document: BackupDocument?
     @State private var showExport = false
@@ -22,6 +23,9 @@ struct BackupManagementView: View {
     @State private var importData: Data?
     @State private var confirmRestore = false
     @State private var busy = false
+    @State private var canCancel = false
+    @State private var operationTask: Task<Void, Never>?
+    @State private var operationStatus = "正在处理备份"
     @State private var message: String?
     @State private var lastDate: Date?
     @State private var backupError: String?
@@ -38,9 +42,9 @@ struct BackupManagementView: View {
             Section {
                 Button("导出完整备份") { exportCurrent() }
                     .accessibilityIdentifier("backup.export")
-                    .disabled(busy || CoreDataStack.shared.loadError != nil)
+                    .disabled(busy || stack.backupInProgress || stack.loadError != nil)
                 Button("从文件导入恢复") { showImport = true }
-                    .accessibilityIdentifier("backup.import").disabled(busy)
+                    .accessibilityIdentifier("backup.import").disabled(busy || stack.backupInProgress)
             } footer: {
                 Text("备份包含所有宠物、记录、体重、提醒、自定义模板及照片。恢复会替换当前数据，建议先导出当前备份。备份未加密，请妥善保管。")
             }
@@ -54,16 +58,28 @@ struct BackupManagementView: View {
                                 Button("恢复") { readImport(url) }.buttonStyle(.borderless)
                             }
                         }
-                        .disabled(busy)
+                        .disabled(busy || stack.backupInProgress)
                     }
                 }
             }
-            if busy { ProgressView("正在处理，请稍候") }
+            if busy {
+                ProgressView(operationStatus)
+                if canCancel {
+                    Button("取消处理", role: .cancel) {
+                        canCancel = false
+                        operationStatus = "正在取消，请稍候"
+                        operationTask?.cancel()
+                    }.accessibilityIdentifier("backup.cancel")
+                }
+            } else if stack.backupInProgress {
+                ProgressView("正在处理备份，请稍候")
+            }
         }
         .navigationTitle("数据备份")
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("完成") { dismiss() }.disabled(busy) } }
         .interactiveDismissDisabled(busy)
         .onAppear(perform: refresh)
+        .onReceive(NotificationCenter.default.publisher(for: .backupStatusDidChange)) { _ in refresh() }
         .fileExporter(isPresented: $showExport, document: document, contentType: .petpalBackup,
                       defaultFilename: "PetPal-\(DatabaseBackupManager.timestamp(Date()))") { result in
             document = nil
@@ -75,9 +91,7 @@ struct BackupManagementView: View {
         .fileImporter(isPresented: $showImport, allowedContentTypes: [.petpalBackup]) { result in
             switch result {
             case .success(let url):
-                let access = url.startAccessingSecurityScopedResource()
-                defer { if access { url.stopAccessingSecurityScopedResource() } }
-                readImport(url)
+                readImport(url, securityScoped: true)
             case .failure(let error): message = "导入失败：\(error.localizedDescription)"
             }
         }
@@ -95,36 +109,45 @@ struct BackupManagementView: View {
         backups = (try? DatabaseBackupManager.completeBackups(in: DatabaseBackupManager.backupDirectory())) ?? []
     }
     private func exportCurrent() {
-        busy = true
-        // 与保存操作串行取得一致快照；Task 允许界面先展示处理状态。
-        Task { @MainActor in
-            defer { busy = false }
-            do { document = BackupDocument(data: try PortableBackup.create()); showExport = true }
-            catch { message = "备份失败：\(error.localizedDescription)" }
+        startOperation("正在生成完整备份") {
+            document = BackupDocument(data: try await PortableBackup.createAsync())
+            showExport = true
         }
     }
     private func exportExisting(_ url: URL) {
-        do { document = BackupDocument(data: try readFile(url)); showExport = true }
-        catch { message = "读取失败：\(error.localizedDescription)" }
+        startOperation("正在读取备份") {
+            document = BackupDocument(data: try await PortableBackup.background { _ in try PortableBackup.readFile(url) })
+            showExport = true
+        }
     }
-    private func readFile(_ url: URL) throws -> Data {
-        let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-        guard size <= PortableBackup.maxBytes else { throw BackupError.tooLarge }
-        return try Data(contentsOf: url)
-    }
-    private func readImport(_ url: URL) {
-        do { importData = try readFile(url); confirmRestore = true }
-        catch { message = "读取失败：\(error.localizedDescription)" }
+    private func readImport(_ url: URL, securityScoped: Bool = false) {
+        startOperation("正在读取备份") {
+            let access = securityScoped && url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            importData = try await PortableBackup.background { _ in try PortableBackup.readFile(url) }
+            confirmRestore = true
+        }
     }
     private func restore() {
         guard let data = importData else { return }
-        busy = true
-        Task { @MainActor in
-            defer { busy = false; importData = nil; refresh() }
-            do {
-                try PortableBackup.restore(data)
-                message = await PortableBackup.rebuildNotifications() ?? "完整数据已恢复，请检查宠物、照片与提醒。"
-            } catch { message = "恢复失败：\(error.localizedDescription)" }
+        startOperation("正在校验并准备恢复") {
+            defer { importData = nil; refresh() }
+            try await PortableBackup.restoreAsync(data, willCommit: {
+                canCancel = false
+                operationStatus = "正在替换数据，请稍候"
+            })
+            operationStatus = "正在重建提醒"
+            message = await PortableBackup.rebuildNotifications() ?? "完整数据已恢复，请检查宠物、照片与提醒。"
+        }
+    }
+    private func startOperation(_ status: String, work: @escaping @MainActor () async throws -> Void) {
+        guard !busy else { return }
+        busy = true; canCancel = true; operationStatus = status
+        operationTask = Task { @MainActor in
+            defer { busy = false; canCancel = false; operationTask = nil }
+            do { try await work() }
+            catch is CancellationError { importData = nil; message = "处理已取消，当前数据未被替换。" }
+            catch { message = "备份处理失败：\(error.localizedDescription)" }
         }
     }
 }

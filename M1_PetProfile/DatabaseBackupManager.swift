@@ -1,6 +1,8 @@
 import Foundation
 import CoreData
 
+extension Notification.Name { static let backupStatusDidChange = Notification.Name("PetPal.backupStatusDidChange") }
+
 // MARK: - 每周完整备份（Documents/Backups，保留最新 2 份）
 // 安全复制：用独立 coordinator 调 replacePersistentStore（API 层处理 WAL checkpoint），
 // 不直接 FileManager 拷贝主库，避免丢失 -wal 中未落盘数据；不干扰在线 store。
@@ -10,6 +12,44 @@ enum DatabaseBackupManager {
     static let keepCount = 2
     static let interval: TimeInterval = 7 * 24 * 3600
     private static let lastBackupKey = "PetPal.lastCompleteBackupDate"
+    @MainActor private static var automaticTask: Task<Void, Never>?
+
+    /// 合并启动与回前台的重复请求；快照、图片校验和编码在后台进行。
+    @discardableResult
+    @MainActor static func scheduleBackupIfDue(stack: CoreDataStack = .shared,
+                                              defaults: UserDefaults = .standard, now: Date = Date(),
+                                              directory: URL? = nil, mediaDirectory: URL = AvatarStore.directory) -> Task<Void, Never>? {
+        if let automaticTask { return automaticTask }
+        guard !stack.backupInProgress, !stack.container.viewContext.hasChanges,
+              stack.storeURL != nil, stack.loadError == nil else { return nil }
+        if let last = defaults.object(forKey: lastBackupKey) as? Date,
+           now.timeIntervalSince(last) < interval { return nil }
+        automaticTask = Task { @MainActor in
+            defer {
+                automaticTask = nil
+                NotificationCenter.default.post(name: .backupStatusDidChange, object: nil)
+            }
+            do {
+                let data = try await PortableBackup.createAsync(stack: stack, mediaDirectory: mediaDirectory, defaults: defaults, now: now)
+                try await PortableBackup.background { _ in
+                    try persist(data, directory: directory, now: now)
+                }
+                defaults.set(now, forKey: lastBackupKey)
+                defaults.removeObject(forKey: "PetPal.lastBackupError")
+            } catch {
+                defaults.set(error.localizedDescription, forKey: "PetPal.lastBackupError")
+            }
+        }
+        return automaticTask
+    }
+
+    private static func persist(_ data: Data, directory: URL?, now: Date) throws {
+        let dir = try directory ?? backupDirectory()
+        let url = dir.appendingPathComponent("PetPal-\(timestamp(now))-\(UUID().uuidString).petpalbackup")
+        try data.write(to: url, options: .atomic)
+        let files = try completeBackups(in: dir)
+        for old in files.dropFirst(keepCount) { try FileManager.default.removeItem(at: old) }
+    }
 
     /// 距上次备份满一周才执行；inMemory stack（storeURL 为 nil）跳过
     static func backupIfDue(stack: CoreDataStack = .shared,
@@ -21,11 +61,7 @@ enum DatabaseBackupManager {
            now.timeIntervalSince(last) < interval { return }
         do {
             let data = try PortableBackup.create(stack: stack, mediaDirectory: mediaDirectory, defaults: defaults, now: now)
-            let dir = try directory ?? backupDirectory()
-            let url = dir.appendingPathComponent("PetPal-\(timestamp(now))-\(UUID().uuidString).petpalbackup")
-            try data.write(to: url, options: .atomic)
-            let files = try completeBackups(in: dir)
-            for old in files.dropFirst(keepCount) { try FileManager.default.removeItem(at: old) }
+            try persist(data, directory: directory, now: now)
             defaults.set(now, forKey: lastBackupKey)
             defaults.removeObject(forKey: "PetPal.lastBackupError")
         } catch {

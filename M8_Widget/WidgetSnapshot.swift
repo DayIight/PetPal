@@ -27,6 +27,7 @@ struct WidgetSnapshot: Codable, Equatable {
     var currentPetID: UUID?
     var pets: [PetEntry]
     var reminders: [ReminderEntry]
+    var completedTaskKeys: Set<String>?
 }
 
 // MARK: - 共享容器读写（App Group 不可用时回退 Documents，widget 侧读到 nil 走引导态，不崩）
@@ -96,6 +97,8 @@ enum WidgetSnapshotQueries {
             let dates = ReminderRecurrence.dates(rule: rule, hour: reminder.hour, minute: reminder.minute,
                                                  after: start.addingTimeInterval(-1), through: searchEnd, calendar: calendar)
             for due in dates {
+                let key = ReminderTaskKey.make(reminderID: reminder.id, day: ReminderTaskKey.day(rule: rule, due: due, calendar: calendar), type: reminder.type)
+                guard snapshot.completedTaskKeys?.contains(key) != true else { continue }
                 let advance = reminder.advance ?? .none
                 let early = advance.fireDate(for: due, calendar: calendar)
                 for (date, isAdvance) in [(due, false), (early, true)] {

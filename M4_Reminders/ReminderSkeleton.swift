@@ -31,6 +31,7 @@ struct Reminder: Identifiable, Equatable {
     var advance: AdvanceOption = .none
     var isEnabled = true
     var sourceRecordID: UUID?
+    var trackingSince: Date?
 }
 
 // MARK: - 提前量（PRD §4：5分钟/15分钟/30分钟/1小时/1天/3天）
@@ -148,7 +149,7 @@ struct ReminderSchedulePlan {
     }
     // 保守地把整个 App 的待发送提醒限制为 64 条，月/年窗口随可用名额滚动。
     static func build(_ reminders: [Reminder], now: Date = Date(), calendar: Calendar = .current,
-                      limit: Int = 64, requestFactory: RequestFactory = {
+                      limit: Int = 64, completedKeys: Set<String> = [], requestFactory: RequestFactory = {
                           UNNotificationRequest(identifier: $0, content: $1, trigger: $2)
                       }) -> Self {
         var plan = Self()
@@ -160,9 +161,31 @@ struct ReminderSchedulePlan {
                 : ReminderContentBuilder.content(type: r.type, petName: r.petName, reminderID: r.id, petID: r.petID)
             return requestFactory("\(r.id)#\(early ? "adv#" : "")\(suffix)", content, trigger)
         }
+        func nextPending(_ r: Reminder, after start: Date, through end: Date) -> Date? {
+            var cursor = start
+            while let due = ReminderRecurrence.dates(rule: r.repeatRule, hour: r.hour, minute: r.minute,
+                after: cursor, through: end, calendar: calendar, maximumCount: 1).first {
+                let key = ReminderTaskKey.make(reminderID: r.id, day: ReminderTaskKey.day(rule: r.repeatRule, due: due, calendar: calendar), type: r.type.rawValue)
+                if !completedKeys.contains(key) { return due }
+                cursor = due
+            }
+            return nil
+        }
         for r in reminders.filter({ $0.isEnabled }).sorted(by: { $0.id.uuidString < $1.id.uuidString }) {
             guard ReminderRecurrence.validationError(rule: r.repeatRule, hour: r.hour, minute: r.minute, advance: r.advance) == nil else {
                 plan.incomplete.insert(r.id); continue
+            }
+            // 本日提前完成时，暂用具体日期排程，跳过已完成的这一次；次日重排恢复系统重复。
+            let todayDue = calendar.date(bySettingHour: r.hour, minute: r.minute, second: 0, of: now) ?? now
+            let todayKey = ReminderTaskKey.make(reminderID: r.id, day: ReminderTaskKey.day(rule: r.repeatRule, due: todayDue, calendar: calendar), type: r.type.rawValue)
+            let isRepeating: Bool
+            switch r.repeatRule { case .daily, .weekly: isRepeating = true; default: isRepeating = false }
+            if isRepeating && completedKeys.contains(todayKey) {
+                let end = calendar.date(byAdding: .year, value: 1, to: now) ?? now
+                if let due = nextPending(r, after: now, through: end) {
+                    finite.append(Occurrence(reminder: r, due: due, end: end, orderKey: r.id.uuidString))
+                }
+                continue
             }
             switch r.repeatRule {
             case .daily, .weekly:
@@ -178,8 +201,7 @@ struct ReminderSchedulePlan {
             default:
                 let end: Date
                 if case .once(let date) = r.repeatRule { end = date } else { end = calendar.date(byAdding: .year, value: 8, to: now) ?? now }
-                if let due = ReminderRecurrence.dates(rule: r.repeatRule, hour: r.hour, minute: r.minute,
-                    after: now, through: end, calendar: calendar, maximumCount: 1).first {
+                if let due = nextPending(r, after: now, through: end) {
                     finite.append(Occurrence(reminder: r, due: due, end: end, orderKey: r.id.uuidString))
                 }
             }
@@ -204,8 +226,7 @@ struct ReminderSchedulePlan {
             plan.requests.append(request(r, trigger: ReminderTriggerBuilder.concrete(item.due, calendar: calendar), suffix: suffix, early: false))
             if hasAdvance { plan.requests.append(request(r, trigger: ReminderTriggerBuilder.concrete(early, calendar: calendar), suffix: suffix, early: true)) }
             plan.scheduledThrough[r.id] = item.due
-            if let due = ReminderRecurrence.dates(rule: r.repeatRule, hour: r.hour, minute: r.minute,
-                after: item.due, through: item.end, calendar: calendar, maximumCount: 1).first {
+            if let due = nextPending(r, after: item.due, through: item.end) {
                 heap.push(Occurrence(reminder: r, due: due, end: item.end, orderKey: item.orderKey))
             }
         }
@@ -224,10 +245,15 @@ protocol NotificationScheduling: AnyObject {
 // MARK: - 存储边界（CDReminder：id/petID UUID、type/repeatRule/petName String、hour/minute Int16）
 protocol ReminderRepository: AnyObject {
     func reminders(petID: UUID) throws -> [Reminder]
+    func completedRecords() throws -> [Record]
     func allReminders() throws -> [Reminder]   // M-06：时区/日历变更后全量重排用
     func save(_ reminder: Reminder) throws
     func delete(id: UUID) throws               // 单条删除（列表页滑动删除）
     func deleteAll(petID: UUID) throws
+}
+
+extension ReminderRepository {
+    func completedRecords() throws -> [Record] { [] }
 }
 
 final class CoreDataReminderRepository: ReminderRepository {
@@ -241,10 +267,24 @@ final class CoreDataReminderRepository: ReminderRepository {
     func allReminders() throws -> [Reminder] {
         try ctx.fetch(CDReminder.fetchRequest()).map(Reminder.init)
     }
+    func completedRecords() throws -> [Record] {
+        let request = CDRecord.fetchRequest()
+        request.predicate = NSPredicate(format: "completedReminderID != nil")
+        return try ctx.fetch(request).map(Record.init)
+    }
     func save(_ reminder: Reminder) throws {
         let r = CDReminder.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", reminder.id as CVarArg)
-        reminder.apply(to: try ctx.fetch(r).first ?? stack.insert(CDReminder.self))
+        let existing = try ctx.fetch(r).first
+        var updated = reminder
+        if let existing {
+            let previous = Reminder(existing)
+            let changed = previous.repeatRule != reminder.repeatRule || previous.hour != reminder.hour ||
+                previous.minute != reminder.minute || previous.type != reminder.type || (!previous.isEnabled && reminder.isEnabled)
+            updated.trackingSince = changed ? Date() : existing.trackingSince ?? Date()
+        } else { updated.trackingSince = reminder.trackingSince ?? Date() }
+        updated.apply(to: existing ?? stack.insert(CDReminder.self))
         try stack.save()
+        NotificationCenter.default.post(name: .recordsDidChange, object: nil)
     }
     func deleteAll(petID: UUID) throws {
         let r = CDReminder.fetchRequest(); r.predicate = NSPredicate(format: "petID == %@", petID as CVarArg)
@@ -270,13 +310,14 @@ extension Reminder {
                   type: ReminderType(rawValue: e.type ?? "") ?? .feeding,
                   hour: Int(e.hour), minute: Int(e.minute), repeatRule: rule,
                   advance: AdvanceOption(rawValue: e.advance ?? "") ?? .none,
-                  isEnabled: e.isEnabled, sourceRecordID: e.sourceRecordID)
+                  isEnabled: e.isEnabled, sourceRecordID: e.sourceRecordID, trackingSince: e.trackingSince)
     }
     func apply(to e: CDReminder) {
         e.id = id; e.petID = petID; e.petName = petName; e.type = type.rawValue
         e.hour = Int16(hour); e.minute = Int16(minute)
         e.repeatRule = String(data: (try? JSONEncoder().encode(repeatRule)) ?? Data(), encoding: .utf8)
         e.advance = advance.rawValue; e.isEnabled = isEnabled; e.sourceRecordID = sourceRecordID
+        e.trackingSince = trackingSince ?? e.trackingSince ?? Date()
     }
 }
 
@@ -284,11 +325,13 @@ extension Reminder {
 extension Notification.Name { static let remindersDidChange = Notification.Name("PetPal.remindersDidChange") }
 
 @MainActor final class ReminderService: ObservableObject {
-    static let shared = ReminderService(repo: CoreDataReminderRepository(), scheduler: UNNotificationScheduler())
+    static let shared = ReminderService(repo: CoreDataReminderRepository(), scheduler: PreviewFixtures.scheduler())
     enum PermissionState { case unknown, granted, denied }
     @Published private(set) var permission: PermissionState = .unknown
     @Published private(set) var configurations: [Reminder] = []
     @Published private(set) var scheduleError: String?
+    @Published private(set) var completedRecords: [Record] = []
+    @Published private(set) var taskError: String?
     @Published private(set) var scheduledThrough: [UUID: Date] = [:]
     @Published private(set) var incomplete: Set<UUID> = []
     private let repo: ReminderRepository
@@ -331,6 +374,7 @@ extension Notification.Name { static let remindersDidChange = Notification.Name(
               !ReminderRecurrence.isSupportedDate(date),
               var existing = try repo.reminders(petID: r.petID).first(where: { $0.id == r.id }) else { return false }
         existing.isEnabled = false
+        existing.trackingSince = r.trackingSince
         return existing == r
     }
     /// 返回的是配置保存后的送达提示；数据库写入失败则抛错，表单保留草稿。
@@ -352,10 +396,12 @@ extension Notification.Name { static let remindersDidChange = Notification.Name(
         scheduleError = nil; scheduledThrough = [:]; incomplete = []
         do {
             let all = try repo.allReminders(); configurations = all
+            do { completedRecords = try repo.completedRecords(); taskError = nil }
+            catch { taskError = "完成状态读取失败，请重新打开提醒页重试。"; throw error }
             // 先等候旧请求查询和撤销完成，再添加；所有重排共用同一条串行队列。
             await scheduler.removePending(matchingPrefix: "")
             guard permission == .granted else { onDidChange?(); return }
-            let plan = ReminderSchedulePlan.build(all)
+            let plan = ReminderSchedulePlan.build(all, completedKeys: Set(completedRecords.compactMap(\.completionKey)))
             for request in plan.requests { try await scheduler.add(request) }
             scheduledThrough = plan.scheduledThrough; incomplete = plan.incomplete
             let unarranged = all.contains { $0.isEnabled && plan.incomplete.contains($0.id) && plan.scheduledThrough[$0.id] == nil }

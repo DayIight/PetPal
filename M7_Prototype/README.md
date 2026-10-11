@@ -50,3 +50,7 @@
 - [ ] 拒绝权限时出现「通知权限未开启」Alert 且「去设置」可跳系统设置
 - [ ] 通知正文为「该给【小白】喂食了」，点击可唤起 App
 - [ ] 两条 UI 测试脚本在模拟器通过
+
+## 发布材料与 UI 截图
+
+中文商店材料和 Xcode 真机步骤位于 `docs/release/zh-Hans/`。`ReleaseFlowUITests` 覆盖引导、日期范围导出、系统分享、反馈模板及五个实际页面截图。`PreviewFixtures` 仅 Debug 接受 `--petpal-preview empty|demo`：内存数据库、独立偏好域、不发通知、不备份、不写 Widget 快照；Release 无演示资料入口。

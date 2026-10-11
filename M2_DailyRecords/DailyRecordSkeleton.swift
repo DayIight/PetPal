@@ -93,7 +93,7 @@ final class CoreDataCustomTemplateRepository: CustomTemplateRepository {
 
 enum RecordKind: String, CaseIterable, Identifiable {
     case feeding = "喂食", walking = "遛弯", training = "训练", deworming = "驱虫"
-    case vaccine = "疫苗", checkup = "体检", grooming = "美容"
+    case vaccine = "疫苗", checkup = "体检", grooming = "美容", medication = "服药"
     case custom = "自定义"   // 自定义模板产生的记录；模板选择器需过滤掉本项
     var id: String { rawValue }
     static let presetCases: [RecordKind] = allCases.filter { $0 != .custom }
@@ -109,6 +109,7 @@ enum RecordKind: String, CaseIterable, Identifiable {
                                .date("nextDue", "下次截止")]
         case .checkup: return [.text("hospital", "体检医院"), .text("conclusion", "结论"),
                                .number("weightKg", "体重(kg)")]   // 保存时自动抽取到 WeightRepository（GAP-07）
+        case .medication: return [.text("drug", "药品名", true), .text("dose", "实际用量", true)]
         case .grooming: return [.text("items", "美容项目"), .text("shop", "门店")]
         }
     }
@@ -128,6 +129,15 @@ struct Record: Identifiable, Equatable {
     var templateSnapshot: CustomTemplate?
     var templateSchemaVersion = 0
     var createdAt = Date()
+    var occurredAt: Date?
+    var completedReminderID: UUID?
+    var completedDueAt: Date?
+    var completedDay: String?
+    /// V1/V2 没有独立发生时间，读取时沿用原时间；编辑不改变创建时间。
+    var eventDate: Date {
+        get { occurredAt ?? createdAt }
+        set { occurredAt = newValue }
+    }
     var wantsNextReminder = false
     var nextReminderHour = 9
     var nextReminderMinute = 0
@@ -146,8 +156,11 @@ enum RecordValidator {
     /// M-02：number 字段合法范围（克数/分钟等业务量级，超出视为脏数据）
     static let numberRange: ClosedRange<Double> = 0.1...100_000
     /// fields 缺省取预设模板字段；自定义模板记录传入 CustomTemplate.templateFields
-    static func errors(for r: Record, fields: [TemplateField]? = nil) -> [String] {
+    static func errors(for r: Record, fields: [TemplateField]? = nil, original: Record? = nil) -> [String] {
         var e: [String] = []
+        if let date = r.occurredAt, !ReminderRecurrence.isSupportedDate(date) || date > Date() {
+            e.append("发生时间必须是有效的过去或当前时间")
+        }
         if r.note.count > 200 { e.append("备注最多200字") }
         if r.mood.count > 10 { e.append("心情标签最多10个字") }
         if r.photoFileNames.count > MediaPolicy.maxPhotos { e.append("最多附加9张图片") }
@@ -166,7 +179,9 @@ enum RecordValidator {
                 }
             }
         }
-        if r.wantsNextReminder {
+        let unchangedNextReminder = original.map { $0.wantsNextReminder && $0.answers["nextDue"] == r.answers["nextDue"] &&
+            $0.nextReminderHour == r.nextReminderHour && $0.nextReminderMinute == r.nextReminderMinute } ?? false
+        if r.wantsNextReminder && !unchangedNextReminder {
             guard r.kind == .vaccine || r.kind == .deworming,
                   let raw = r.answers["nextDue"], let date = RecordAnswerDate.parse(raw),
                   let due = Calendar.current.date(bySettingHour: r.nextReminderHour, minute: r.nextReminderMinute, second: 0, of: date), due > Date() else {
@@ -177,12 +192,12 @@ enum RecordValidator {
     }
 }
 
-// MARK: - 时间轴分组（纯函数：日倒序，组内 createdAt 倒序）
+// MARK: - 时间轴分组（纯函数：日倒序，组内发生时间倒序）
 enum TimelineGrouper {
     static func group(_ records: [Record]) -> [(day: Date, items: [Record])] {
-        Dictionary(grouping: records) { Calendar.current.startOfDay(for: $0.createdAt) }
+        Dictionary(grouping: records) { Calendar.current.startOfDay(for: $0.eventDate) }
             .sorted { $0.key > $1.key }
-            .map { ($0.key, $0.value.sorted { $0.createdAt > $1.createdAt }) }
+            .map { ($0.key, $0.value.sorted { $0.eventDate > $1.eventDate }) }
     }
 }
 
@@ -196,7 +211,7 @@ struct CalendarDay: Equatable, Identifiable {
 enum CalendarGridBuilder {
     /// 记录 → [日（startOfDay): 当日条数]
     static func countsByDay(_ records: [Record]) -> [Date: Int] {
-        Dictionary(grouping: records) { Calendar.current.startOfDay(for: $0.createdAt) }
+        Dictionary(grouping: records) { Calendar.current.startOfDay(for: $0.eventDate) }
             .mapValues(\.count)
     }
     /// 生成含 date 的月份的 7 列网格：月外占位格（nil）+ 当月每天，携带打卡数
@@ -253,10 +268,14 @@ final class CoreDataRecordRepository: RecordRepository {
     }
     private func reloadAll() { subjects.keys.forEach(reload) }
     private func reload(_ petID: UUID) {
+        subjects[petID]?.send((try? records(petID: petID)) ?? [])
+    }
+    /// 导出等流程必须保留读取错误，不能把读取失败当作空数据。
+    func records(petID: UUID) throws -> [Record] {
         let r = CDRecord.fetchRequest()
         r.predicate = NSPredicate(format: "petID == %@", petID as CVarArg)
         r.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        subjects[petID]?.send(((try? ctx.fetch(r)) ?? []).map(Record.init))
+        return try ctx.fetch(r).map(Record.init)
     }
     private func saveContext() throws {
         try stack.save()
@@ -295,23 +314,56 @@ final class CoreDataRecordRepository: RecordRepository {
             reminders.dropFirst().forEach(ctx.delete)
         } else { reminders.forEach(ctx.delete) }
     }
-    private func validate(_ record: Record) throws {
-        let relevantErrors = RecordValidator.errors(for: record, fields: record.kind == .checkup ? record.kind.fields : [])
+    private func validate(_ record: Record, original: Record? = nil) throws {
+        let relevantErrors = RecordValidator.errors(for: record, fields: record.kind == .checkup ? record.kind.fields : [], original: original)
         if let error = relevantErrors.first {
             throw NSError(domain: "PetPal.Record", code: 1, userInfo: [NSLocalizedDescriptionKey: error])
+        }
+    }
+    private func validateCompletion(_ record: Record) throws {
+        guard let reminderID = record.completedReminderID else {
+            guard record.completedDueAt == nil, record.completedDay == nil else { throw DataStoreError.missingItem }
+            return
+        }
+        let request = CDReminder.fetchRequest(); request.predicate = NSPredicate(format: "id == %@", reminderID as CVarArg)
+        guard let entity = try ctx.fetch(request).first, entity.petID == record.petID, entity.isEnabled,
+              let due = record.completedDueAt, let day = record.completedDay else { throw DataStoreError.missingItem }
+        let reminder = Reminder(entity)
+        let calendar = Calendar.current
+        let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
+        guard reminder.type.recordKind == record.kind, due < end,
+              day == ReminderTaskKey.day(rule: reminder.repeatRule, due: due),
+              ReminderRecurrence.dates(rule: reminder.repeatRule, hour: reminder.hour, minute: reminder.minute,
+                after: due.addingTimeInterval(-1), through: due, maximumCount: 1).first == due else {
+            throw NSError(domain: "PetPal.Record", code: 3, userInfo: [NSLocalizedDescriptionKey: "提醒已修改，请重新打开待办"])
+        }
+        if case .once = reminder.repeatRule {} else if due < calendar.startOfDay(for: reminder.trackingSince ?? Date()) {
+            throw DataStoreError.missingItem
+        }
+        let duplicate = CDRecord.fetchRequest()
+        duplicate.predicate = NSPredicate(format: "completedReminderID == %@ AND completedDay == %@ AND kind == %@", reminderID as CVarArg, day, record.kind.rawValue)
+        guard try ctx.count(for: duplicate) == 0 else {
+            throw NSError(domain: "PetPal.Record", code: 4, userInfo: [NSLocalizedDescriptionKey: "本次任务已完成，请查看完成记录"])
         }
     }
     func create(_ record: Record) throws {
         try validate(record)
         do {
+            try validateCompletion(record)
             record.apply(to: stack.insert(CDRecord.self)); try synchronizeDerivedData(record)
             try saveContext(); reload(record.petID)
         } catch { ctx.rollback(); throw error }
     }
     func update(_ record: Record) throws {
-        try validate(record)
         let request = CDRecord.fetchRequest(); request.predicate = NSPredicate(format: "id == %@", record.id as CVarArg)
         guard let e = try ctx.fetch(request).first, e.petID == record.petID else { throw DataStoreError.missingItem }
+        let original = Record(e)
+        try validate(record, original: original)
+        guard record.createdAt == original.createdAt,
+              record.completedReminderID == original.completedReminderID,
+              record.completedDueAt == original.completedDueAt, record.completedDay == original.completedDay else {
+            throw NSError(domain: "PetPal.Record", code: 2, userInfo: [NSLocalizedDescriptionKey: "记录的创建时间和任务关联不可更改"])
+        }
         do { record.apply(to: e); try synchronizeDerivedData(record); try saveContext(); reload(record.petID) }
         catch { ctx.rollback(); throw error }
     }
@@ -326,7 +378,7 @@ final class CoreDataRecordRepository: RecordRepository {
     }
 }
 
-private extension Record {   // 值类型 <-> CDRecord 映射
+extension Record {   // 值类型 <-> CDRecord 映射
     init(_ e: CDRecord) {
         self.init(id: e.id ?? UUID(), petID: e.petID ?? UUID(),
                   kind: RecordKind(rawValue: e.kind ?? "") ?? .feeding,
@@ -334,12 +386,15 @@ private extension Record {   // 值类型 <-> CDRecord 映射
                   photoFileNames: e.photoFileNames ?? [], templateName: e.templateName, templateID: e.templateID,
                   templateSnapshot: e.templateSnapshot.flatMap { try? JSONDecoder().decode(CustomTemplate.self, from: Data($0.utf8)) },
                   templateSchemaVersion: Int(e.templateSchemaVersion), createdAt: e.createdAt ?? Date(),
+                  occurredAt: e.occurredAt, completedReminderID: e.completedReminderID,
+                  completedDueAt: e.completedDueAt, completedDay: e.completedDay,
                   wantsNextReminder: e.wantsNextReminder, nextReminderHour: Int(e.nextReminderHour), nextReminderMinute: Int(e.nextReminderMinute))
     }
     func apply(to e: CDRecord) {
         e.id = id; e.petID = petID; e.kind = kind.rawValue; e.answers = answers
         e.note = note; e.mood = mood; e.photoFileNames = photoFileNames
-        e.templateName = templateName; e.createdAt = createdAt
+        e.templateName = templateName; e.createdAt = createdAt; e.occurredAt = occurredAt
+        e.completedReminderID = completedReminderID; e.completedDueAt = completedDueAt; e.completedDay = completedDay
         e.templateID = templateID; e.templateSchemaVersion = Int16(templateSchemaVersion)
         e.templateSnapshot = templateSnapshot.flatMap { try? JSONEncoder().encode($0) }.flatMap { String(data: $0, encoding: .utf8) }
         e.wantsNextReminder = wantsNextReminder; e.nextReminderHour = Int16(nextReminderHour); e.nextReminderMinute = Int16(nextReminderMinute)
@@ -369,6 +424,7 @@ private extension Record {   // 值类型 <-> CDRecord 映射
     private let savePhoto: (UIImage) -> String?
     /// 自定义模板记录传入 CustomTemplate.templateFields；nil 时按 draft.kind.fields 校验
     private let validationFields: [TemplateField]?
+    private let original: Record?
     /// 编辑模式被移除的已落盘照片，保存成功后清理文件
     private var removedPhotoFileNames: [String] = []
 
@@ -381,6 +437,7 @@ private extension Record {   // 值类型 <-> CDRecord 映射
         self.weightRepo = weightRepo
         self.validationFields = validationFields
         isEditing = false
+        original = nil
         draft = Record(petID: petID, kind: kind, templateName: templateName, templateID: templateSnapshot?.id,
                        templateSnapshot: templateSnapshot, templateSchemaVersion: templateSnapshot == nil ? 0 : 1)
     }
@@ -393,6 +450,7 @@ private extension Record {   // 值类型 <-> CDRecord 映射
         self.weightRepo = weightRepo
         self.validationFields = record.templateSnapshot?.templateFields ?? validationFields
         isEditing = true
+        original = record
         draft = record
     }
 
@@ -420,7 +478,7 @@ private extension Record {   // 值类型 <-> CDRecord 映射
     }
 
     @discardableResult func save() -> Bool {
-        errors = RecordValidator.errors(for: draft, fields: validationFields)
+        errors = RecordValidator.errors(for: draft, fields: validationFields, original: original)
         guard errors.isEmpty else { return false }
         // 新选照片压缩落盘（≤1080px、JPEG 0.8）；任一步失败回滚已写文件，不留孤儿
         var newNames: [String] = []
@@ -437,7 +495,7 @@ private extension Record {   // 值类型 <-> CDRecord 映射
         } catch {
             newNames.forEach(AvatarStore.delete(fileName:))
             draft.photoFileNames.removeAll { newNames.contains($0) }
-            errors = ["保存失败，请重试"]; return false
+            errors = ["保存失败：" + error.localizedDescription]; return false
         }
         removedPhotoFileNames.forEach(AvatarStore.delete(fileName:))
         return true

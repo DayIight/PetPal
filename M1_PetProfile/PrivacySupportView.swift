@@ -1,4 +1,22 @@
 import SwiftUI
+import UIKit
+
+enum SupportFeedback {
+    static func template(version: String, build: String, system: String, device: String) -> String {
+        """
+        PetPal 问题反馈
+        版本：\(version)（\(build)）
+        系统：\(system)
+        设备类型：\(device)（请补充具体型号）
+        发生时间：
+        操作步骤：1.  2.  3.
+        预期结果：
+        实际结果：
+        是否可以重复：
+        附件（可选，请遮盖私人信息）：
+        """
+    }
+}
 
 /// 正式发布前由运营方填入真实网址和联系信息；内置政策可离线阅读。
 enum ReleaseContact {
@@ -15,9 +33,10 @@ enum ReleaseContact {
 
 struct PrivacySupportView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var copied = false
     var body: some View {
         List {
-            Section("隐私政策 · 2026年10月6日") {
+            Section("隐私政策 · 2026年10月9日") {
                 Text("PetPal 帮助你在本机管理宠物档案、日常与健康记录、照片、提醒和成长报告。当前版本不提供账号、社区或 App 云同步，也不接入广告、跟踪或第三方统计服务。")
                 if let operatorName = ReleaseContact.value("PetPalOperatorName") {
                     Text("运营方：\(operatorName)")
@@ -33,7 +52,7 @@ struct PrivacySupportView: View {
                 Text("App 为生成报告检查可用磁盘空间，空间不足时显示错误。容量信息仅用于本机操作，不发送到设备外。桌面小组件通过系统 App Group 读取必要的宠物、头像和提醒快照。")
             }
             Section("导出、保存与删除") {
-                Text("导出 PDF 或完整备份时，文件会发送到你主动选择的存储位置或分享对象。备份含健康记录和照片，未加密，请保存在可信位置。文件 App 可能使用你启用的 iCloud 或第三方服务，其处理方式由对应服务提供方决定。")
+                Text("导出 PDF 或完整备份时，文件会发送到你主动选择的存储位置或分享对象。完整备份含全部档案字段（包括芯片号、兽医联系信息）、健康记录和照片，未加密，请保存在可信位置。文件 App 可能使用你启用的 iCloud 或第三方服务，其处理方式由对应服务提供方决定。")
                 Text("本机每周保存完整自动备份，保留最近两份。恢复时保留恢复前的数据库及其照片，便于诊断与回退。这些本机副本会随 App 卸载清除。")
                 Text("你可以在 App 中编辑宠物档案，删除宠物及其关联记录、体重和提醒。删除当前数据不会删除已导出的文件或历史备份；请在文件 App 中管理导出的副本。卸载 App 会清除容器内数据。系统整机备份及恢复能力由你的设备与系统设置决定。")
             }
@@ -46,6 +65,17 @@ struct PrivacySupportView: View {
                     Text("测试期间，请通过获取本 App 的测试渠道联系开发者。")
                 }
                 Text("联系时可提供版本与操作步骤。请先导出备份，并仅在需要时主动提供相关数据。")
+                Button("复制反馈模板") {
+                    UIPasteboard.general.string = SupportFeedback.template(
+                        version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0",
+                        build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1",
+                        system: UIDevice.current.systemName + " " + UIDevice.current.systemVersion,
+                        device: UIDevice.current.model)
+                    copied = true
+                }.accessibilityIdentifier("support.copyFeedback")
+                Text("模板只含版本、系统及设备类型，不会附带宠物资料，也不会自动发送。")
+                    .font(.footnote).foregroundStyle(.secondary)
+                if copied { Text("已复制，请补充问题步骤后通过测试渠道或支持入口发送。").accessibilityIdentifier("support.copied") }
                 Text("版本 \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")（\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1")）")
                     .font(.footnote).foregroundStyle(.secondary)
             }

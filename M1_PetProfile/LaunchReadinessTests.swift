@@ -1,7 +1,8 @@
 import XCTest
-import CoreData
+@preconcurrency import CoreData
 import Combine
 import UIKit
+import SQLite3
 @testable import PetPal
 
 final class LaunchMediaFailureTests: XCTestCase {
@@ -181,11 +182,13 @@ final class PortableBackupTests: XCTestCase {
         XCTAssertEqual(try CoreDataReminderRepository(stack: target).allReminders().first?.repeatRule, .weekly([2, 4]))
         XCTAssertEqual(defaults.string(forKey: "petpal.currentPetID"), selectedID.uuidString)
     }
-    private func assertRejected(_ data: Data) throws {
+    private func assertRejected(_ data: Data, expected: BackupError? = nil) throws {
         let target = stack("target-\(UUID())")
         try CoreDataPetRepository(stack: target).create(Pet(nickname: "原宠物", breed: "柯基"))
         let before = try FileManager.default.contentsOfDirectory(atPath: media.path)
-        XCTAssertThrowsError(try PortableBackup.restore(data, stack: target, mediaDirectory: media, defaults: defaults))
+        XCTAssertThrowsError(try PortableBackup.restore(data, stack: target, mediaDirectory: media, defaults: defaults)) { error in
+            if let expected { XCTAssertEqual(error as? BackupError, expected) }
+        }
         XCTAssertEqual(try target.container.viewContext.fetch(CDPet.fetchRequest()).map(\.nickname), ["原宠物"])
         XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: media.path)), Set(before))
     }
@@ -253,6 +256,198 @@ final class PortableBackupTests: XCTestCase {
         }
         XCTAssertEqual(try target.container.viewContext.fetch(CDPet.fetchRequest()).map(\.nickname), ["原宠物"])
         XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: media.path).isEmpty)
+    }
+    func test_oversizedImageDimensions_areRejectedWithoutReplacingData() throws {
+        let data = try populatedArchive().0
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        for size in [CGSize(width: PortableBackup.maxImageDimension + 1, height: 1),
+                     CGSize(width: PortableBackup.maxImageDimension, height: PortableBackup.maxImageDimension)] {
+            var archive = try JSONDecoder().decode(PortableBackup.self, from: data)
+            let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+                UIColor.orange.setFill(); context.fill(CGRect(origin: .zero, size: size))
+            }
+            archive.media[try XCTUnwrap(archive.media.keys.first)] = .init(try XCTUnwrap(image.pngData()))
+            try assertRejected(JSONEncoder().encode(archive), expected: .mediaBudget)
+        }
+    }
+    func test_excessMediaCount_isRejectedWithoutReplacingData() throws {
+        var archive = try JSONDecoder().decode(PortableBackup.self, from: populatedArchive().0)
+        let blob = try XCTUnwrap(archive.media.values.first)
+        archive.media = Dictionary(uniqueKeysWithValues: (0...PortableBackup.maxMediaCount).map { ("photo-\($0).jpg", blob) })
+        try assertRejected(JSONEncoder().encode(archive), expected: .mediaBudget)
+    }
+    func test_excessTotalPixels_isRejectedWithoutReplacingData() throws {
+        var archive = try JSONDecoder().decode(PortableBackup.self, from: populatedArchive().0)
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 2_000, height: 2_000), format: format).image { context in
+            UIColor.orange.setFill(); context.fill(CGRect(x: 0, y: 0, width: 2_000, height: 2_000))
+        }
+        let blob = PortableBackup.Blob(try XCTUnwrap(image.pngData()))
+        let count = PortableBackup.maxTotalImagePixels / 4_000_000 + 1
+        archive.media = Dictionary(uniqueKeysWithValues: (0..<count).map { ("photo-\($0).png", blob) })
+        try assertRejected(JSONEncoder().encode(archive), expected: .mediaBudget)
+    }
+    func test_imageBeyondEncodedByteBudget_isRejectedWithoutReplacingData() throws {
+        var archive = try JSONDecoder().decode(PortableBackup.self, from: populatedArchive().0)
+        var data = try XCTUnwrap(archive.media.values.first).data
+        data.append(Data(count: PortableBackup.maxImageBytes + 1 - data.count))
+        archive.media[try XCTUnwrap(archive.media.keys.first)] = .init(data)
+        try assertRejected(JSONEncoder().encode(archive), expected: .mediaBudget)
+    }
+    func test_malformedTransformableCollections_areRejectedBeforeTypedAccess() throws {
+        let data = try populatedArchive().0
+        let cases: [(String, String, Any)] = [
+            ("CDPet", "allergens", NSArray(array: [NSNumber(value: 42)])),
+            ("CDRecord", "photoFileNames", NSArray(array: [NSNumber(value: 42)])),
+            ("CDRecord", "answers", NSDictionary(dictionary: ["weightKg": NSNumber(value: 42)])),
+            ("CDRecord", "answers", NSDictionary(dictionary: ["nested": NSArray(array: ["8"])])),
+            ("CDRecord", "answers", NSArray(array: ["8"])),
+            ("CDRecord", "photoFileNames", NSDictionary(dictionary: ["photo": "example.jpg"]))
+        ]
+        for (entity, key, value) in cases {
+            var archive = try JSONDecoder().decode(PortableBackup.self, from: data)
+            let url = directory.appendingPathComponent("collections-\(UUID()).sqlite")
+            try archive.database.data.write(to: url)
+            let tampered = CoreDataStack(storeURL: url); stacks.append(tampered)
+            tampered.container.viewContext.reset()
+            for store in tampered.container.persistentStoreCoordinator.persistentStores {
+                try tampered.container.persistentStoreCoordinator.remove(store)
+            }
+            // 直接篡改 BLOB，绕过 Core Data setter 的根类型约束，模拟导入的不可信 SQLite。
+            try replaceCollectionBlob(at: url, entity: entity, key: key, value: value)
+            archive.database = .init(try Data(contentsOf: url))
+            try assertRejected(JSONEncoder().encode(archive))
+        }
+    }
+    private func replaceCollectionBlob(at url: URL, entity: String, key: String, value: Any) throws {
+        let data = try NSKeyedArchiver.archivedData(withRootObject: value, requiringSecureCoding: true)
+        var database: OpaquePointer?
+        guard sqlite3_open_v2(url.path, &database, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK else {
+            if let database { sqlite3_close(database) }
+            throw NSError(domain: "BackupFixtureSQLite", code: 1)
+        }
+        defer { sqlite3_close(database) }
+        var statement: OpaquePointer?
+        // entity/key 来自上方固定测试集合，不接受外部输入。
+        let table = "Z" + entity.uppercased()
+        let column = "Z" + key.uppercased()
+        let sql = "UPDATE \(table) SET \(column) = ? WHERE Z_PK = (SELECT MIN(Z_PK) FROM \(table))"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK else {
+            throw NSError(domain: "BackupFixtureSQLite", code: 2)
+        }
+        defer { sqlite3_finalize(statement) }
+        let result = data.withUnsafeBytes { bytes in
+            sqlite3_bind_blob(statement, 1, bytes.baseAddress, Int32(data.count), unsafeBitCast(-1, to: sqlite3_destructor_type.self))
+            return sqlite3_step(statement)
+        }
+        guard result == SQLITE_DONE, sqlite3_changes(database) == 1 else {
+            throw NSError(domain: "BackupFixtureSQLite", code: 3)
+        }
+    }
+    func test_discardedPreparedRestore_removesStagedMediaAndLeavesLiveData() throws {
+        let data = try populatedArchive().0
+        let target = stack("preparedTarget")
+        try CoreDataPetRepository(stack: target).create(Pet(nickname: "原宠物", breed: "柯基"))
+        let before = Set(try FileManager.default.contentsOfDirectory(atPath: media.path))
+        var prepared: PortableBackup.PreparedRestore? = try PortableBackup.prepareRestore(data,
+            model: target.container.managedObjectModel, mediaDirectory: media)
+        let temporary = try XCTUnwrap(prepared?.directory)
+        XCTAssertFalse(try XCTUnwrap(prepared?.newFiles).isEmpty)
+        XCTAssertGreaterThan(try FileManager.default.contentsOfDirectory(atPath: media.path).count, before.count)
+        prepared = nil
+        XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: media.path)), before)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: temporary.path))
+        XCTAssertEqual(try target.container.viewContext.fetch(CDPet.fetchRequest()).map(\.nickname), ["原宠物"])
+    }
+    @MainActor func test_asyncRestore_preservesCompleteBackupAndReleasesWriteGate() async throws {
+        let (data, selectedID, _) = try populatedArchive()
+        let target = stack("asyncTarget")
+        var commitOnMainThread = false
+        try await PortableBackup.restoreAsync(data, stack: target, mediaDirectory: media, defaults: defaults,
+            willCommit: { commitOnMainThread = Thread.isMainThread })
+        XCTAssertTrue(commitOnMainThread)
+        XCTAssertFalse(target.backupInProgress)
+        XCTAssertEqual(try target.container.viewContext.count(for: CDPet.fetchRequest()), 2)
+        XCTAssertEqual(defaults.string(forKey: "petpal.currentPetID"), selectedID.uuidString)
+    }
+    @MainActor func test_cancelledAsyncRestore_keepsLiveDataAndReleasesWriteGate() async throws {
+        let data = try populatedArchive().0
+        let target = stack("cancelTarget")
+        try CoreDataPetRepository(stack: target).create(Pet(nickname: "原宠物", breed: "柯基"))
+        let before = Set(try FileManager.default.contentsOfDirectory(atPath: media.path))
+        let task = Task { @MainActor in
+            try await PortableBackup.restoreAsync(data, stack: target, mediaDirectory: media, defaults: defaults)
+        }
+        task.cancel()
+        do { try await task.value; XCTFail("取消的恢复不应提交") }
+        catch is CancellationError {} catch { XCTFail("应返回取消：\(error)") }
+        XCTAssertFalse(target.backupInProgress)
+        XCTAssertEqual(try target.container.viewContext.fetch(CDPet.fetchRequest()).map(\.nickname), ["原宠物"])
+        XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: media.path)), before)
+    }
+    @MainActor func test_asyncCreate_restoresSuccessfully() async throws {
+        _ = try populatedArchive()
+        let source = try XCTUnwrap(stacks.first)
+        let data = try await PortableBackup.createAsync(stack: source, mediaDirectory: media, defaults: defaults)
+        XCTAssertFalse(source.backupInProgress)
+        let target = stack("asyncExportTarget")
+        try await PortableBackup.restoreAsync(data, stack: target, mediaDirectory: media, defaults: defaults)
+        XCTAssertEqual(try target.container.viewContext.count(for: CDRecord.fetchRequest()), 2)
+    }
+    @MainActor func test_asyncAutomaticBackup_coalescesAndPreservesLastSuccessOnFailure() async throws {
+        let source = stack("asyncAutoSource")
+        let pet = Pet(nickname: "自动备份", breed: "柯基")
+        let repo = CoreDataPetRepository(stack: source); try repo.create(pet)
+        let backups = directory.appendingPathComponent("AsyncBackups")
+        try FileManager.default.createDirectory(at: backups, withIntermediateDirectories: true)
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let first = try XCTUnwrap(DatabaseBackupManager.scheduleBackupIfDue(stack: source, defaults: defaults,
+            now: now, directory: backups, mediaDirectory: media))
+        let duplicate = try XCTUnwrap(DatabaseBackupManager.scheduleBackupIfDue(stack: source, defaults: defaults,
+            now: now, directory: backups, mediaDirectory: media))
+        await first.value; await duplicate.value
+        XCTAssertEqual(try DatabaseBackupManager.completeBackups(in: backups).count, 1)
+        XCTAssertEqual(defaults.object(forKey: "PetPal.lastCompleteBackupDate") as? Date, now)
+        XCTAssertNil(defaults.string(forKey: "PetPal.lastBackupError"))
+        XCTAssertNil(DatabaseBackupManager.scheduleBackupIfDue(stack: source, defaults: defaults,
+            now: now, directory: backups, mediaDirectory: media))
+        var broken = pet; broken.avatarFileName = "missing.jpg"; try repo.update(broken)
+        let failed = try XCTUnwrap(DatabaseBackupManager.scheduleBackupIfDue(stack: source, defaults: defaults,
+            now: now.addingTimeInterval(DatabaseBackupManager.interval), directory: backups, mediaDirectory: media))
+        await failed.value
+        XCTAssertNotNil(defaults.string(forKey: "PetPal.lastBackupError"))
+        XCTAssertEqual(defaults.object(forKey: "PetPal.lastCompleteBackupDate") as? Date, now)
+        XCTAssertFalse(source.backupInProgress)
+        XCTAssertEqual(try DatabaseBackupManager.completeBackups(in: backups).count, 1)
+    }
+    func test_backgroundBackupGate_rejectsWritesAndRollsBackContext() throws {
+        let target = stack("gateTarget")
+        let repo = CoreDataPetRepository(stack: target)
+        try target.beginBackupOperation()
+        XCTAssertThrowsError(try repo.create(Pet(nickname: "未保存宠物", breed: "柯基")))
+        XCTAssertFalse(target.container.viewContext.hasChanges)
+        target.endBackupOperation()
+        try repo.create(Pet(nickname: "重试宠物", breed: "柯基"))
+        XCTAssertEqual(try target.container.viewContext.fetch(CDPet.fetchRequest()).map(\.nickname), ["重试宠物"])
+    }
+    @MainActor func test_backgroundCancellationAfterPreparation_cleansFilesWithoutCommit() async throws {
+        let data = try populatedArchive().0
+        let target = stack("lateCancelTarget")
+        let model = target.container.managedObjectModel
+        let mediaDirectory = try XCTUnwrap(media)
+        let before = Set(try FileManager.default.contentsOfDirectory(atPath: mediaDirectory.path))
+        do {
+            let _: PortableBackup.PreparedRestore = try await PortableBackup.background { cancellation in
+                XCTAssertFalse(Thread.isMainThread)
+                let prepared = try PortableBackup.prepareRestore(data, model: model, mediaDirectory: mediaDirectory, cancellation: cancellation)
+                cancellation.cancel()
+                try cancellation.check()
+                return prepared
+            }
+            XCTFail("准备完成后取消也不应提交")
+        } catch is CancellationError {} catch { XCTFail("应返回取消：\(error)") }
+        XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: mediaDirectory.path)), before)
+        XCTAssertEqual(try target.container.viewContext.count(for: CDPet.fetchRequest()), 0)
     }
     func test_corruptDatabaseHash_isRejectedWithoutReplacingData() throws {
         var archive = try JSONDecoder().decode(PortableBackup.self, from: populatedArchive().0)

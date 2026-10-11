@@ -7,6 +7,7 @@ struct PetManagementView: View {
     @ObservedObject var petListVM: PetListViewModel
     @ObservedObject var currentPet: CurrentPetStore
     var onShowBackup: (() -> Void)? = nil
+    var onShowOnboarding: (() -> Void)? = nil
     @StateObject private var router = DeepLinkRouter.shared
     @State private var showAddPet = false
     @State private var showDashboard = false
@@ -136,6 +137,10 @@ struct PetManagementView: View {
         CardContainer {
             VStack(alignment: .leading, spacing: DS.Spacing.sm) {
                 Text("功能入口").font(.headline)
+                if let onShowOnboarding {
+                    featureRow("使用引导", icon: "list.bullet.clipboard", hint: "查看建档、记录、提醒和备份说明", action: onShowOnboarding)
+                        .accessibilityIdentifier("profile.onboarding")
+                }
                 featureRow("数据备份", icon: "externaldrive", hint: "导出完整备份或从文件恢复数据") {
                     if let onShowBackup { onShowBackup() } else { showBackup = true }
                 }

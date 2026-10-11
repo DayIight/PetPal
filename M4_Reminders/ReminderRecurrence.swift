@@ -116,3 +116,15 @@ enum ReminderRecurrence {
         return result
     }
 }
+
+/// 与 Widget 共用的任务身份；一次性任务不因时区改变而改变身份。
+enum ReminderTaskKey {
+    static func day(rule: RepeatRule, due: Date, calendar: Calendar = .current) -> String {
+        if case .once = rule { return "once:\(due.timeIntervalSinceReferenceDate)" }
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = calendar.timeZone
+        let c = gregorian.dateComponents([.year, .month, .day, .hour, .minute], from: due)
+        return String(format: "%04d-%02d-%02dT%02d:%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0)
+    }
+    static func make(reminderID: UUID, day: String, type: String) -> String { "\(reminderID.uuidString)#\(day)#\(type)" }
+}

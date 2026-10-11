@@ -77,18 +77,24 @@ protocol PetRepository: AnyObject {
 }
 
 enum DataStoreError: LocalizedError {
-    case missingItem
-    var errorDescription: String? { "数据已不存在，请刷新后重试。" }
+    case missingItem, backupInProgress
+    var errorDescription: String? {
+        switch self {
+        case .missingItem: return "数据已不存在，请刷新后重试。"
+        case .backupInProgress: return "正在处理备份，请稍候重试保存。"
+        }
+    }
 }
 
-final class CoreDataStack {
-    static let shared = CoreDataStack()
+final class CoreDataStack: ObservableObject {
+    static let shared = CoreDataStack(inMemory: PreviewFixtures.enabled)
     let container: NSPersistentContainer
     /// 持久化加载失败时非 nil（H-03：不再静默吞错，UI 层据此展示错误态）
     private(set) var loadError: Error?
     /// sqlite store 的磁盘 URL（inMemory 为 nil；GAP-06 备份据此取源文件）
     var storeURL: URL? { container.persistentStoreDescriptions.first?.url }
     private let saveHandler: (NSManagedObjectContext) throws -> Void
+    @Published private(set) var backupInProgress = false
     init(inMemory: Bool = false, storeURL: URL? = nil,
          saveHandler: @escaping (NSManagedObjectContext) throws -> Void = { try $0.save() }) {
         self.saveHandler = saveHandler
@@ -106,15 +112,29 @@ final class CoreDataStack {
             }
         }
         if loadError == nil {
-            do { try HealthDataMigration.linkLegacyWeights(in: container.viewContext); if container.viewContext.hasChanges { try save() } }
+            do {
+                try HealthDataMigration.runIfNeeded(in: container.viewContext, save: { try self.save() })
+                try ReminderTaskMigration.runIfNeeded(in: container.viewContext, save: { try self.save() })
+            }
             catch { container.viewContext.rollback(); NSLog("旧体重来源补全失败：%@", error.localizedDescription) }
         }
     }
     func setLoadError(_ error: Error?) { loadError = error }
 
+    /// 仅在主队列改变状态。后台备份期间阻止提交与媒体删除交错。
+    func beginBackupOperation() throws {
+        guard !backupInProgress else { throw DataStoreError.backupInProgress }
+        guard !container.viewContext.hasChanges else { throw BackupError.unsavedChanges }
+        backupInProgress = true
+    }
+    func endBackupOperation() { backupInProgress = false }
+
     /// 保存失败必须撤销本次上下文变更，防止后续操作把失败的草稿一起写入。
     func save() throws {
-        do { try saveHandler(container.viewContext) }
+        do {
+            guard !backupInProgress else { throw DataStoreError.backupInProgress }
+            try saveHandler(container.viewContext)
+        }
         catch { container.viewContext.rollback(); throw error }
     }
 

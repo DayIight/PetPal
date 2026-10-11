@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - 记录模板选择（预设 7 类图标网格 + 已有自定义模板 + 模板管理入口）
+// MARK: - 记录模板选择（预设 8 类图标网格 + 已有自定义模板 + 模板管理入口）
 struct RecordTemplatePickerView: View {
     let pet: Pet?
     @State private var templates: [CustomTemplate] = []
@@ -89,7 +89,6 @@ struct RecordTemplatePickerView: View {
             .background(Color.pageBackground)
             .navigationTitle("记一条日常")
             .navigationBarTitleDisplayMode(.inline)
-            .presentationDetents([.medium, .large])
             .navigationDestination(for: Destination.self) { destination in
                 switch destination {
                 case .preset(let kind):
@@ -105,5 +104,6 @@ struct RecordTemplatePickerView: View {
             .sheet(isPresented: $showTemplates) { TemplateListView() }
             .onAppear { templates = (try? templateRepo.all()) ?? [] }
         }
+        .presentationDetents([.large])
     }
 }

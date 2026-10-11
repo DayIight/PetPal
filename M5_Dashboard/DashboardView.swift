@@ -10,9 +10,7 @@ struct DashboardView: View {
     @StateObject private var timeline: HealthTimelineModel
     private let weightRepo: WeightRepository
     @State private var showWeights = false
-    @State private var shareItem: PDFShareItem?
-    @State private var showSpaceAlert = false
-    @State private var exportError: String?
+    @State private var showReportOptions = false
 
     init(pet: Pet, pets: [Pet]) {
         self.pet = pet
@@ -41,27 +39,14 @@ struct DashboardView: View {
             .navigationTitle("成长看板")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("导出PDF", action: exportPDF)
-                        .a11y("导出PDF", hint: "生成\(pet.nickname)的成长报告并打开分享面板")
+                    Button("导出PDF") { showReportOptions = true }
+                        .a11y("导出PDF", hint: "生成\(pet.nickname)的就医报告，可选择日期范围")
                         .accessibilityIdentifier("dashboard.exportPDF")
                 }
             }
             .sheet(isPresented: $showWeights) { WeightHistoryView(pet: pet, pets: pets) }
-            .sheet(item: $shareItem) { item in
-                ActivityView(activityItems: [item.url])
-                    .ignoresSafeArea()
-                    .a11y("分享成长报告", hint: "通过系统分享面板发送PDF")
-            }
-            .alert("存储空间不足", isPresented: $showSpaceAlert) {
-                Button("好", role: .cancel) {}
-            } message: {
-                Text("可用存储空间不足，无法生成PDF。请先清理空间后重试。")
-            }
-            .alert("导出失败", isPresented: .init(get: { exportError != nil },
-                                                  set: { if !$0 { exportError = nil } })) {
-                Button("好", role: .cancel) {}
-            } message: {
-                Text(exportError ?? "请重试")
+            .sheet(isPresented: $showReportOptions) {
+                MedicalReportOptionsView(pet: pet, export: exportPDF)
             }
         }
     }
@@ -164,10 +149,10 @@ struct DashboardView: View {
     private var timelineSection: some View {
         CardContainer {
             VStack(alignment: .leading, spacing: DS.Spacing.md) {
-                Text("疫苗与体检").font(.headline)
+                Text("疫苗、驱虫与体检").font(.headline)
                     .accessibilityIdentifier("dashboard.timeline")
                 if timeline.events.isEmpty {
-                    Text("暂无疫苗或体检记录")
+                    Text("暂无疫苗、驱虫或体检记录")
                         .font(.body).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, minHeight: 60)
                         .accessibilityIdentifier("dashboard.timelineEmpty")
@@ -191,6 +176,17 @@ struct DashboardView: View {
                 }
                 Text(event.date, formatter: RecordAnswerDate.display)
                     .font(.caption).foregroundStyle(.secondary)
+                if let due = event.nextDue {
+                    TimelineView(.periodic(from: Date(), by: 60)) { context in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("下次：" + due.formatted(date: .abbreviated, time: event.hasNotification ? .shortened : .omitted))
+                            if let status = event.nextStatus(now: context.date) {
+                                Text("下次计划：" + status.rawValue + (event.nextPaused ? " · 通知已暂停" : (event.hasNotification ? "" : " · 未设置通知")))
+                                    .foregroundStyle(statusColor(status))
+                            }
+                        }.font(.caption)
+                    }
+                }
             }
             Spacer(minLength: DS.Spacing.sm)
             Text(event.status.rawValue)
@@ -214,34 +210,13 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: ④ PDF 导出
-    private func exportPDF() {
+    // MARK: ④ 同一宠物、同一日期范围的完整报告
+    private func exportPDF(range: ReportDateRange?) throws -> URL {
         guard DashboardPDFBuilder.hasEnoughSpace() else {
-            showSpaceAlert = true
-            return
+            throw NSError(domain: "PetPal.Report", code: 2, userInfo: [NSLocalizedDescriptionKey: "可用存储空间不足，请清理后重试。"])
         }
-        let names = Dictionary(uniqueKeysWithValues: (pets.isEmpty ? [pet] : pets).map { ($0.id, $0.nickname) })
-        let samples = vm.selectedPetIDs
-            .flatMap { (try? weightRepo.samples(petID: $0)) ?? [] }
-            .sorted { $0.date > $1.date }
-        let image = chartSnapshot()
-        do {
-            let url = try DashboardPDFBuilder.makeDocument(
-                pet: pet, names: names, samples: samples, chartImage: image)
-            shareItem = PDFShareItem(url: url)
-        } catch {
-            exportError = error.localizedDescription
-        }
-    }
-
-    /// 用 ImageRenderer 将折线图渲染为位图嵌入 PDF 第二页
-    @MainActor private func chartSnapshot() -> UIImage {
-        let content = WeightLineChart(vm: vm)
-            .frame(width: 540, height: 260)
-            .padding(DS.Spacing.md)
-            .background(Color.white)
-        let renderer = ImageRenderer(content: content)
-        renderer.scale = 2
-        return renderer.uiImage ?? UIImage()
+        let samples = try weightRepo.samples(petID: pet.id)
+        let records = try CoreDataRecordRepository().records(petID: pet.id)
+        return try DashboardPDFBuilder.makeDocument(report: MedicalReport(pet: pet, range: range, weights: samples, records: records))
     }
 }

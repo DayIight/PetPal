@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		09B22913034049919FCD6971 /* SelectWidgetPetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E635B0A52969F7A8A2E41 /* SelectWidgetPetIntent.swift */; };
 		0CEF993F05F6BDDEEED3369F /* DashboardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A689F4688B2962236695DEBB /* DashboardTests.swift */; };
+		0DAEB95B72FCDE4B2B1D8D62 /* ReminderTasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F8D932C2610942F6815AEFF /* ReminderTasks.swift */; };
+		10D05575DDB772F205E8DE36 /* Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EEF5E7AB505A0234E0E88F6 /* Onboarding.swift */; };
 		14C663209B5285D01065D5EA /* AvatarPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 638FA20AFF53D669855AABB4 /* AvatarPickerView.swift */; };
 		17B6D6D96E2CCDD987EDED79 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CB9BB611812E16745808CB0 /* WidgetSnapshot.swift */; };
 		197C99160E1B36455B6C29F6 /* DashboardHealthTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F723769C5954A630E18C99 /* DashboardHealthTimeline.swift */; };
@@ -28,15 +30,18 @@
 		5C6BB14CFCAF12F626D927A5 /* SelectWidgetPetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E635B0A52969F7A8A2E41 /* SelectWidgetPetIntent.swift */; };
 		60575D06A98522EA76235052 /* ReminderListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C69716F59C3ED03ED3E6845A /* ReminderListView.swift */; };
 		64C257077947ED98AEA7B232 /* WidgetSnapshotSyncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36A66C873B7051E3AC7C421 /* WidgetSnapshotSyncer.swift */; };
+		6773BE93F8BB4DE15D1EE3C0 /* OnboardingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E602CBF2BA05B44CCFD80E76 /* OnboardingTests.swift */; };
 		768CBDEE9285DF87B06DA791 /* PrivacySupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6C3BD5E7C1F5D776C07AD03 /* PrivacySupportView.swift */; };
 		76C7347974A0B4E088001AEB /* MoodPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC9798564C3F1B615D1DD0FC /* MoodPicker.swift */; };
 		8BA20D6D782910E72EA65029 /* PrototypeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514280BD0DC1990D33E47F91 /* PrototypeUITests.swift */; };
 		8D658E8E5702F97F4823B591 /* ReminderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AF695281430122AC6C5CDB0 /* ReminderTests.swift */; };
+		8D9167D3B3A8290E38B353A6 /* MedicalReportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C58A46A409FB24E2DA445DA /* MedicalReportTests.swift */; };
 		9129A8B47DCA4BBC143F45A2 /* ReminderRecurrence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 231790B56363B77742DA3C42 /* ReminderRecurrence.swift */; };
 		96B00EC79DEEF5A4A036287A /* WidgetSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD8A854CB49467B0FB4D804 /* WidgetSnapshotTests.swift */; };
 		993C71EFE86F679D24B96FE1 /* RecordsHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3C32D44F582D8D1B4F76522 /* RecordsHomeView.swift */; };
 		9B2D0BAC60818E05E77C6F7F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 36E1E2F657DE2AC0079966CE /* PrivacyInfo.xcprivacy */; };
 		9E1E4C00BF420D7323B626C9 /* WeightUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32FBF3AD85F341F72AE04D11 /* WeightUITests.swift */; };
+		9F8C9342A27226BDB9DA8E97 /* ReleaseFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B057A720A774FAD26D8222 /* ReleaseFlowUITests.swift */; };
 		A8014D081D786A8517083849 /* PetPal.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 7A475C7DCF4F5D2651ED771E /* PetPal.xcdatamodeld */; };
 		A8AD2DFFD47B2362263F3BFB /* DashboardPDF.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652C82DC03DB39748919918F /* DashboardPDF.swift */; };
 		B0185C77163B2CA553294972 /* LaunchFollowupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 882520852231F27F27775564 /* LaunchFollowupTests.swift */; };
@@ -45,6 +50,7 @@
 		BC2870F1D8FB29ADC68D0292 /* WidgetPetPaging.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD349923AE20D8ACAB2D2A73 /* WidgetPetPaging.swift */; };
 		BC7C0F1C967A900961BACA8D /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CB9BB611812E16745808CB0 /* WidgetSnapshot.swift */; };
 		BFE7FACCC09847413729522F /* DesignSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B3F913B76568DA44CA203C /* DesignSkeleton.swift */; };
+		C231810068067E00FF104722 /* RecordTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EC3B47DAD00D1284185815C /* RecordTaskTests.swift */; };
 		C7F8BD2DE1C7894FD1312C98 /* PetPalWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E865EEEFEC8FF4CFEEA25FF9 /* PetPalWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CE1258296DACEF7A1C89C8D3 /* PetPalWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8860B53A8CC4318ABB10963A /* PetPalWidget.swift */; };
 		D1AD010CBCE485C2F7B8F0BF /* RecordTemplatePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD61F5B1C0BFDE1DB7FD61BC /* RecordTemplatePickerView.swift */; };
@@ -52,6 +58,8 @@
 		DF36CC2204BC51019B5120A7 /* DailyRecordSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C4AC5B6D6CF0E52BD922895 /* DailyRecordSkeleton.swift */; };
 		E10A42A3EEA5E300F231171E /* DashboardSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA805538E1D91758540E5791 /* DashboardSkeleton.swift */; };
 		E2FC5B0A614136653CDDB921 /* RecordCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969BB8C2A81440E13248D107 /* RecordCalendarView.swift */; };
+		E5EAC8CF15E161A33BD9D5CE /* PreviewFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20BBBC2B27424CBDEACD6A2 /* PreviewFixtures.swift */; };
+		E8014AB4E92319319C13A979 /* MedicalReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 691488F6DAD29CAF1A21E578 /* MedicalReport.swift */; };
 		E81166DDD1AED9A81C7FE950 /* CustomTemplateViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95E1C208BFD299769C5A0659 /* CustomTemplateViews.swift */; };
 		EE24DBB45363EF8F219581FA /* LaunchReadinessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41F6BA29D5EF28BF4939F651 /* LaunchReadinessTests.swift */; };
 		F4EBA71490C24B057BC7482F /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5107971C455CCBD90CE5B14C /* DashboardView.swift */; };
@@ -105,12 +113,16 @@
 		080694A79B7A09DB89C006DF /* PetPalV2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = PetPalV2.xcdatamodel; sourceTree = "<group>"; };
 		1455F5DA037FC0F79B8720D9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1C21F0F43CDF0C0430E01969 /* PetProfileSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetProfileSkeleton.swift; sourceTree = "<group>"; };
+		1EC3B47DAD00D1284185815C /* RecordTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordTaskTests.swift; sourceTree = "<group>"; };
 		1EEA6E5FB5C6B6E10C1D418D /* DatabaseBackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseBackupManager.swift; sourceTree = "<group>"; };
+		1EEF5E7AB505A0234E0E88F6 /* Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Onboarding.swift; sourceTree = "<group>"; };
 		231790B56363B77742DA3C42 /* ReminderRecurrence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderRecurrence.swift; sourceTree = "<group>"; };
+		26B057A720A774FAD26D8222 /* ReleaseFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseFlowUITests.swift; sourceTree = "<group>"; };
 		287527DC73AE50968AC7F88B /* PortableBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortableBackup.swift; sourceTree = "<group>"; };
 		32FBF3AD85F341F72AE04D11 /* WeightUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightUITests.swift; sourceTree = "<group>"; };
 		356CDE184AF9CA1B99B813CE /* PetPalSocial.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = PetPalSocial.icon; sourceTree = "<group>"; };
 		36E1E2F657DE2AC0079966CE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		3C58A46A409FB24E2DA445DA /* MedicalReportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicalReportTests.swift; sourceTree = "<group>"; };
 		41F6BA29D5EF28BF4939F651 /* LaunchReadinessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchReadinessTests.swift; sourceTree = "<group>"; };
 		46197EDEEB9B441AB777C91F /* PrototypeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeApp.swift; sourceTree = "<group>"; };
 		4E0D954C513BB1D6DE8B7C23 /* WeightFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightFormView.swift; sourceTree = "<group>"; };
@@ -119,6 +131,7 @@
 		614FEEDCE9B4F0F53903033B /* DashboardCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCharts.swift; sourceTree = "<group>"; };
 		638FA20AFF53D669855AABB4 /* AvatarPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarPickerView.swift; sourceTree = "<group>"; };
 		652C82DC03DB39748919918F /* DashboardPDF.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardPDF.swift; sourceTree = "<group>"; };
+		691488F6DAD29CAF1A21E578 /* MedicalReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicalReport.swift; sourceTree = "<group>"; };
 		6F85A3A6A797D7CA6E00F5AD /* PetPal.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = PetPal.xcdatamodel; sourceTree = "<group>"; };
 		70ADFF6C5DD4685A722827FD /* PetPalTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PetPalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7AF695281430122AC6C5CDB0 /* ReminderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderTests.swift; sourceTree = "<group>"; };
@@ -131,6 +144,8 @@
 		958F6C579A173F555594EE6E /* PetFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetFormView.swift; sourceTree = "<group>"; };
 		95E1C208BFD299769C5A0659 /* CustomTemplateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomTemplateViews.swift; sourceTree = "<group>"; };
 		969BB8C2A81440E13248D107 /* RecordCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordCalendarView.swift; sourceTree = "<group>"; };
+		9F8D932C2610942F6815AEFF /* ReminderTasks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderTasks.swift; sourceTree = "<group>"; };
+		A20BBBC2B27424CBDEACD6A2 /* PreviewFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewFixtures.swift; sourceTree = "<group>"; };
 		A47EB955B85E196682B3EA9C /* ReminderSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderSkeleton.swift; sourceTree = "<group>"; };
 		A689F4688B2962236695DEBB /* DashboardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardTests.swift; sourceTree = "<group>"; };
 		AD0849DB35EEE7631A9BED42 /* PetPal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PetPal.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -145,9 +160,11 @@
 		C40E635B0A52969F7A8A2E41 /* SelectWidgetPetIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectWidgetPetIntent.swift; sourceTree = "<group>"; };
 		C69716F59C3ED03ED3E6845A /* ReminderListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderListView.swift; sourceTree = "<group>"; };
 		D6C3BD5E7C1F5D776C07AD03 /* PrivacySupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacySupportView.swift; sourceTree = "<group>"; };
+		D7964764097F2A08A435189C /* PetPalV3.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = PetPalV3.xcdatamodel; sourceTree = "<group>"; };
 		D973295CF3382B4F15F21CCB /* PresetRecordFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetRecordFormView.swift; sourceTree = "<group>"; };
 		DC1F057C078BFB07E5B81C25 /* ReminderFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderFormView.swift; sourceTree = "<group>"; };
 		DCD8A854CB49467B0FB4D804 /* WidgetSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotTests.swift; sourceTree = "<group>"; };
+		E602CBF2BA05B44CCFD80E76 /* OnboardingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTests.swift; sourceTree = "<group>"; };
 		E865EEEFEC8FF4CFEEA25FF9 /* PetPalWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PetPalWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0305E31F2AD66A0E96335B6 /* CoreDataEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataEntities.swift; sourceTree = "<group>"; };
 		FA805538E1D91758540E5791 /* DashboardSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardSkeleton.swift; sourceTree = "<group>"; };
@@ -169,10 +186,12 @@
 		17D753419DE02F3824307A6C /* M4_Reminders */ = {
 			isa = PBXGroup;
 			children = (
+				1EC3B47DAD00D1284185815C /* RecordTaskTests.swift */,
 				DC1F057C078BFB07E5B81C25 /* ReminderFormView.swift */,
 				C69716F59C3ED03ED3E6845A /* ReminderListView.swift */,
 				231790B56363B77742DA3C42 /* ReminderRecurrence.swift */,
 				A47EB955B85E196682B3EA9C /* ReminderSkeleton.swift */,
+				9F8D932C2610942F6815AEFF /* ReminderTasks.swift */,
 				7AF695281430122AC6C5CDB0 /* ReminderTests.swift */,
 			);
 			path = M4_Reminders;
@@ -216,8 +235,10 @@
 		4449376F51275880F5E921A3 /* M7_Prototype */ = {
 			isa = PBXGroup;
 			children = (
+				A20BBBC2B27424CBDEACD6A2 /* PreviewFixtures.swift */,
 				46197EDEEB9B441AB777C91F /* PrototypeApp.swift */,
 				514280BD0DC1990D33E47F91 /* PrototypeUITests.swift */,
+				26B057A720A774FAD26D8222 /* ReleaseFlowUITests.swift */,
 				4E0D954C513BB1D6DE8B7C23 /* WeightFormView.swift */,
 				32FBF3AD85F341F72AE04D11 /* WeightUITests.swift */,
 			);
@@ -259,6 +280,8 @@
 				FA805538E1D91758540E5791 /* DashboardSkeleton.swift */,
 				A689F4688B2962236695DEBB /* DashboardTests.swift */,
 				5107971C455CCBD90CE5B14C /* DashboardView.swift */,
+				691488F6DAD29CAF1A21E578 /* MedicalReport.swift */,
+				3C58A46A409FB24E2DA445DA /* MedicalReportTests.swift */,
 			);
 			path = M5_Dashboard;
 			sourceTree = "<group>";
@@ -312,6 +335,8 @@
 			children = (
 				22C0A4445CA820A413043D71 /* AppIcon */,
 				B3B3F913B76568DA44CA203C /* DesignSkeleton.swift */,
+				1EEF5E7AB505A0234E0E88F6 /* Onboarding.swift */,
+				E602CBF2BA05B44CCFD80E76 /* OnboardingTests.swift */,
 			);
 			path = M6_Design;
 			sourceTree = "<group>";
@@ -472,7 +497,10 @@
 				0CEF993F05F6BDDEEED3369F /* DashboardTests.swift in Sources */,
 				B0185C77163B2CA553294972 /* LaunchFollowupTests.swift in Sources */,
 				EE24DBB45363EF8F219581FA /* LaunchReadinessTests.swift in Sources */,
+				8D9167D3B3A8290E38B353A6 /* MedicalReportTests.swift in Sources */,
+				6773BE93F8BB4DE15D1EE3C0 /* OnboardingTests.swift in Sources */,
 				B64DE1B12D78D93A4E975B34 /* PetProfileTests.swift in Sources */,
+				C231810068067E00FF104722 /* RecordTaskTests.swift in Sources */,
 				8D658E8E5702F97F4823B591 /* ReminderTests.swift in Sources */,
 				96B00EC79DEEF5A4A036287A /* WidgetSnapshotTests.swift in Sources */,
 			);
@@ -483,6 +511,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8BA20D6D782910E72EA65029 /* PrototypeUITests.swift in Sources */,
+				9F8C9342A27226BDB9DA8E97 /* ReleaseFlowUITests.swift in Sources */,
 				9E1E4C00BF420D7323B626C9 /* WeightUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -503,13 +532,16 @@
 				F4EBA71490C24B057BC7482F /* DashboardView.swift in Sources */,
 				23209D76BEF78E7B27C8626A /* DatabaseBackupManager.swift in Sources */,
 				BFE7FACCC09847413729522F /* DesignSkeleton.swift in Sources */,
+				E8014AB4E92319319C13A979 /* MedicalReport.swift in Sources */,
 				76C7347974A0B4E088001AEB /* MoodPicker.swift in Sources */,
+				10D05575DDB772F205E8DE36 /* Onboarding.swift in Sources */,
 				B28C661163D7E257E0D8DBA3 /* PetFormView.swift in Sources */,
 				F6AC0A5AFFDEDCE6B1C22B6D /* PetManagementView.swift in Sources */,
 				A8014D081D786A8517083849 /* PetPal.xcdatamodeld in Sources */,
 				212B388B7703C84A16ABDB71 /* PetProfileSkeleton.swift in Sources */,
 				F51DF5DF9021F45D17BA5242 /* PortableBackup.swift in Sources */,
 				31A4A7E7EB21FFC65F87F9E4 /* PresetRecordFormView.swift in Sources */,
+				E5EAC8CF15E161A33BD9D5CE /* PreviewFixtures.swift in Sources */,
 				768CBDEE9285DF87B06DA791 /* PrivacySupportView.swift in Sources */,
 				1BBD4287F07A20D418965C7D /* PrototypeApp.swift in Sources */,
 				E2FC5B0A614136653CDDB921 /* RecordCalendarView.swift in Sources */,
@@ -520,6 +552,7 @@
 				60575D06A98522EA76235052 /* ReminderListView.swift in Sources */,
 				9129A8B47DCA4BBC143F45A2 /* ReminderRecurrence.swift in Sources */,
 				2B6287357F04B6D3710735BA /* ReminderSkeleton.swift in Sources */,
+				0DAEB95B72FCDE4B2B1D8D62 /* ReminderTasks.swift in Sources */,
 				5C6BB14CFCAF12F626D927A5 /* SelectWidgetPetIntent.swift in Sources */,
 				1DA64933DD35F42173B19289 /* WeightFormView.swift in Sources */,
 				D4EDDDD9F9ED411B590D78B0 /* WidgetPetPaging.swift in Sources */,
@@ -900,8 +933,9 @@
 			children = (
 				6F85A3A6A797D7CA6E00F5AD /* PetPal.xcdatamodel */,
 				080694A79B7A09DB89C006DF /* PetPalV2.xcdatamodel */,
+				D7964764097F2A08A435189C /* PetPalV3.xcdatamodel */,
 			);
-			currentVersion = 080694A79B7A09DB89C006DF /* PetPalV2.xcdatamodel */;
+			currentVersion = D7964764097F2A08A435189C /* PetPalV3.xcdatamodel */;
 			path = PetPal.xcdatamodeld;
 			sourceTree = "<group>";
 			versionGroupType = wrapper.xcdatamodel;

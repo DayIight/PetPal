@@ -1,0 +1,96 @@
+{
+  "generated": "2026-10-11",
+  "source": "ReleaseFlowUITests/test_storeScreenshots, Debug in-memory synthetic fixtures, native unedited screenshots",
+  "screenshots": [
+    {
+      "device": "ipad",
+      "file": "ipad/01-today.png",
+      "pixels": [
+        2064,
+        2752
+      ],
+      "sha256": "a366d03d4dc17f6e65b130070d3e5c77bcf11e4821b6d76c771f44b3024a3a63"
+    },
+    {
+      "device": "ipad",
+      "file": "ipad/02-records.png",
+      "pixels": [
+        2064,
+        2752
+      ],
+      "sha256": "b7b7e00bfc7f703fa6314f9bd38399bbe1c67d656bb56f24432d9353989667e9"
+    },
+    {
+      "device": "ipad",
+      "file": "ipad/03-growth.png",
+      "pixels": [
+        2064,
+        2752
+      ],
+      "sha256": "1bc3d1f299fc897fd9e0efba3715e90ed95ff17dab8baab04a303f8ce328b89d"
+    },
+    {
+      "device": "ipad",
+      "file": "ipad/04-medical-report.png",
+      "pixels": [
+        2064,
+        2752
+      ],
+      "sha256": "b817b5e2f9ccc821fb7ece1bfe701d8b0d55ad9fef2d581c515f7112e0446246"
+    },
+    {
+      "device": "ipad",
+      "file": "ipad/05-profile.png",
+      "pixels": [
+        2064,
+        2752
+      ],
+      "sha256": "01c928f4171c54230f5e5b4d129fcd4d571338202fbdc4131222ac5beef30967"
+    },
+    {
+      "device": "iphone",
+      "file": "iphone/01-today.png",
+      "pixels": [
+        1320,
+        2868
+      ],
+      "sha256": "b3b884e0fbfa06bde3e28c4b6b441bf0310c7ee4da02ec8ab62cb1123935384c"
+    },
+    {
+      "device": "iphone",
+      "file": "iphone/02-records.png",
+      "pixels": [
+        1320,
+        2868
+      ],
+      "sha256": "e6b07f15b9f1b6760f37813313d0ec50bfaacdb289a00dbd25a823c82f4a28f0"
+    },
+    {
+      "device": "iphone",
+      "file": "iphone/03-growth.png",
+      "pixels": [
+        1320,
+        2868
+      ],
+      "sha256": "4fee1b71af52e32f56adf4156008db47e2acd23132830ddb8b04e41be52de22c"
+    },
+    {
+      "device": "iphone",
+      "file": "iphone/04-medical-report.png",
+      "pixels": [
+        1320,
+        2868
+      ],
+      "sha256": "a00ccb7a9d56234cc20958e610f16970047a9d4f10e9870297720bad5f069883"
+    },
+    {
+      "device": "iphone",
+      "file": "iphone/05-profile.png",
+      "pixels": [
+        1320,
+        2868
+      ],
+      "sha256": "13c8bfd77ad81384d32349bbaed74cf3169a764f0c885c8f92e514e37e5c7e94"
+    }
+  ]
+}

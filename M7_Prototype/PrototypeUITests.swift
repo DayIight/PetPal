@@ -29,6 +29,62 @@ final class PrototypeUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["隐私与支持"].waitForExistence(timeout: 3))
     }
 
+    func test_taskCompletionPersistsAndDeletingRecordReopensIt() {
+        createPetIfNeeded()
+        addUIInterruptionMonitor(withDescription: "通知权限") { alert in
+            for title in ["允许", "Allow"] where alert.buttons[title].exists { alert.buttons[title].tap(); return true }
+            return false
+        }
+        app.petPalTab("记录").tap()
+        app.buttons["records.reminder"].tap()
+        app.buttons["reminders.add"].tap()
+        app.buttons["reminder.save"].tap()
+        app.navigationBars.firstMatch.tap() // 触发权限弹窗处理，点击标题区域避免误点待办
+        if app.alerts["提醒已保存"].waitForExistence(timeout: 2) {
+            app.alerts["提醒已保存"].buttons["知道了"].tap()
+        }
+        XCTAssertTrue(app.buttons["reminders.add"].waitForExistence(timeout: 5))
+        let listTask = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND NOT label CONTAINS %@", "tasks.row.", "已完成")).firstMatch
+        XCTAssertTrue(listTask.waitForExistence(timeout: 3))
+        let cancelledIdentifier = listTask.identifier
+        listTask.tap()
+        XCTAssertTrue(app.buttons["record.save"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "record.occurredAt").firstMatch.exists)
+        app.buttons["取消"].tap()
+        XCTAssertTrue(app.buttons["record.save"].waitForNonExistence(timeout: 3))
+        XCTAssertFalse(app.buttons[cancelledIdentifier].label.contains("已完成"), "取消表单不能完成任务")
+        app.buttons["完成"].tap()
+        app.petPalTab("今日").tap()
+        let pending = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND NOT label CONTAINS %@", "tasks.row.", "已完成")).firstMatch
+        XCTAssertTrue(pending.waitForExistence(timeout: 5))
+        let identifier = pending.identifier
+        pending.tap()
+        if !app.buttons["record.save"].waitForExistence(timeout: 3) { print(app.debugDescription) }
+        XCTAssertTrue(app.buttons["record.save"].exists, "点击待办应进入记录表单")
+        app.buttons["record.save"].tap()
+        XCTAssertTrue(app.buttons["record.save"].exists, "空记录不能提前完成任务")
+        let food = app.textFields["record.field.food"]
+        if !food.isHittable { app.swipeUp() }
+        food.tap(); food.typeText("任务完成测试粮")
+        let grams = app.textFields["record.field.grams"]
+        if !grams.isHittable { app.swipeUp() }
+        grams.tap(); grams.typeText("50")
+        pickOption("早", field: "record.field.mealTime")
+        app.buttons["record.save"].tap()
+        XCTAssertTrue(app.buttons["record.save"].waitForNonExistence(timeout: 5))
+        app.terminate(); app.launch()
+        let completed = app.buttons[identifier]
+        XCTAssertTrue(completed.waitForExistence(timeout: 5))
+        XCTAssertTrue(completed.label.contains("已完成"))
+        completed.tap()
+        XCTAssertTrue(app.buttons["detail.delete"].waitForExistence(timeout: 3))
+        app.buttons["detail.delete"].tap()
+        app.buttons["确认删除记录"].tap()
+        XCTAssertTrue(app.buttons["detail.delete"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons[identifier].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons[identifier].label.contains("已完成"))
+    }
+
     // 路径①：我的 tab 建档案 → 记录 tab 记一条喂食（通用动态表单）
     func test_createPet_thenLogFeeding() {
         createPetIfNeeded()
@@ -135,7 +191,7 @@ final class PrototypeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["reminders.add"].waitForExistence(timeout: 3))
         app.buttons["reminders.add"].tap()
         app.buttons["reminder.save"].tap()
-        app.tap()   // 触发 interruption monitor 消费弹窗
+        app.navigationBars.firstMatch.tap()   // 触发 interruption monitor，避免点击列表中的任务
         // 授权后保存成功回到提醒列表且该提醒可见；若曾拒绝则出现引导 Alert
         let savedRow = app.descendants(matching: .any)
             .matching(identifier: "reminders.row.喂食").firstMatch.waitForExistence(timeout: 3)
@@ -149,6 +205,7 @@ final class PrototypeUITests: XCTestCase {
         app.buttons["records.add"].tap()
         app.buttons["record.template.体检"].tap()
         let weight = app.textFields["record.field.weightKg"]
+        scrollTo(weight)
         XCTAssertTrue(weight.waitForExistence(timeout: 3)); weight.tap(); weight.typeText("8")
         app.buttons["record.save"].tap()
         XCTAssertTrue(app.buttons["record.save"].waitForNonExistence(timeout: 3))
@@ -156,6 +213,7 @@ final class PrototypeUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 3)); row.tap()
         XCTAssertTrue(app.buttons["detail.edit"].waitForExistence(timeout: 3)); app.buttons["detail.edit"].tap()
         let editingWeight = app.textFields["record.field.weightKg"]
+        scrollTo(editingWeight)
         XCTAssertTrue(editingWeight.waitForExistence(timeout: 3)); editingWeight.tap(); editingWeight.typeText("\u{8}9")
         app.buttons["record.save"].tap()
         XCTAssertTrue(app.buttons["record.save"].waitForNonExistence(timeout: 3))
@@ -181,10 +239,10 @@ final class PrototypeUITests: XCTestCase {
         XCTAssertTrue(chartEmpty || chartShown, "看板应展示体重图表区（空态占位或折线图）")
         XCTAssertTrue(app.staticTexts["dashboard.heatmap"].exists)
         XCTAssertTrue(app.staticTexts["dashboard.timeline"].exists)
-        // 系统分享面板：iOS 27 模拟器不再暴露 ActivityListView 标识，改断言导出流程无崩溃且看板仍在
-        // （分享面板实际由 UIActivityViewController 弹出，人工可在模拟器验证）
         exportButton.tap()
-        XCTAssertTrue(app.buttons["dashboard.exportPDF"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["report.generate"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.switches["report.allDates"].exists)
+
     }
 
     // 路径④：记喂食 → 记录页切日历分段 → 今日格子可点且当日列表出现记录
@@ -202,7 +260,7 @@ final class PrototypeUITests: XCTestCase {
         app.buttons["record.save"].tap()
         // 校验通过 sheet 才真正关闭
         XCTAssertTrue(app.buttons["records.add"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["record.save"].exists, "喂食 sheet 应已关闭")
+        XCTAssertTrue(app.buttons["record.save"].waitForNonExistence(timeout: 5), "喂食 sheet 应已关闭")
 
         // 切到「日历」分段
         let calendarSegment = app.buttons["日历"].exists ? app.buttons["日历"] : app.buttons["records.segment"]
@@ -242,6 +300,7 @@ final class PrototypeUITests: XCTestCase {
 
     /// 点选单选 Picker（用餐时段等）的选项：decimalPad 键盘在位时首次点击只收键盘，带重试
     private func pickOption(_ option: String, field: String) {
+        scrollTo(app.buttons[field])
         app.buttons[field].tap()
         for _ in 0..<3 {
             let el = app.buttons[option].exists ? app.buttons[option] : app.cells[option]
@@ -249,6 +308,13 @@ final class PrototypeUITests: XCTestCase {
             app.buttons[field].tap()
         }
         XCTFail("字段 \(field) 的选项「\(option)」未出现")
+    }
+
+    private func scrollTo(_ element: XCUIElement) {
+        for _ in 0..<4 {
+            if element.exists && element.isHittable { return }
+            app.swipeUp()
+        }
     }
 }
 

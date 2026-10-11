@@ -250,6 +250,10 @@ struct CustomRecordFormView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section("发生时间") {
+                    DatePicker("日期与时间", selection: $vm.draft.eventDate, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                        .accessibilityIdentifier("custom.occurredAt")
+                }
                 ForEach(template.fields) { field in
                     Section(field.title) {
                         fieldView(field)

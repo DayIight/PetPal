@@ -4,6 +4,7 @@ import UserNotifications
 
 @main
 struct PetPalPrototypeApp: App {
+    init() { PreviewFixtures.prepare() }
     // H-06：接入 AppDelegate，挂 UNUserNotificationCenterDelegate 实现通知点击路由
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     var body: some Scene { WindowGroup { RootTabView() } }
@@ -14,14 +15,17 @@ struct PetPalPrototypeApp: App {
     static let shared = DeepLinkRouter()
     @Published var path = NavigationPath()
     @Published var recordsPetID: UUID?
+    @Published var tasksPetID: UUID?
     init() {}
-    /// 点击通知 → 路由至对应宠物详情页（落点在「我的」tab 的 NavigationStack）
-    func openPet(id: UUID) { path.append(id) }
+    /// 档案深链 → 对应宠物详情页（「我的」tab 的 NavigationStack）。
+    func openPet(id: UUID) { recordsPetID = nil; tasksPetID = nil; path.append(id) }
     func openRecords(id: UUID) {
+        tasksPetID = nil
         path = NavigationPath()
         recordsPetID = id
     }
-    /// 档案：petpal://pet/<uuid>；小组件记录入口：petpal://records/<uuid>。
+    func openTasks(id: UUID) { recordsPetID = nil; path = NavigationPath(); tasksPetID = id }
+    /// 档案、记录和待办分别使用 pet、records、tasks 路由。
     func handle(url: URL) {
         guard url.scheme == "petpal", url.pathComponents.count == 2,
               let raw = url.pathComponents.last,
@@ -29,6 +33,7 @@ struct PetPalPrototypeApp: App {
         switch url.host {
         case "pet": recordsPetID = nil; openPet(id: id)
         case "records": openRecords(id: id)
+        case "tasks": openTasks(id: id)
         default: break
         }
     }
@@ -47,7 +52,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         guard info["route"] as? String == "reminder",
               let raw = info["petID"] as? String,
               let petID = UUID(uuidString: raw) else { return }
-        DeepLinkRouter.shared.openPet(id: petID)
+        DeepLinkRouter.shared.openTasks(id: petID)
     }
     /// 前台收到通知时仍展示横幅（提醒类 App 的合理默认）
     func userNotificationCenter(_ center: UNUserNotificationCenter,
@@ -93,7 +98,7 @@ final class UNNotificationScheduler: NotificationScheduling {
             .sink { [weak self] pets in
                 guard let self else { return }
                 self.pets = pets
-                let storedID = UserDefaults.standard.string(forKey: Self.defaultsKey).flatMap(UUID.init)
+                let storedID = PreviewFixtures.defaults.string(forKey: Self.defaultsKey).flatMap(UUID.init)
                 // 已删宠物自动回退到列表第一只
                 self.current = pets.first { $0.id == storedID } ?? pets.first
                 self.hasLoadedPets = true
@@ -102,6 +107,6 @@ final class UNNotificationScheduler: NotificationScheduling {
     }
     func select(_ pet: Pet) {
         current = pet
-        UserDefaults.standard.set(pet.id.uuidString, forKey: Self.defaultsKey)
+        PreviewFixtures.defaults.set(pet.id.uuidString, forKey: Self.defaultsKey)
     }
 }

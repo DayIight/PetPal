@@ -54,11 +54,13 @@ struct RootTabView: View {
     @StateObject private var petListVM = PetListViewModel(repo: CoreDataPetRepository())
     @StateObject private var currentPet: CurrentPetStore
     @StateObject private var reminderService = ReminderService.shared
+    @StateObject private var onboarding = OnboardingStore()
     @State private var selection: Tab = .today
     @State private var recordsPickerRequested = false
     @State private var storeError: Error?
     @State private var snapshotSyncer: WidgetSnapshotSyncer
     @State private var showRecovery = false
+    @State private var showCreatePet = false
     @State private var dataRevision = UUID()
     @State private var recordsNavigationRevision = UUID()
     @State private var missingRecordsPet = false
@@ -92,7 +94,7 @@ struct RootTabView: View {
             } else {
                 TabView(selection: $selection) {
                     TodayHomeView(currentPet: currentPet, reminderService: reminderService,
-                                  onCreatePet: { selection = .profile })
+                                  onboarding: onboarding, onCreatePet: { showCreatePet = true })
                         .tabItem { Label("今日", systemImage: "house") }.tag(Tab.today)
                     RecordsHomeView(currentPet: currentPet, reminderService: reminderService,
                                     pickerRequested: $recordsPickerRequested)
@@ -107,7 +109,8 @@ struct RootTabView: View {
                     }
                     .tabItem { Label("成长", systemImage: "chart.xyaxis.line") }.tag(Tab.growth)
                     PetManagementView(petListVM: petListVM, currentPet: currentPet,
-                                      onShowBackup: { showRecovery = true })
+                                      onShowBackup: { showRecovery = true },
+                                      onShowOnboarding: { onboarding.reopen(pets: currentPet.pets); selection = .today })
                         .tabItem { Label("我的", systemImage: "person") }.tag(Tab.profile)
                 }
                 .id(dataRevision)
@@ -116,7 +119,7 @@ struct RootTabView: View {
         .onAppear {
             storeError = CoreDataStack.shared.loadError
             petListVM.reminderCleanup = { [reminderService] _ in Task { await reminderService.rescheduleAll() } }
-            reminderService.onDidChange = { [snapshotSyncer] in snapshotSyncer.sync() }
+            reminderService.onDidChange = { [snapshotSyncer] in if !PreviewFixtures.enabled { snapshotSyncer.sync() } }
             refreshLocalData()
         }
         .onChange(of: scenePhase) { if $0 == .active { refreshLocalData() } }
@@ -136,14 +139,24 @@ struct RootTabView: View {
             recordsNavigationRevision = UUID()
             selection = .records
         }
+        .onReceive(router.$tasksPetID.combineLatest(currentPet.$pets, currentPet.$hasLoadedPets)
+            .receive(on: DispatchQueue.main)) { id, pets, loaded in
+            guard let id, loaded, router.tasksPetID == id, storeError == nil else { return }
+            router.tasksPetID = nil
+            guard let pet = pets.first(where: { $0.id == id }) else { missingRecordsPet = true; return }
+            currentPet.select(pet)
+            selection = .today
+        }
         .onReceive(NotificationCenter.default.publisher(for: .backupDidRestore)) { _ in
             storeError = CoreDataStack.shared.loadError
             router.path = NavigationPath()
             router.recordsPetID = nil
+            router.tasksPetID = nil
             dataRevision = UUID()
             // 宠物 publisher 刷新后由 syncer 自动生成快照；通知在恢复流程内重建。
         }
         .sheet(isPresented: $showRecovery) { NavigationStack { BackupManagementView() } }
+        .sheet(isPresented: $showCreatePet) { PetFormView(vm: PetFormViewModel(repo: CoreDataPetRepository())) }
         .alert("无法打开记录", isPresented: $missingRecordsPet) {
             Button("知道了", role: .cancel) {}
         } message: {
@@ -153,23 +166,37 @@ struct RootTabView: View {
 
     private func refreshLocalData() {
         guard storeError == nil else { return }
-        snapshotSyncer.sync()
         Task { await reminderService.rescheduleAll() }
-        // 和用户保存操作在主线程串行，数据库与媒体取得一致的副本。
-        DatabaseBackupManager.backupIfDue()
+        guard !PreviewFixtures.enabled else { return }
+        snapshotSyncer.sync()
+        DatabaseBackupManager.scheduleBackupIfDue()
     }
 }
 
 struct TodayHomeView: View {
     @ObservedObject var currentPet: CurrentPetStore
     @ObservedObject var reminderService: ReminderService
+    @ObservedObject var onboarding: OnboardingStore
     var onCreatePet: () -> Void
     @State private var showRecord = false
     @State private var showReminder = false
     @State private var showWeight = false
+    @State private var showFirstReminder = false
+    @State private var selectedTask: ReminderTask?
     var body: some View {
         NavigationStack {
             List {
+                if onboarding.isVisible {
+                    OnboardingSection(store: onboarding) {
+                        if let id = onboarding.petID, let pet = currentPet.pets.first(where: { $0.id == id }) { currentPet.select(pet) }
+                        switch onboarding.step {
+                        case .pet: onCreatePet()
+                        case .record: showRecord = true
+                        case .reminder: showFirstReminder = true
+                        case .finished: onboarding.finish()
+                        }
+                    }
+                }
                 if let pet = currentPet.current {
                     Section("当前宠物") {
                         HStack {
@@ -185,20 +212,10 @@ struct TodayHomeView: View {
                             }
                         }
                     }
-                    Section("今日待提醒") {
-                        TimelineView(.periodic(from: Date(), by: 60)) { context in
-                            let events = todayReminders(pet: pet, now: context.date)
-                            if events.isEmpty { Text("今日暂无待提醒").foregroundStyle(.secondary) }
-                            else {
-                                ForEach(events, id: \.occurrenceKey) { event in
-                                    HStack { Text(String(format: "%02d:%02d", event.hour, event.minute)).monospacedDigit(); Text(event.type) }
-                                }
-                            }
-                        }
-                        if reminderService.permission != .granted {
-                            Text("通知权限未开启，可在「管理提醒」中开启通知。")
-                                .font(.footnote).foregroundStyle(.secondary)
-                        }
+                    ReminderTasksSection(pet: pet, service: reminderService) { selectedTask = $0 }
+                    if reminderService.permission != .granted {
+                        Text("通知权限未开启，可在「管理提醒」中开启通知。")
+                            .font(.footnote).foregroundStyle(.secondary)
                     }
                     Section("快速记录") {
                         Button { showRecord = true } label: { Label("记一条日常", systemImage: "plus.circle") }
@@ -210,7 +227,7 @@ struct TodayHomeView: View {
                         Text("记录与照片保存在本机。定期在「我的 → 数据备份」导出完整备份，方便换机或恢复。")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
-                } else {
+                } else if !onboarding.isVisible {
                     Section {
                         Text("为宠物建档，开始记录日常与健康变化")
                         Button("创建宠物档案", action: onCreatePet)
@@ -219,6 +236,14 @@ struct TodayHomeView: View {
                 }
             }
             .navigationTitle("今日")
+            .onReceive(currentPet.$pets.combineLatest(currentPet.$hasLoadedPets)) { pets, loaded in
+                if loaded { onboarding.refresh(pets: pets) }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .recordsDidChange)) { _ in onboarding.refresh(pets: currentPet.pets) }
+            .onReceive(NotificationCenter.default.publisher(for: .remindersDidChange)) { _ in onboarding.refresh(pets: currentPet.pets) }
+            .sheet(isPresented: $showFirstReminder) {
+                if let pet = currentPet.current { ReminderFormView(pet: pet, service: reminderService) }
+            }
             .sheet(isPresented: $showRecord) { RecordTemplatePickerView(pet: currentPet.current) }
             .sheet(isPresented: $showWeight) {
                 if let pet = currentPet.current { WeightFormView(petID: pet.id) }
@@ -226,16 +251,9 @@ struct TodayHomeView: View {
             .sheet(isPresented: $showReminder) {
                 if let pet = currentPet.current { ReminderListView(pet: pet, service: reminderService) }
             }
+            .sheet(item: $selectedTask, onDismiss: { Task { await reminderService.rescheduleAll() } }) {
+                ReminderTaskSheet(task: $0)
+            }
         }
     }
-    private func todayReminders(pet: Pet, now: Date) -> [WidgetSnapshot.ReminderEntry] {
-        let snapshot = WidgetSnapshot(generatedAt: now, currentPetID: pet.id,
-            pets: [.init(id: pet.id, nickname: pet.nickname, species: pet.species.rawValue)],
-            reminders: reminderService.configurations.map {
-                .init(id: $0.id, petID: $0.petID, petName: $0.petName, type: $0.type.rawValue, hour: $0.hour, minute: $0.minute,
-                      repeatRule: $0.repeatRule, advance: $0.advance, isEnabled: $0.isEnabled)
-            })
-        return WidgetSnapshotQueries.remainingReminders(in: snapshot, now: now)
-    }
-
 }

@@ -6,6 +6,7 @@ struct ReminderListView: View {
     @State private var reminders: [Reminder] = []
     @State private var showForm = false
     @State private var editing: Reminder?
+    @State private var selectedTask: ReminderTask?
     @State private var busy = false
     @State private var error: String?
     @Environment(\.dismiss) private var dismiss
@@ -13,6 +14,7 @@ struct ReminderListView: View {
     var body: some View {
         NavigationStack {
             List {
+                ReminderTasksSection(pet: pet, service: service) { selectedTask = $0 }
                 if service.permission != .granted {
                     Section {
                         Text("通知权限未开启，已保存的提醒暂不能发送。")
@@ -58,8 +60,8 @@ struct ReminderListView: View {
                         }
                     }
                 }
-                if reminders.contains(where: { $0.repeatRule.usesRollingSchedule }) {
-                    Text("月/年通知滚动预排，请在显示的截止日期前打开 App 补排。提醒数量、提前提醒会影响窗口长度。")
+                if reminders.contains(where: { $0.repeatRule.usesRollingSchedule || service.scheduledThrough[$0.id] != nil }) {
+                    Text("部分通知滚动预排（含提前完成后的重复提醒），请在显示的截止日期前打开 App 补排。提醒数量、提前提醒会影响窗口长度。")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
@@ -70,6 +72,9 @@ struct ReminderListView: View {
             }
             .sheet(isPresented: $showForm, onDismiss: reload) { ReminderFormView(pet: pet, service: service) }
             .sheet(item: $editing, onDismiss: reload) { ReminderFormView(pet: pet, service: service, editing: $0) }
+            .sheet(item: $selectedTask, onDismiss: { Task { await service.rescheduleAll(); reload() } }) {
+                ReminderTaskSheet(task: $0)
+            }
             .task { await service.rescheduleAll(); reload() }
         }
     }

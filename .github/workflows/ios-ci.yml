@@ -25,8 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # runner 默认 Xcode 16.4（Swift tools 6.1），而 Kingfisher 8.13 要求 6.2；
-      # 选镜像里最新的 Xcode，与本地开发环境保持一致
+      # 选镜像里最新的 Xcode；正式工程已移除 Kingfisher 依赖
       - name: 选择最新 Xcode
         run: |
           sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)/Contents/Developer"

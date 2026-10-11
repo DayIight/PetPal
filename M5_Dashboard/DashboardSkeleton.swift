@@ -109,7 +109,7 @@ enum WeightExtraction {
         guard record.kind == .checkup,
               let raw = record.answers[checkupWeightKey],
               let kg = Double(raw), WeightValidator.isValid(kg) else { return nil }
-        return WeightSample(petID: record.petID, kg: kg, date: record.createdAt, sourceRecordID: record.id)
+        return WeightSample(petID: record.petID, kg: kg, date: record.eventDate, sourceRecordID: record.id)
     }
 }
 
@@ -190,9 +190,33 @@ final class CoreDataWeightRepository: WeightRepository {
 
 /// 旧版抽取保留了记录的准确时间；只有唯一匹配时才补来源，避免占用手录数据。
 enum HealthDataMigration {
+    static let version = 1
+    static let metadataKey = "PetPal.healthDataMigrationVersion"
+
+    /// 标记属于数据库；保存失败不写标记，旧备份恢复后仍能独立完成迁移。
+    @discardableResult
+    static func runIfNeeded(in context: NSManagedObjectContext,
+                            save: () throws -> Void,
+                            checkCancellation: () throws -> Void = {}) throws -> Bool {
+        guard let coordinator = context.persistentStoreCoordinator,
+              let store = coordinator.persistentStores.first else { return false }
+        var metadata = coordinator.metadata(for: store)
+        if (metadata[metadataKey] as? Int ?? 0) >= version { return false }
+        try linkLegacyWeights(in: context, checkCancellation: checkCancellation)
+        try checkCancellation()
+        if context.hasChanges { try save() }
+        metadata[metadataKey] = version
+        coordinator.setMetadata(metadata, for: store)
+        return true
+    }
+
     private struct Key: Hashable { let petID: UUID; let date: Date; let kg: Double }
-    static func linkLegacyWeights(in context: NSManagedObjectContext) throws {
-        let records = try context.fetch(CDRecord.fetchRequest()).filter { $0.kind == RecordKind.checkup.rawValue }
+    static func linkLegacyWeights(in context: NSManagedObjectContext,
+                                  checkCancellation: () throws -> Void = {}) throws {
+        try checkCancellation()
+        let request = CDRecord.fetchRequest()
+        request.predicate = NSPredicate(format: "kind == %@", RecordKind.checkup.rawValue)
+        let records = try context.fetch(request)
         let samples = try context.fetch(CDWeightSample.fetchRequest())
         func key(_ record: CDRecord) -> Key? {
             guard let petID = record.petID, let date = record.createdAt,
@@ -204,10 +228,12 @@ enum HealthDataMigration {
         var linkedRecordIDs = Set(samples.compactMap(\.sourceRecordID))
         var candidatesByKey: [Key: [CDWeightSample]] = [:]
         for sample in samples where sample.sourceRecordID == nil {
+            try checkCancellation()
             guard let petID = sample.petID, let date = sample.date, WeightValidator.isValid(sample.kg) else { continue }
             candidatesByKey[Key(petID: petID, date: date, kg: sample.kg), default: []].append(sample)
         }
         for (key, matches) in grouped where matches.count == 1 {
+            try checkCancellation()
             let record = matches[0].1
             guard let id = record.id, !linkedRecordIDs.contains(id),
                   let candidates = candidatesByKey[key], candidates.count == 1 else { continue }

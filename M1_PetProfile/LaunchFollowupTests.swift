@@ -488,6 +488,42 @@ final class DataVersionMigrationTests: XCTestCase {
         var edited = try XCTUnwrap(record); edited.answers["weightKg"] = "9"; try repo.update(edited)
         XCTAssertEqual(try CoreDataWeightRepository(stack: stack).samples(petID: petID).map(\.kg), [9])
     }
+    func test_migrationVersionPersistsAndReopenSkipsNewUnlinkedRows() throws {
+        let dir = try PortableBackup.temporaryDirectory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("versioned.sqlite"); let petID = try legacyStore(at: url)
+        let first = CoreDataStack(storeURL: url)
+        let coordinator = first.container.persistentStoreCoordinator
+        let store = try XCTUnwrap(coordinator.persistentStores.first)
+        XCTAssertEqual(coordinator.metadata(for: store)[HealthDataMigration.metadataKey] as? Int, HealthDataMigration.version)
+        let now = Date().addingTimeInterval(1_000)
+        let record = first.insert(CDRecord.self)
+        record.id = UUID(); record.petID = petID; record.kind = RecordKind.checkup.rawValue
+        record.createdAt = now; record.answers = ["weightKg": "9"]
+        let sample = first.insert(CDWeightSample.self)
+        let sampleID = UUID(); sample.id = sampleID; sample.petID = petID; sample.date = now; sample.kg = 9
+        try first.save(); first.container.viewContext.reset(); try coordinator.remove(store)
+        let reopened = CoreDataStack(storeURL: url)
+        let samples = try reopened.container.viewContext.fetch(CDWeightSample.fetchRequest())
+        XCTAssertNil(try XCTUnwrap(samples.first { $0.id == sampleID }).sourceRecordID, "已迁移库不应每次启动重新扫描")
+        XCTAssertFalse(try HealthDataMigration.runIfNeeded(in: reopened.container.viewContext, save: { XCTFail("不应再次保存迁移") }))
+        reopened.container.viewContext.reset()
+        for store in reopened.container.persistentStoreCoordinator.persistentStores { try reopened.container.persistentStoreCoordinator.remove(store) }
+    }
+    func test_failedMigrationSave_doesNotMarkCompleteAndNextLaunchRetries() throws {
+        let dir = try PortableBackup.temporaryDirectory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("retry.sqlite"); _ = try legacyStore(at: url)
+        let failed = CoreDataStack(storeURL: url, saveHandler: { _ in throw NSError(domain: "MigrationTest", code: 1) })
+        let coordinator = failed.container.persistentStoreCoordinator
+        let store = try XCTUnwrap(coordinator.persistentStores.first)
+        XCTAssertNil(coordinator.metadata(for: store)[HealthDataMigration.metadataKey])
+        XCTAssertNil(try failed.container.viewContext.fetch(CDWeightSample.fetchRequest()).first?.sourceRecordID)
+        failed.container.viewContext.reset(); try coordinator.remove(store)
+        let retried = CoreDataStack(storeURL: url)
+        XCTAssertNotNil(try retried.container.viewContext.fetch(CDWeightSample.fetchRequest()).first?.sourceRecordID)
+        let newStore = try XCTUnwrap(retried.container.persistentStoreCoordinator.persistentStores.first)
+        XCTAssertEqual(retried.container.persistentStoreCoordinator.metadata(for: newStore)[HealthDataMigration.metadataKey] as? Int, HealthDataMigration.version)
+        retried.container.viewContext.reset(); try retried.container.persistentStoreCoordinator.remove(newStore)
+    }
     func test_v1PortableBackupRestoresThroughStagedMigration() throws {
         let dir = try PortableBackup.temporaryDirectory(); defer { try? FileManager.default.removeItem(at: dir) }
         let url = dir.appendingPathComponent("legacy.sqlite"); let petID = try legacyStore(at: url)

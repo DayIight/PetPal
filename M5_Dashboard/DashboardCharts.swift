@@ -30,7 +30,7 @@ enum RecordAnswerDate {
     }()
 }
 
-// MARK: - 月度打卡热力图（按 createdAt 统计每日记录数）
+// MARK: - 月度打卡热力图（按发生时间统计每日记录数）
 @MainActor final class CheckinHeatmapModel: ObservableObject {
     @Published private(set) var counts: [Date: Int] = [:]   // startOfDay → 当日记录数
     @Published private(set) var months: [Date] = []         // 每月 1 日，升序
@@ -50,11 +50,11 @@ enum RecordAnswerDate {
         let cal = Calendar.current
         var counts: [Date: Int] = [:]
         for r in records {
-            counts[cal.startOfDay(for: r.createdAt), default: 0] += 1
+            counts[cal.startOfDay(for: r.eventDate), default: 0] += 1
         }
         self.counts = counts
         let thisMonth = cal.date(from: cal.dateComponents([.year, .month], from: Date()))!
-        if let earliest = records.map(\.createdAt).min() {
+        if let earliest = records.map(\.eventDate).min() {
             var first = cal.date(from: cal.dateComponents([.year, .month], from: earliest))!
             // 历史月份上限 24 个，超出截断到最近 24 个月
             if let limit = cal.date(byAdding: .month, value: -23, to: thisMonth), first < limit {
@@ -143,7 +143,7 @@ struct MonthGrid: View {
         let leading = (firstWeekday + 5) % 7
 
         return VStack(spacing: DS.Spacing.sm) {
-            Text("\(comps.year ?? 0)年\(comps.month ?? 0)月")
+            Text(verbatim: "\(comps.year ?? 0)年\(comps.month ?? 0)月")
                 .font(.headline)
             LazyVGrid(columns: columns, spacing: DS.Spacing.xs) {
                 ForEach(weekdays, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
