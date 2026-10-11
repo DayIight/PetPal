@@ -1,6 +1,6 @@
 # M1 多宠物档案管理
 
-## 架构说明（本轮输出形式：架构说明）
+## 架构说明
 M1 采用标准 MVVM：`PetListView / PetDetailView / PetFormView`（View）→
 `PetListViewModel / PetFormViewModel`（@Published 状态 + 校验入口）→
 `PetRepository` 协议 → `CoreDataPetRepository`（Core Data 本地实现，唯一持久化边界）。
@@ -8,7 +8,7 @@ View 不直接持有 NSManagedObject，层间只传值类型 `Pet`，保证可�
 校验逻辑独立为纯函数 `PetValidator`，UI 仅消费 `[PetField: String]` 错误字典做高亮。
 边界声明：本模块不接触 CloudKit 与任何网络；后续云同步仅通过替换 Repository 实现
 （`CloudKitPetRepository`，私有库 + 加密字段）接入，协议与 ViewModel 不变。
-删除宠物为真实级联（2026-09-20 整改，H-02）：`CoreDataPetRepository.delete` 同事务删除
+删除宠物为真实级联：`CoreDataPetRepository.delete` 同事务删除
 该宠物的全部 CDRecord/CDReminder/CDWeightSample 并清理头像与记录图片文件；
 pending 通知撤销由 App 层经 `PetListViewModel.reminderCleanup` 钩子在删库成功后重排，删除失败时保留提醒。
 
@@ -17,7 +17,7 @@ pending 通知撤销由 App 层经 `PetListViewModel.reminderCleanup` 钩子在�
 | 属性 | 类型 | 约束 |
 |---|---|---|
 | id | UUID | 主键 |
-| species | String(enum) | 必填（2026-09-20 整改新增），猫/狗/其他，驱动品种预设与 M2 模板过滤 |
+| species | String(enum) | 必填，猫/狗/其他，驱动品种预设与 M2 模板过滤 |
 | nickname | String | 必填，1-20 字符（trim 后） |
 | breed | String | 必填，`BreedCatalog` 按物种给预设列表（狗/猫各 Top10）+ 自定义输入 |
 | birthday | Date | 必填，禁止晚于今天（Picker 层 + 校验双层拦截） |
@@ -30,7 +30,7 @@ pending 通知撤销由 App 层经 `PetListViewModel.reminderCleanup` 钩子在�
 | avatarFileName | String? | 仅存文件名，原图压缩至最长边 ≤1080px 存 Documents |
 | createdAt | Date | 排序依据 |
 
-## 视图层级（输出形式：架构说明）
+## 视图层级
 ```
 PetListView（排序 segmented：添加时间/昵称）
  └─ NavigationLink → PetDetailView
@@ -44,7 +44,7 @@ PetFormView
  └─ 错误高亮：errors[field] 非空时红框 + 文案，禁止提交
 ```
 
-## 状态管理（输出形式：架构说明）
+## 状态管理
 - `PetListViewModel`：订阅 `repo.petsPublisher`，排序切换仅改本地数组顺序；
   删除失败置 `errorMessage` 触发 Toast。
 - `PetFormViewModel`：持有 `draft: Pet`（值类型），`save()` 先跑 `PetValidator`，
@@ -75,15 +75,3 @@ TextField("昵称", text: $vm.draft.nickname)
 - `PetValidatorTests`：空昵称/超长、未来生日、越界体重、非法芯片号与电话 —— 逐项断言错误键。
 - `CoreDataPetRepositoryTests`：in-memory store 验证 CRUD 与 publisher 推送。
 - 覆盖率目标：本模块 Validator + Repository 行覆盖 ≥70%。
-
-## 独立验收清单（M1）
-- [x] 昵称/品种/生日/体重为空或非法时无法保存，对应字段红框 + 错误文案
-- [x] 物种必选（猫/狗/其他），切换物种后品种预设列表随之变化，仍支持自定义输入
-- [x] 生日/领养日期选择器无法选中未来日期
-- [x] 芯片号非 15 位数字、兽医电话格式错误均被拦截
-- [x] 过敏源支持预设标签多选与自定义输入
-- [x] 列表支持按昵称/添加时间排序，切换即时生效
-- [x] 删除档案弹出二次确认；确认后该宠物的记录、提醒（含 pending 通知）、体重样本、头像与附件文件一并清除
-- [x] 相册选择头像后存储图最长边 ≤1080px
-- [ ] 深色模式下无硬编码颜色；所有文本支持 Dynamic Type 不截断
-- [x] 单元测试通过且 Validator/Repository 覆盖率 ≥70%（含级联删除用例）
