@@ -55,8 +55,14 @@ final class PrototypeUITests: XCTestCase {
         XCTAssertFalse(app.buttons[cancelledIdentifier].label.contains("已完成"), "取消表单不能完成任务")
         app.buttons["完成"].tap()
         app.petPalTab("今日").tap()
-        let pending = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND NOT label CONTAINS %@", "tasks.row.", "已完成")).firstMatch
-        XCTAssertTrue(pending.waitForExistence(timeout: 5))
+        let pendingByID = app.buttons[cancelledIdentifier]
+        let pending: XCUIElement
+        if pendingByID.waitForExistence(timeout: 5) {
+            pending = pendingByID
+        } else {
+            pending = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND NOT label CONTAINS %@", "tasks.row.", "已完成")).firstMatch
+            XCTAssertTrue(pending.waitForExistence(timeout: 5))
+        }
         let identifier = pending.identifier
         pending.tap()
         if !app.buttons["record.save"].waitForExistence(timeout: 3) { print(app.debugDescription) }
