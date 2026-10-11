@@ -1,11 +1,14 @@
 # PetPal — 宠物日常与健康记录（iOS / SwiftUI）
 
-<img src="M6_Design/AppIcon/AppIcon-Monet-v2.png" alt="PetPal App Icon" width="120" align="right">
+![PetPal App Icon](M6_Design/AppIcon/AppIcon-Monet-v2.png)
 
 ![Platform](https://img.shields.io/badge/platform-iOS%2016.0%2B-lightgrey)
-![Swift](https://img.shields.io/badge/Swift%205.9%2B-orange?logo=swift&logoColor=white)
+
+![Swift](https://img.shields.io/badge/Swift%205.9%2B-orange?logo=swift\&logoColor=white)
+
 ![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-blue)
-[![iOS CI](https://github.com/DayIight/PetPal/actions/workflows/ios-ci.yml/badge.svg)](https://github.com/DayIight/PetPal/actions/workflows/ios-ci.yml)
+
+![iOS CI](https://github.com/DayIight/PetPal/actions/workflows/ios-ci.yml/badge.svg)
 
 PetPal 是无需注册的本地宠物日常与健康记录工具，支持 iPhone 和 iPad。通过「今日 / 记录 / 成长 / 我的」四个标签管理宠物档案、记录、提醒和健康资料，数据默认保存在本机 Core Data。
 
@@ -79,16 +82,16 @@ xcodegen generate
 
 项目使用 Swift 5.9+ 工具链、Swift 5 语言模式和 SwiftUI，最低支持 iOS 16.0。界面采用 MVVM，业务数据通过 Repository 访问 Core Data；Repository 写库后通过 NotificationCenter 通知订阅方刷新。图表使用 Swift Charts，小组件使用 WidgetKit。
 
-| 模块 | 功能与开发说明 |
-|---|---|
-| M1 宠物档案 | [档案管理、校验、头像与级联删除](M1_PetProfile/README.md) |
-| M2 日常记录 | [预设／自定义模板、时间轴、日历与记录编辑](M2_DailyRecords/README.md) |
-| M3 社交原型 | [归档演示源码说明](M3_Social/README.md)，不参与正式构建 |
-| M4 提醒 | [通知调度、重复规则与任务联动](M4_Reminders/README.md) |
-| M5 成长看板 | [体重、健康时间线与就医报告](M5_Dashboard/README.md) |
-| M6 设计规范 | [设计 Token、颜色、无障碍与首次引导](M6_Design/README.md) |
-| M7 App 组装 | [App 入口、运行方法与 UI 自动化](M7_Prototype/README.md) |
-| M8 小组件 | [Widget 快照、翻页与深链](M8_Widget/README.md) |
+| 模块        | 功能与开发说明                                           |
+| --------- | ------------------------------------------------- |
+| M1 宠物档案   | [档案管理、校验、头像与级联删除](M1_PetProfile/README.md)        |
+| M2 日常记录   | [预设／自定义模板、时间轴、日历与记录编辑](M2_DailyRecords/README.md) |
+| M3 社交原型   | [归档演示源码说明](M3_Social/README.md)，不参与正式构建           |
+| M4 提醒     | [通知调度、重复规则与任务联动](M4_Reminders/README.md)          |
+| M5 成长看板   | [体重、健康时间线与就医报告](M5_Dashboard/README.md)           |
+| M6 设计规范   | [设计 Token、颜色、无障碍与首次引导](M6_Design/README.md)       |
+| M7 App 组装 | [App 入口、运行方法与 UI 自动化](M7_Prototype/README.md)     |
+| M8 小组件    | [Widget 快照、翻页与深链](M8_Widget/README.md)            |
 
 ## 文档入口
 
