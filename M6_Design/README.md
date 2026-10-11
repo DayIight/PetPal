@@ -4,14 +4,14 @@ MVP 范围：设计 Token（8pt 网格/圆角/阴影）、语义化颜色与深�
 「今日 / 记录 / 成长 / 我的」四标签栏、基础 VoiceOver 标注规范。
 延后增强：图表逐点数据朗读精修、Accessibility Large 全页面走查、快照测试。
 
-## 架构说明（本轮输出形式：架构说明）
+## 架构说明
 本模块不产出业务功能，输出三类可执行约束：
 1) `DS` 设计 Token——间距（4/8/16/24/32）、圆角（8 控件/12 卡片/16 弹层）、
 统一卡片阴影参数，全 App 只允许引用 Token，禁止散落字面量；
 2) 语义化颜色扩展——`pageBackground/cardBackground` 等命名封装系统语义色，
 深色模式零额外代码自动适配；正文/辅助文本只用 `.primary/.secondary`；
 3) `a11y` ViewModifier 约定——所有可交互元素必须 `label`；`hint` 仅在 label 无法
-说清操作结果时提供（2026-09-20 整改，M-05：Apple 无障碍指南要求 hint 按需而非强制）；
+说清操作结果时提供；
 图片必须提供替代文本。合规性由逐模块验收清单 + UI 走查保证。
 底部导航使用 `TabView`，默认进入「今日」。记录入口位于记录页；社交信息流、消息及悬浮发布入口已退出正式构建。
 
@@ -24,13 +24,13 @@ MVP 范围：设计 Token（8pt 网格/圆角/阴影）、语义化颜色与深�
 | 颜色 | systemBackground / secondarySystemBackground / label / secondaryLabel / accentColor | 仅语义色 |
 | 字体 | .largeTitle/.headline/.body/.footnote 文本样式 | 自动适配 Dynamic Type |
 
-## 无障碍规则（输出形式：架构说明）
+## 无障碍规则
 - 交互元素：`accessibilityLabel`（是什么）必填；`accessibilityHint`（会怎样）仅在 label
   不足以说明结果时提供；`accessibilityTraits` 按角色标注。
 - 图片：装饰图 `accessibilityHidden(true)`；内容图必须有 alt 文本。
 - 图表（M5）：禁止逐点朗读上百个数据点；使用 iOS 15+ `AXChartDescriptor`
   （`accessibilityChartDescriptor`）一次描述整图语义（坐标轴/序列/极值），
-  另提供"朗读数据表"入口。（2026-09-20 整改，M-05）
+  另提供"朗读数据表"入口。
 - Dynamic Type：禁用固定字号；布局用 VStack/HStack 自适应性，Accessibility Large 下走查不截断。
 
 ## 非功能需求落点（横切提醒，详见各模块）
@@ -38,14 +38,6 @@ MVP 范围：设计 Token（8pt 网格/圆角/阴影）、语义化颜色与深�
 - 错误处理：网络失败/权限被拒/存储不足 → 统一 Toast/Alert（各 ViewModel 的 `toast` 字段已是挂点）。
 - 数据安全：健康数据保存在本机 Core Data；每周保留两份完整备份，用户可导出未加密 `.petpalbackup` 文件；当前无 App 云同步。PDF 导出前检查可用存储空间。备份恢复准备可取消，数据库替换阶段完整提交或回滚。
 
-## 独立验收清单（M6）
-- [ ] 全工程无硬编码色值（搜 `#Color(red` 为零，曲线配色除外且有注释）
-- [ ] 深色模式逐页走查无异常对比度/不可读文本
-- [ ] 四标签栏图标为 SF Symbols，选中=主题色，未选中=secondaryLabel
-- [ ] 默认进入今日；记录页添加入口可用；正式版本无社交发布入口
-- [ ] 所有按钮/列表行具备清晰 label 与相应 traits，必要时提供 hint；VoiceOver 顺序合理
-- [ ] 系统字号调至 Accessibility Large，关键页面无截断重叠
-
-## B4 首次使用引导
+## 首次使用引导
 
 `Onboarding.swift` 在今日页显示建档、第一条记录、第一个提醒三步，按同一宠物已保存数据推进。可跳过、完成后不再自动出现；老用户升级不自动弹出；我的页可重新打开。引导解释本机保存与外部完整备份，不在启动时请求通知授权。

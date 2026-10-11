@@ -9,7 +9,7 @@
 - `screenshots/iphone/` 与 `screenshots/ipad/`：原生截图，按今日、记录、成长、报告、档案排序。详情见 `screenshots/manifest.json`。
 - 根目录 `output/pdf/`：标准、长文本与空数据就医报告样例，全部为虚构测试资料。
 
-资料版本：2026-10-11。需求基线为仓库根目录 `PetPal_PRD_2026-10-03.md`，历史社交愿景已单独归档。
+资料版本：2026-10-11。需求基线见 [产品需求与验收基线](../../project/PetPal_PRD_2026-10-03.md)，历史社交愿景已单独归档。
 
 材料检查：在仓库根目录执行 `python3 scripts/check_release_materials.py`。默认只检查材料；加 `--submission` 时还检查真实联系信息与签名配置，当前应报告尚缺项。
 

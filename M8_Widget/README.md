@@ -1,4 +1,4 @@
-# M8 Widget 小组件（L-01）
+# M8 Widget 小组件
 
 范围：WidgetKit「今日提醒 + 宠物头像」小组件，支持 systemSmall / systemMedium。
 每只宠物对应一页；iOS 17 及以上点击左右箭头循环翻页，显示“当前页 / 宠物总数”，
@@ -15,7 +15,7 @@ CoreSpotlight / Handoff 仍延后。
 - 按钮携带目标宠物 ID 和方向，避免旧时间线或重复执行导致多翻一页；两只宠物时左右交互仍有不同身份，目标已删除时忽略该操作。
 - 翻页只更新 widget-selected-pet.json，不修改快照、提醒配置、数据库或 App 当前宠物。
 
-## 架构说明（输出形式：架构说明）
+## 架构说明
 
 快照方案，不迁移 Core Data：
 
@@ -73,25 +73,3 @@ widget-selected-pet.json 单独编码 UUID，缺失或损坏时采用默认页�
 - `ReminderService` 的 save/removeAll/rescheduleAll 均触发 `onDidChange`（权限被拒也触发）。
 - `DeepLinkRouter.handle(url:)`：合法 petpal://pet/<uuid> 入栈；异构 scheme/host/非法 uuid 忽略。
 - `petpal://records/<uuid>` 保存目标并清空旧档案导航；连续不同宠物请求、非法路径和异构 URL 不误路由。
-
-## 独立验收清单（M8）
-
-- [x] 本地签名 iPhone 模拟器添加 small/medium，显示页面宠物及今日下一条提醒；正式签名真机待验收
-- [ ] 新增/删除提醒、切换当前宠物后，widget 在刷新后内容随之更新
-- [x] 本地签名 iPhone 模拟器：small 冷启动点击提醒进入对应宠物记录页；medium 在 App 已选另一只宠物时正确切换并进入记录页
-- [x] iOS 27 模拟器 small/medium 双向循环翻页，姓名/提醒/页码/深链与页面宠物一致；iOS 17 及正式签名真机待验收
-- [ ] App 回前台与当前宠物切换不会覆盖小组件已保存的页面；删除所选宠物后安全回退
-- [ ] 未建档时 widget 显示引导态而非空白
-- [x] 快照读写/过滤/排序/触发钩子/深链解析单测通过
-- 真机注意：App Group 需有效签名 Team（DEVELOPMENT_TEAM 当前为空）；
-  模拟器无签名构建下共享容器可能不可用，此时快照落 Documents、widget 走引导态，属预期降级。
-- 埋点（widget 添加率/唤起率）依赖分析 SDK，并入 L-02 商业化决策时一并评估，本轮不接。
-
-## 本轮验证（2026-10-06）
-
-- 最终 167 项单元测试通过（含 9 项新增翻页测试、2 项记录页路由测试）；Release 无签名设备构建通过。
-- 本地签名 iPhone 18 Pro / iOS 27.0：App Group 共享成功；两只宠物双向循环翻页复测通过，small/medium 均显示对应内容；小组件页面选择独立于 App 当前宠物。
-- 初次交互复查发现 small 上一页按钮后显示偶尔滞后。最终加入方向参数以区分两只宠物时目标相同的按钮、使用页面视图身份、关闭整页隐式动画并采用系统交互刷新；连续上一页/下一页及循环边界复测通过。
-- small 提醒点击冷启动 App 后显示「记录」与「当前宠物：小白」。在 App 改选「盖」后，小组件仍保留「小白」；medium 提醒点击再次进入「小白」记录页，验证目标宠物不会跟随 App 原先选择。
-- 最终日志：build/WidgetPagingValidation/unit-tests-final.log、release-final.log、simulator-build.log；构建目录由 Git 忽略。
-- 正式签名真机 App Group、iOS 16 展示兼容与 iOS 17 原始运行时交互仍待验收；模拟器验证不代表上架验收完成。

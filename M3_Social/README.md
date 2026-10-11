@@ -1,6 +1,6 @@
 # M3 社交互动模块（归档原型，不参与正式构建）
 
-自 2026-10-06 起，本目录已退出 App、单元测试及 UI 测试 target。以下为保留源码的演示能力，不代表当前首版功能。正式首版使用「今日 / 记录 / 成长 / 我的」四标签导航，工程已移除 Kingfisher 依赖及启动缓存配置。
+本目录不参与 App、单元测试及 UI 测试 target。以下为保留源码的演示能力，不代表当前首版功能。正式首版使用「今日 / 记录 / 成长 / 我的」四标签导航，工程已移除 Kingfisher 依赖及启动缓存配置。
 
 `SocialRepository` 协议即边界，`MockSocialRepository` 驱动信息流/点赞/两级评论的演示与单测；
 UI 已接入（`FeedView` / `PublishFormView` / `CommentListView`），图片经 Kingfisher 加载。
@@ -8,7 +8,7 @@ UI 已接入（`FeedView` / `PublishFormView` / `CommentListView`），图片经
 延后增强：转发、三方分享原生 SDK（协议已预留接口，Mock 提供最小实现）。
 收藏已闭环：动态卡片书签切换收藏态，信息流左上角「我的收藏」经 `favoritesPublisher` 展示全部已收藏动态（不受分页影响）。
 
-## 架构说明（本轮输出形式：架构说明）
+## 架构说明
 边界划分：健康与档案数据（M1/M2）在 Core Data 本地；当前备份为本机完整 `.petpalbackup` 文件，可主动导出到文件 App；尚未实现 App 云备份或 CloudKit 同步。
 社交数据属远程后端域——后端未提供，`SocialRepository` 协议即客户端与后端的契约，
 未来以 `RemoteSocialRepository`（REST/GraphQL + 分页游标）替换 Mock，ViewModel 与 View 零改动。
@@ -34,13 +34,3 @@ Mock 数据规模：45 条动态（3 页 × 20），前 6 条带 picsum 图片�
 - 首屏 20 条、翻页至 40 条、翻页到顶不溢出
 - 点赞/取消点赞计数精确往返
 - 回复一级评论成功；回复二级评论抛错；501 字评论抛错
-
-## 独立验收清单（M3）
-- [ ] `SocialRepository` 协议覆盖发布/分页/点赞/评论/表情/收藏全部接口
-- [ ] 发布接口强制 visibility 三选一，默认值为"仅粉丝"
-- [ ] Mock 数据 ≥3 页，前 3 条动态含两级评论树
-- [ ] `loadNextPage` 每页 20 条，到顶后重复调用不产生重复数据
-- [ ] 点赞切换后 likeCount 精确 ±1，publisher 即时推送
-- [ ] 二级评论再回复在 Repository 层被拒绝
-- [ ] 评论超过 500 字被拒绝
-- [ ] Mock 单测全部通过（历史测试源码已退出当前测试 target，重新接入后需复测）
