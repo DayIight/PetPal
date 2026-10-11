@@ -44,7 +44,7 @@ final class PrototypeUITests: XCTestCase {
             app.alerts["提醒已保存"].buttons["知道了"].tap()
         }
         XCTAssertTrue(app.buttons["reminders.add"].waitForExistence(timeout: 5))
-        let listTask = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND NOT label CONTAINS %@", "tasks.row.", "已完成")).firstMatch
+        let listTask = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND identifier ENDSWITH %@ AND NOT label CONTAINS %@", "tasks.row.", "#喂食", "已完成")).firstMatch
         XCTAssertTrue(listTask.waitForExistence(timeout: 3))
         let cancelledIdentifier = listTask.identifier
         listTask.tap()
@@ -55,14 +55,8 @@ final class PrototypeUITests: XCTestCase {
         XCTAssertFalse(app.buttons[cancelledIdentifier].label.contains("已完成"), "取消表单不能完成任务")
         app.buttons["完成"].tap()
         app.petPalTab("今日").tap()
-        let pendingByID = app.buttons[cancelledIdentifier]
-        let pending: XCUIElement
-        if pendingByID.waitForExistence(timeout: 5) {
-            pending = pendingByID
-        } else {
-            pending = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND NOT label CONTAINS %@", "tasks.row.", "已完成")).firstMatch
-            XCTAssertTrue(pending.waitForExistence(timeout: 5))
-        }
+        let pending = app.buttons[cancelledIdentifier]
+        XCTAssertTrue(pending.waitForExistence(timeout: 5), "今日页应显示刚才取消的同一条喂食任务")
         let identifier = pending.identifier
         pending.tap()
         if !app.buttons["record.save"].waitForExistence(timeout: 3) { print(app.debugDescription) }
@@ -70,10 +64,10 @@ final class PrototypeUITests: XCTestCase {
         app.buttons["record.save"].tap()
         XCTAssertTrue(app.buttons["record.save"].exists, "空记录不能提前完成任务")
         let food = app.textFields["record.field.food"]
-        if !food.isHittable { app.swipeUp() }
+        scrollToRecordField(food)
         food.tap(); food.typeText("任务完成测试粮")
         let grams = app.textFields["record.field.grams"]
-        if !grams.isHittable { app.swipeUp() }
+        scrollToRecordField(grams)
         grams.tap(); grams.typeText("50")
         pickOption("早", field: "record.field.mealTime")
         app.buttons["record.save"].tap()
@@ -306,7 +300,7 @@ final class PrototypeUITests: XCTestCase {
 
     /// 点选单选 Picker（用餐时段等）的选项：decimalPad 键盘在位时首次点击只收键盘，带重试
     private func pickOption(_ option: String, field: String) {
-        scrollTo(app.buttons[field])
+        scrollToRecordField(app.buttons[field])
         app.buttons[field].tap()
         for _ in 0..<3 {
             let el = app.buttons[option].exists ? app.buttons[option] : app.cells[option]
@@ -314,6 +308,30 @@ final class PrototypeUITests: XCTestCase {
             app.buttons[field].tap()
         }
         XCTFail("字段 \(field) 的选项「\(option)」未出现")
+    }
+
+    /// 整屏 swipeUp 在键盘弹出后会越过相邻字段，使 Form 的离屏单元格被回收。
+    /// 只在记录表单的可见区域小幅拖动，并在每次拖动后重新查找字段。
+    private func scrollToRecordField(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        let form = app.collectionViews["record.form"]
+        XCTAssertTrue(form.waitForExistence(timeout: 3), "记录表单应存在", file: file, line: line)
+        for _ in 0..<10 {
+            let top = max(form.frame.minY, app.buttons["record.save"].frame.maxY) + 16
+            let keyboard = app.keyboards.firstMatch
+            // 键盘上方还可能有联想词与输入工具栏，拖动起点也要避开它们。
+            let bottom = min(form.frame.maxY - 32, keyboard.exists ? keyboard.frame.minY - 80 : form.frame.maxY - 32)
+            if element.exists && element.isHittable && element.frame.minY >= top && element.frame.maxY <= bottom { return }
+            let height = bottom - top
+            guard height > 80 else { break }
+            let scrollDown = element.exists && element.frame.midY < top
+            let startY = top + height * (scrollDown ? 0.3 : 0.75)
+            let distance = min(110, height * 0.3)
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            let start = origin.withOffset(CGVector(dx: form.frame.maxX - 24, dy: startY))
+            let end = origin.withOffset(CGVector(dx: form.frame.maxX - 24, dy: startY + (scrollDown ? distance : -distance)))
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
+        XCTFail("记录字段在限定的小幅滚动后仍未进入可点击区域", file: file, line: line)
     }
 
     private func scrollTo(_ element: XCUIElement) {

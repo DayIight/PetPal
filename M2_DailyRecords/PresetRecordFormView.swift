@@ -123,6 +123,7 @@ struct PresetRecordFormView: View {
                 .accessibilityIdentifier("record.errors")
             }
         }
+        .accessibilityIdentifier("record.form")
         .disabled(busy)
         .interactiveDismissDisabled(busy)
         .alert("记录已保存", isPresented: Binding(get: { savedNotice != nil }, set: { if !$0 { savedNotice = nil } })) {
