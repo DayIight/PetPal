@@ -28,10 +28,14 @@ targets:
       - path: M1_PetProfile/PortableBackup.swift
       - path: M1_PetProfile/BackupManagementView.swift
       - path: M1_PetProfile/PrivacySupportView.swift
+      - path: M1_PetProfile/CareItemStore.swift
+      - path: M1_PetProfile/CareItemBackup.swift
       - path: M2_DailyRecords/DailyRecordSkeleton.swift
       - path: M2_DailyRecords/RecordCalendarView.swift
       - path: M2_DailyRecords/CustomTemplateViews.swift
       - path: M2_DailyRecords/RecordsHomeView.swift
+      - path: M2_DailyRecords/QuickActions.swift
+      - path: M2_DailyRecords/RecordSearch.swift
       - path: M2_DailyRecords/RecordTemplatePickerView.swift
       - path: M2_DailyRecords/PresetRecordFormView.swift
       - path: M2_DailyRecords/MoodPicker.swift
@@ -41,12 +45,18 @@ targets:
       - path: M4_Reminders/ReminderTasks.swift
       - path: M4_Reminders/ReminderFormView.swift
       - path: M4_Reminders/ReminderListView.swift
+      - path: M4_Reminders/MedicationCourse.swift
+      - path: M4_Reminders/MedicationCourseViews.swift
       - path: M5_Dashboard/DashboardSkeleton.swift
       - path: M5_Dashboard/DashboardView.swift
       - path: M5_Dashboard/DashboardCharts.swift
       - path: M5_Dashboard/DashboardHealthTimeline.swift
       - path: M5_Dashboard/DashboardPDF.swift
       - path: M5_Dashboard/MedicalReport.swift
+      - path: M5_Dashboard/MedicalDocuments.swift
+      - path: M5_Dashboard/MedicalDocumentViews.swift
+      - path: M5_Dashboard/CareInstructions.swift
+      - path: M5_Dashboard/CareInstructionsView.swift
       - path: M6_Design/Onboarding.swift
       - path: M7_Prototype/PreviewFixtures.swift
       - path: M6_Design/DesignSkeleton.swift
@@ -114,11 +124,16 @@ targets:
       - path: M1_PetProfile/PetProfileTests.swift
       - path: M1_PetProfile/LaunchReadinessTests.swift
       - path: M1_PetProfile/LaunchFollowupTests.swift
+      - path: M1_PetProfile/CareItemStoreTests.swift
+      - path: M1_PetProfile/CareBackupTests.swift
       - path: M2_DailyRecords/DailyRecordTests.swift
+      - path: M2_DailyRecords/QuickActionSearchTests.swift
       - path: M4_Reminders/ReminderTests.swift
       - path: M4_Reminders/RecordTaskTests.swift
+      - path: M4_Reminders/MedicationCourseTests.swift
       - path: M5_Dashboard/DashboardTests.swift
       - path: M5_Dashboard/MedicalReportTests.swift
+      - path: M5_Dashboard/CareToolsTests.swift
       - path: M6_Design/OnboardingTests.swift
       - path: M8_Widget/WidgetSnapshotTests.swift
     dependencies:
@@ -135,6 +150,7 @@ targets:
       - path: M7_Prototype/PrototypeUITests.swift
       - path: M7_Prototype/WeightUITests.swift
       - path: M7_Prototype/ReleaseFlowUITests.swift
+      - path: M7_Prototype/CareFeaturesUITests.swift
     dependencies:
       - target: PetPal
     settings:

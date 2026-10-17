@@ -9,8 +9,11 @@ struct ReminderTask: Identifiable {
     let day: String
     var record: Record?
     var id: String { ReminderTaskKey.make(reminderID: reminder.id, day: day, type: reminder.type.rawValue) }
-    enum Status: String { case pending = "待完成", overdue = "逾期", done = "已完成" }
-    func status(now: Date) -> Status { record != nil ? .done : (due <= now ? .overdue : .pending) }
+    enum Status: String { case pending = "待完成", overdue = "逾期", done = "已完成", skipped = "已跳过（未服药）" }
+    func status(now: Date) -> Status {
+        if let record { return record.answers["administrationStatus"] == "skipped" ? .skipped : .done }
+        return due <= now ? .overdue : .pending
+    }
 }
 
 extension Record {
@@ -84,7 +87,7 @@ enum ReminderTaskMigration {
 }
 
 /// 首页和提醒管理页共用任务列表；保存表单和完成状态在同一个数据库事务中提交。
-struct ReminderTasksSection: View {
+@MainActor struct ReminderTasksSection: View {
     let pet: Pet
     @ObservedObject var service: ReminderService
     let onSelect: (ReminderTask) -> Void
@@ -102,7 +105,7 @@ struct ReminderTasksSection: View {
                                 Image(systemName: task.record == nil ? "circle" : "checkmark.circle.fill")
                                     .accessibilityHidden(true)
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(task.reminder.type.rawValue).font(.headline)
+                                    Text(taskTitle(task)).font(.headline)
                                     Text(task.due.formatted(date: .abbreviated, time: .shortened))
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
@@ -124,13 +127,24 @@ struct ReminderTasksSection: View {
                 .font(.footnote).foregroundStyle(.secondary)
         }
     }
+    private func taskTitle(_ task: ReminderTask) -> String {
+        if task.reminder.type == .medication,
+           let course = try? MedicationCourseStore().course(reminderID: task.reminder.id, petID: pet.id) {
+            return "服药 · " + course.drugName
+        }
+        return task.reminder.type.rawValue
+    }
 }
 
 /// 弹窗由列表页面承载；Section 只提供行，避免 List 的 Section 容器吞掉展示请求。
-struct ReminderTaskSheet: View {
+@MainActor struct ReminderTaskSheet: View {
     let task: ReminderTask
+    @ObservedObject var service: ReminderService = .shared
     var body: some View {
         if let record = task.record { RecordDetailView(record: record) }
+        else if let course = try? MedicationCourseStore().course(reminderID: task.reminder.id, petID: task.reminder.petID) {
+            MedicationCourseTaskView(task: task, course: course, service: service)
+        }
         else { NavigationStack { PresetRecordFormView(completing: task) } }
     }
 }

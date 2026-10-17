@@ -210,11 +210,15 @@ final class CoreDataPetRepository: PetRepository {
         let records = try ctx.fetch(recordReq)
         let reminders = try ctx.fetch(reminderReq)
         let weights = try ctx.fetch(weightReq)
+        let careItems = try CareItemStore.rows(in: ctx, petID: id)
+        files.append(contentsOf: try CareItemStore.mediaFileNames(in: careItems))
         for r in records { files.append(contentsOf: r.photoFileNames ?? []); ctx.delete(r) }
         reminders.forEach(ctx.delete); weights.forEach(ctx.delete)
+        careItems.forEach(ctx.delete)
         ctx.delete(e)
         try save()
         files.forEach(AvatarStore.delete(fileName:))   // M-04：数据库落盘后再清文件
+        CareItemStore.notify()
     }
     private func find(_ id: UUID) throws -> CDPet? {
         let r = CDPet.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", id as CVarArg)

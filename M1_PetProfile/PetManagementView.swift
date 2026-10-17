@@ -15,6 +15,8 @@ struct PetManagementView: View {
     @State private var showWeight = false
     @State private var showBackup = false
     @State private var showPrivacy = false
+    @State private var showMedicalDocuments = false
+    @State private var showCareInstructions = false
 
     var body: some View {
         NavigationStack(path: $router.path) {
@@ -65,9 +67,18 @@ struct PetManagementView: View {
                     WeightFormView(petID: pet.id)
                 }
             }
+            .sheet(isPresented: $showMedicalDocuments) {
+                if let pet = currentPet.current { MedicalDocumentsView(pet: pet).id(pet.id) }
+            }
+            .sheet(isPresented: $showCareInstructions) {
+                if let pet = currentPet.current { CareInstructionsView(pet: pet).id(pet.id) }
+            }
             .sheet(isPresented: $showTemplates) { TemplateListView() }
             .sheet(isPresented: $showBackup) { NavigationStack { BackupManagementView() } }
             .sheet(isPresented: $showPrivacy) { NavigationStack { PrivacySupportView() } }
+            .onChange(of: currentPet.current?.id) { _ in
+                showMedicalDocuments = false; showCareInstructions = false
+            }
         }
     }
 
@@ -153,6 +164,14 @@ struct PetManagementView: View {
                     showDashboard = true
                 }
                 .accessibilityIdentifier("profile.dashboard")
+                featureRow("医疗资料夹", icon: "folder.badge.plus", hint: "管理当前宠物的 PDF 和医疗图片", disabled: currentPet.current == nil) {
+                    showMedicalDocuments = true
+                }
+                .accessibilityIdentifier("profile.medicalDocuments")
+                featureRow("照护交接卡", icon: "person.text.rectangle", hint: "保存当前宠物的照护说明并选择内容分享", disabled: currentPet.current == nil) {
+                    showCareInstructions = true
+                }
+                .accessibilityIdentifier("profile.careInstructions")
                 featureRow("记体重", icon: "scalemass",
                            hint: "为当前宠物录入一次体重，在看板展示变化曲线",
                            disabled: currentPet.current == nil) {

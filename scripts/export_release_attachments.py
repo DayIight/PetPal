@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """从 xcresulttool export attachments 产物拷贝命名 PDF/截图并生成可校验清单。"""
 import argparse
+from datetime import date
 import hashlib
 import json
 from pathlib import Path
@@ -15,7 +16,7 @@ for group in json.loads((args.attachments / 'manifest.json').read_text()):
     for attachment in group['attachments']:
         name = attachment['suggestedHumanReadableName'].split('_')[0]
         source = args.attachments / attachment['exportedFileName']
-        if name.startswith('report-') and source.suffix == '.pdf':
+        if name.startswith(('report-', 'care-card-')) and source.suffix == '.pdf':
             target = root / 'output/pdf' / (name + '.pdf')
         elif name.startswith('store-') and source.suffix == '.png':
             device = attachment['deviceName']
@@ -33,4 +34,4 @@ for path in sorted(pack.glob('*/*.png')):
     data = path.read_bytes()
     shots.append({'device': path.parent.name, 'file': str(path.relative_to(pack)), 'pixels': list(struct.unpack('>II', data[16:24])), 'sha256': hashlib.sha256(data).hexdigest()})
 pack.mkdir(parents=True, exist_ok=True)
-(pack / 'manifest.json').write_text(json.dumps({'generated': '2026-10-11', 'source': 'ReleaseFlowUITests/test_storeScreenshots, Debug in-memory synthetic fixtures, native unedited screenshots', 'screenshots': shots}, ensure_ascii=False, indent=2) + '\n')
+(pack / 'manifest.json').write_text(json.dumps({'generated': date.today().isoformat(), 'source': 'ReleaseFlowUITests/test_storeScreenshots, Debug in-memory synthetic fixtures, native unedited screenshots', 'screenshots': shots}, ensure_ascii=False, indent=2) + '\n')
