@@ -183,6 +183,8 @@ struct TodayHomeView: View {
     @State private var showWeight = false
     @State private var showFirstReminder = false
     @State private var selectedTask: ReminderTask?
+    @State private var quickManagementPet: Pet?
+    @State private var quickDraft: Record?
     var body: some View {
         NavigationStack {
             List {
@@ -213,6 +215,8 @@ struct TodayHomeView: View {
                         }
                     }
                     ReminderTasksSection(pet: pet, service: reminderService) { selectedTask = $0 }
+                    QuickActionsSection(pet: pet, onManage: { quickManagementPet = pet },
+                                        onSelect: { quickDraft = $0 }).id(pet.id)
                     if reminderService.permission != .granted {
                         Text("通知权限未开启，可在「管理提醒」中开启通知。")
                             .font(.footnote).foregroundStyle(.secondary)
@@ -253,6 +257,12 @@ struct TodayHomeView: View {
             }
             .sheet(item: $selectedTask, onDismiss: { Task { await reminderService.rescheduleAll() } }) {
                 ReminderTaskSheet(task: $0)
+            }
+            .sheet(item: $quickManagementPet) { QuickActionManagementView(pet: $0) }
+            .sheet(item: $quickDraft) { record in NavigationStack { PresetRecordFormView(prefilling: record) } }
+            .onChange(of: currentPet.current?.id) { _ in
+                quickManagementPet = nil
+                quickDraft = nil
             }
         }
     }

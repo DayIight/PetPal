@@ -90,19 +90,20 @@ enum DashboardPDFBuilder {
 }
 
 /// CoreText 按可见字符分页，任意长度的字段也不会在页面底部截断。
-private final class ReportPage {
+final class ReportPage {
     let context: UIGraphicsPDFRendererContext
     let petName: String
+    let reportTitle: String
     var y: CGFloat = 64
     var pageNumber = 0
     var section = ""
     let width: CGFloat = 499
     let bottom: CGFloat = 770
-    init(context: UIGraphicsPDFRendererContext, petName: String) { self.context = context; self.petName = petName }
+    init(context: UIGraphicsPDFRendererContext, petName: String, reportTitle: String = "就医报告") { self.context = context; self.petName = petName; self.reportTitle = reportTitle }
     func newPage(continuation: Bool = false) {
         context.beginPage(); pageNumber += 1; y = 64
         UIColor.white.setFill(); context.cgContext.fill(DashboardPDFBuilder.pageSize)
-        let header = "PetPal · 就医报告 · " + String(petName.prefix(20))
+        let header = "PetPal · " + reportTitle + " · " + String(petName.prefix(20))
         (header as NSString).draw(in: CGRect(x: 48, y: 28, width: width, height: 20), withAttributes: [.font: UIFont.systemFont(ofSize: 10), .foregroundColor: UIColor.darkGray])
         ("第 \(pageNumber) 页 · 资料由主人记录" as NSString).draw(at: CGPoint(x: 48, y: 801), withAttributes: [.font: UIFont.systemFont(ofSize: 10), .foregroundColor: UIColor.darkGray])
         if continuation && !section.isEmpty { text(section + "（续）", bold: true) }

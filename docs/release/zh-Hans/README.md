@@ -7,9 +7,9 @@
 - `acceptance.json`：真机、最低系统、TestFlight 的结构化待验收记录；补齐实测证据后才可标记通过。
 - `真机与TestFlight验收.md`：Xcode 真机安装步骤、验收表、反馈流程。
 - `screenshots/iphone/` 与 `screenshots/ipad/`：原生截图，按今日、记录、成长、报告、档案排序。详情见 `screenshots/manifest.json`。
-- 根目录 `output/pdf/`：标准、长文本与空数据就医报告样例，全部为虚构测试资料。
+- 根目录 `output/pdf/`：标准、长文本与空数据就医报告，以及标准和长文本照护交接卡样例，全部为虚构测试资料。
 
-资料版本：2026-10-11。需求基线见 [产品需求与验收基线](../../project/PetPal_PRD_2026-10-03.md)，历史社交愿景已单独归档。
+资料版本：2026-10-17。需求基线见 [产品需求与验收基线](../../project/PetPal_PRD_2026-10-03.md)，历史社交愿景已单独归档。
 
 材料检查：在仓库根目录执行 `python3 scripts/check_release_materials.py`。默认只检查材料；加 `--submission` 时还检查真实联系信息与签名配置，当前应报告尚缺项。
 
@@ -17,4 +17,4 @@
 
 截图与字段限制已按 [Apple 截图规格](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications) 和 [版本信息](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information) 核对：本项目准备大屏 iPhone 与 13 英寸 iPad 原生截图；关键词按 UTF-8 100 字节限制检查，描述按 4000 字符检查。提交前仍应以后台对应版本的校验为准。
 
-复现截图：运行 `ReleaseFlowUITests/test_storeScreenshots` 并指定 iPhone 18 Pro Max 与 iPad Pro 13-inch (M5)，随后用 `xcrun xcresulttool export attachments` 导出附件，再执行 `python3 scripts/export_release_attachments.py <附件目录>`。截图使用原生尺寸，不裁剪、不放大；清单含尺寸与 SHA-256。
+复现截图：运行 `ReleaseFlowUITests/test_storeScreenshots` 并指定 iPhone 18 Pro Max 与 iPad Pro 13-inch (M5)，随后用 `xcrun xcresulttool export attachments` 导出附件，再执行 `python3 scripts/export_release_attachments.py <附件目录>`。截图使用原生尺寸，不裁剪、不放大；清单含尺寸与 SHA-256。运行 `CareToolsTests` 可生成照护卡 PDF 附件，同一脚本也能导出这些样例。

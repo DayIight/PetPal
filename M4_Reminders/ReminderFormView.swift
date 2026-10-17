@@ -33,6 +33,7 @@ struct ReminderFormView: View {
         _advance = State(initialValue: r.advance); _enabled = State(initialValue: r.isEnabled)
         switch r.repeatRule {
         case .daily: _repeatMode = State(initialValue: .daily)
+        case .dailyWindow: _repeatMode = State(initialValue: .daily)
         case .weekly(let days): _repeatMode = State(initialValue: .weekly); _weekdays = State(initialValue: days)
         case .monthly(let day): _repeatMode = State(initialValue: .monthly); _monthDay = State(initialValue: day)
         case .yearly(let month, let day): _repeatMode = State(initialValue: .yearly); _yearMonth = State(initialValue: month); _yearDay = State(initialValue: day)

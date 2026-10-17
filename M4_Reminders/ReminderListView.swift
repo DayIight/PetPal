@@ -5,6 +5,7 @@ struct ReminderListView: View {
     @ObservedObject var service: ReminderService
     @State private var reminders: [Reminder] = []
     @State private var showForm = false
+    @State private var showCourses = false
     @State private var editing: Reminder?
     @State private var selectedTask: ReminderTask?
     @State private var busy = false
@@ -15,6 +16,12 @@ struct ReminderListView: View {
         NavigationStack {
             List {
                 ReminderTasksSection(pet: pet, service: service) { selectedTask = $0 }
+                Section {
+                    Button { showCourses = true } label: { Label("用药疗程", systemImage: "pills.fill") }
+                        .accessibilityIdentifier("reminders.courses")
+                    Text("按主人填写的安排设置有限日期的服药提醒。")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
                 if service.permission != .granted {
                     Section {
                         Text("通知权限未开启，已保存的提醒暂不能发送。")
@@ -71,6 +78,7 @@ struct ReminderListView: View {
                 ToolbarItem(placement: .confirmationAction) { Button { showForm = true } label: { Image(systemName: "plus") }.accessibilityIdentifier("reminders.add") }
             }
             .sheet(isPresented: $showForm, onDismiss: reload) { ReminderFormView(pet: pet, service: service) }
+            .sheet(isPresented: $showCourses, onDismiss: reload) { MedicationCoursesView(pet: pet, service: service) }
             .sheet(item: $editing, onDismiss: reload) { ReminderFormView(pet: pet, service: service, editing: $0) }
             .sheet(item: $selectedTask, onDismiss: { Task { await service.rescheduleAll(); reload() } }) {
                 ReminderTaskSheet(task: $0)
@@ -94,5 +102,9 @@ struct ReminderListView: View {
             busy = false; reload()
         }
     }
-    private func reload() { reminders = service.reminders(petID: pet.id).sorted { ($0.hour, $0.minute) < ($1.hour, $1.minute) } }
+    private func reload() {
+        reminders = service.reminders(petID: pet.id).filter {
+            if case .dailyWindow = $0.repeatRule { return false }; return true
+        }.sorted { ($0.hour, $0.minute) < ($1.hour, $1.minute) }
+    }
 }

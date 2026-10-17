@@ -33,7 +33,7 @@ struct PortableBackup: Codable {
         var valid: Bool { sha256 == PortableBackup.digest(data) }
     }
     var format = "PetPalBackup"
-    var version = 1
+    var version = 2
     var createdAt: Date
     var appVersion: String
     var currentPetID: UUID?
@@ -43,7 +43,7 @@ struct PortableBackup: Codable {
     static let maxDatabaseRows = 100_000
     static func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
     static func safeName(_ name: String) -> Bool {
-        name.range(of: #"^[A-Za-z0-9_-]+\.(jpg|jpeg|png)$"#, options: .regularExpression) != nil
+        name.range(of: #"^[A-Za-z0-9_-]+\.(jpg|jpeg|png|pdf)$"#, options: .regularExpression) != nil
     }
 
     // 独立于文件总大小的解码预算，先读 ImageIO 元信息再创建图片。
@@ -68,6 +68,15 @@ struct PortableBackup: Codable {
               width * height <= maxImagePixels else { throw BackupError.mediaBudget }
         guard CGImageSourceCreateImageAtIndex(source, 0, options) != nil else { throw BackupError.damaged }
         return width * height
+    }
+
+    private static func validateMedia(_ data: Data, name: String) throws -> Int {
+        if URL(fileURLWithPath: name).pathExtension == "pdf" {
+            do { try MedicalDocumentImporter.validatePDF(data) }
+            catch { throw BackupError.damaged }
+            return 0
+        }
+        return try validateImage(data)
     }
 
     /// 同步入口供已有调用方使用；正式 UI 使用下方异步入口。
@@ -121,8 +130,9 @@ struct PortableBackup: Codable {
             try cancellation.check()
             let url = mediaDirectory.appendingPathComponent(name)
             guard safeName(name), FileManager.default.fileExists(atPath: url.path) else { throw BackupError.missingMedia(name) }
-            let data = try readFile(url, limit: maxImageBytes)
-            pixels += try validateImage(data)
+            let limit = url.pathExtension == "pdf" ? MedicalDocumentImporter.maxPDFBytes : maxImageBytes
+            let data = try readFile(url, limit: limit)
+            pixels += try validateMedia(data, name: name)
             guard pixels <= maxTotalImagePixels else { throw BackupError.mediaBudget }
             total += data.count
             guard total < maxBytes else { throw BackupError.tooLarge }
@@ -163,14 +173,14 @@ struct PortableBackup: Codable {
         try cancellation.check()
         guard data.count <= maxBytes else { throw BackupError.tooLarge }
         guard let archive = try? JSONDecoder().decode(Self.self, from: data), archive.format == "PetPalBackup" else { throw BackupError.damaged }
-        guard archive.version == 1 else { throw BackupError.unsupportedVersion }
+        guard (1...2).contains(archive.version) else { throw BackupError.unsupportedVersion }
         guard archive.media.count <= maxMediaCount else { throw BackupError.mediaBudget }
         guard archive.database.valid else { throw BackupError.damaged }
         var pixels = 0
         for (name, blob) in archive.media {
             try cancellation.check()
             guard safeName(name), blob.valid else { throw BackupError.damaged }
-            pixels += try validateImage(blob.data)
+            pixels += try validateMedia(blob.data, name: name)
             guard pixels <= maxTotalImagePixels else { throw BackupError.mediaBudget }
         }
         let temp = try temporaryDirectory()
@@ -207,6 +217,7 @@ struct PortableBackup: Codable {
                 try cancellation.check()
                 record.photoFileNames = (record.photoFileNames ?? []).compactMap { renamed[$0] }
             }
+            try CareItemBackup.renameMedicalFiles(in: context, using: renamed)
             try context.save()
         }
         try cancellation.check()
@@ -246,6 +257,7 @@ struct PortableBackup: Codable {
         NotificationCenter.default.post(name: .recordsDidChange, object: nil)
         NotificationCenter.default.post(name: .weightsDidChange, object: nil)
         NotificationCenter.default.post(name: .backupDidRestore, object: nil)
+        CareItemStore.notify()
         // 原照片保留，恢复前数据库副本仍需引用它们。
     }
 
@@ -392,7 +404,11 @@ struct PortableBackup: Codable {
                 guard let record = recordsByID[source], record.petID == r.petID else { throw BackupError.damaged }
             }
         }
-        let files = pets.compactMap(\.avatarFileName) + (try ctx.fetch(CDRecord.fetchRequest())).flatMap { $0.photoFileNames ?? [] }
+        let imageFiles = pets.compactMap(\.avatarFileName) + records.flatMap { $0.photoFileNames ?? [] }
+        guard imageFiles.allSatisfy({ safeName($0) && URL(fileURLWithPath: $0).pathExtension != "pdf" }) else { throw BackupError.damaged }
+        let medicalFiles = try CareItemBackup.validate(in: ctx)
+        guard medicalFiles.isDisjoint(with: Set(imageFiles)) else { throw BackupError.damaged }
+        let files = imageFiles + Array(medicalFiles)
         guard Set(files).count <= maxMediaCount else { throw BackupError.mediaBudget }
         guard files.allSatisfy(safeName) else { throw BackupError.damaged }
         return Set(files)

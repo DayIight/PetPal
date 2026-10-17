@@ -141,7 +141,12 @@ struct Record: Identifiable, Equatable {
     var wantsNextReminder = false
     var nextReminderHour = 9
     var nextReminderMinute = 0
-    var summary: String { answers.values.prefix(2).joined(separator: " · ") }
+    var summary: String {
+        if kind == .medication {
+            return ["drug", "dose"].compactMap { answers[$0] }.joined(separator: " · ")
+        }
+        return answers.values.prefix(2).joined(separator: " · ")
+    }
     /// 展示用类型名：自定义记录显示模板名，预设显示枚举文案
     var displayKind: String { templateName ?? kind.rawValue }
 }
@@ -372,9 +377,13 @@ final class CoreDataRecordRepository: RecordRepository {
         guard let e = try ctx.fetch(request).first, let petID = e.petID else { throw DataStoreError.missingItem }
         let weights = try linkedWeights(id); let reminders = try linkedReminders(id)
         let files = e.photoFileNames ?? []
-        ctx.delete(e); weights.forEach(ctx.delete); reminders.forEach(ctx.delete)
-        try saveContext(); reload(petID)
+        do {
+            try CareItemBackup.detachRecord(id, in: ctx)
+            ctx.delete(e); weights.forEach(ctx.delete); reminders.forEach(ctx.delete)
+            try saveContext(); reload(petID)
+        } catch { ctx.rollback(); throw error }
         files.forEach(AvatarStore.delete(fileName:))
+        CareItemStore.notify()
     }
 }
 

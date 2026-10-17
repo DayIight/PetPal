@@ -6,6 +6,8 @@ import SwiftUI
 struct PresetRecordFormView: View {
     @StateObject var vm: RecordFormViewModel
     private let onSaved: () -> Void
+    private var fields: [TemplateField] { vm.draft.templateSnapshot?.templateFields ?? vm.draft.kind.fields }
+    private var isQuickDraft = false
     @Environment(\.dismiss) private var dismiss
 
     /// date/multi/toggle 字段的本地编辑态，保存时统一序列化进 answers
@@ -41,6 +43,28 @@ struct PresetRecordFormView: View {
         self.onSaved = {}
     }
 
+    /// `record` is the fresh, media-free draft returned by QuickAction.makeDraft.
+    init(prefilling record: Record) {
+        let vm = RecordFormViewModel(repo: CoreDataRecordRepository(), petID: record.petID, kind: record.kind,
+            validationFields: record.templateSnapshot?.templateFields, templateName: record.templateName,
+            templateSnapshot: record.templateSnapshot, weightRepo: CoreDataWeightRepository())
+        vm.draft = record
+        _vm = StateObject(wrappedValue: vm)
+        self.onSaved = {}
+        isQuickDraft = true
+        var toggles: [String: Bool] = [:], multi: [String: Set<String>] = [:]
+        for field in record.templateSnapshot?.templateFields ?? record.kind.fields {
+            let raw = record.answers[field.key] ?? ""
+            switch field.kind {
+            case .toggle: toggles[field.key] = raw == "true"
+            case .multi: multi[field.key] = Set(raw.split(separator: ",").map(String.init))
+            default: break
+            }
+        }
+        _toggles = State(initialValue: toggles)
+        _multiSelections = State(initialValue: multi)
+    }
+
     init(editing record: Record, onSaved: @escaping () -> Void = {}) {
         _vm = StateObject(wrappedValue: RecordFormViewModel(
             repo: CoreDataRecordRepository(), editing: record,
@@ -69,6 +93,13 @@ struct PresetRecordFormView: View {
 
     var body: some View {
         Form {
+            if isQuickDraft {
+                Section {
+                    Text("已填入常用内容，请核对本次发生时间和实际内容后点保存。照片、日期计划与任务完成状态不会沿用。")
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("record.quickDraftNotice")
+                }
+            }
             if let due = vm.draft.completedDueAt {
                 Section("完成本次提醒") {
                     Text("计划时间：" + due.formatted(date: .abbreviated, time: .shortened))
@@ -82,7 +113,7 @@ struct PresetRecordFormView: View {
                 Text("可补录过去的记录，日历和成长趋势按发生时间统计。")
                     .font(.footnote).foregroundStyle(.secondary)
             }
-            ForEach(vm.draft.kind.fields, id: \.key) { field in
+            ForEach(fields, id: \.key) { field in
                 Section(field.title) {
                     fieldView(field)
                 }
@@ -129,7 +160,7 @@ struct PresetRecordFormView: View {
         .alert("记录已保存", isPresented: Binding(get: { savedNotice != nil }, set: { if !$0 { savedNotice = nil } })) {
             Button("知道了") { finish() }
         } message: { Text(savedNotice ?? "") }
-        .navigationTitle(vm.isEditing ? "编辑\(vm.draft.kind.rawValue)记录" : "\(vm.draft.kind.rawValue)记录")
+        .navigationTitle(vm.isEditing ? "编辑\(vm.draft.displayKind)记录" : "\(vm.draft.displayKind)记录")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() }.disabled(busy) }
@@ -203,7 +234,7 @@ struct PresetRecordFormView: View {
 
     private func save() {
         var answers = vm.draft.answers
-        for field in vm.draft.kind.fields {
+        for field in fields {
             switch field.kind {
             case .date:
                 answers[field.key] = dates[field.key].map { Self.dayFormatter.string(from: $0) } ?? ""

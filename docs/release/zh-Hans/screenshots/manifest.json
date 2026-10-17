@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-11",
+  "generated": "2026-10-17",
   "source": "ReleaseFlowUITests/test_storeScreenshots, Debug in-memory synthetic fixtures, native unedited screenshots",
   "screenshots": [
     {
@@ -9,7 +9,7 @@
         2064,
         2752
       ],
-      "sha256": "a366d03d4dc17f6e65b130070d3e5c77bcf11e4821b6d76c771f44b3024a3a63"
+      "sha256": "41208d9f74f8fc803851e3ffbc21f6d95097ca119652057b838833709abf8141"
     },
     {
       "device": "ipad",
@@ -18,7 +18,7 @@
         2064,
         2752
       ],
-      "sha256": "b7b7e00bfc7f703fa6314f9bd38399bbe1c67d656bb56f24432d9353989667e9"
+      "sha256": "d223a87f948b438e625dcd34c5d0b72d2b829e4600a009b96c7f02138bd1e0ef"
     },
     {
       "device": "ipad",
@@ -27,7 +27,7 @@
         2064,
         2752
       ],
-      "sha256": "1bc3d1f299fc897fd9e0efba3715e90ed95ff17dab8baab04a303f8ce328b89d"
+      "sha256": "47ef4cab3f502621b6db0a58795f6c5bb9eb0479a5d440f80006ab36149f0ca4"
     },
     {
       "device": "ipad",
@@ -36,7 +36,7 @@
         2064,
         2752
       ],
-      "sha256": "b817b5e2f9ccc821fb7ece1bfe701d8b0d55ad9fef2d581c515f7112e0446246"
+      "sha256": "349334b3e5b6e9897a454f85d11c9e8e7a13e68b10d4d1c1bed43b4d5de440a9"
     },
     {
       "device": "ipad",
@@ -45,7 +45,7 @@
         2064,
         2752
       ],
-      "sha256": "01c928f4171c54230f5e5b4d129fcd4d571338202fbdc4131222ac5beef30967"
+      "sha256": "35402cee9c641423b9a068d09eddc38bf7949a76d5a72333720718f47051506d"
     },
     {
       "device": "iphone",
@@ -54,7 +54,7 @@
         1320,
         2868
       ],
-      "sha256": "b3b884e0fbfa06bde3e28c4b6b441bf0310c7ee4da02ec8ab62cb1123935384c"
+      "sha256": "86b3f475587dd65c45ee44fbcfffb3bb0949d230f7cb4bc26b60d089c783af3f"
     },
     {
       "device": "iphone",
@@ -63,7 +63,7 @@
         1320,
         2868
       ],
-      "sha256": "e6b07f15b9f1b6760f37813313d0ec50bfaacdb289a00dbd25a823c82f4a28f0"
+      "sha256": "54417b53b7fb54fa9db6dd353ed4c903573f9d92fb9e89520c5432478c841b4c"
     },
     {
       "device": "iphone",
@@ -72,7 +72,7 @@
         1320,
         2868
       ],
-      "sha256": "4fee1b71af52e32f56adf4156008db47e2acd23132830ddb8b04e41be52de22c"
+      "sha256": "45e4b975341f19c4554c6a2e9d9e3b06623ebcc6fec57ce0f53921c9d5678ec2"
     },
     {
       "device": "iphone",
@@ -90,7 +90,7 @@
         1320,
         2868
       ],
-      "sha256": "13c8bfd77ad81384d32349bbaed74cf3169a764f0c885c8f92e514e37e5c7e94"
+      "sha256": "d17820d0d1a2c3c9ce5b45dc7b77b2afc40e3c971c16190f6764cc0d125d8903"
     }
   ]
 }

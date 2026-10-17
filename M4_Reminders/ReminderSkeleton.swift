@@ -200,7 +200,12 @@ struct ReminderSchedulePlan {
                 plan.requests += group
             default:
                 let end: Date
-                if case .once(let date) = r.repeatRule { end = date } else { end = calendar.date(byAdding: .year, value: 8, to: now) ?? now }
+                switch r.repeatRule {
+                case .once(let date): end = date
+                case .dailyWindow(_, let last):
+                    end = (calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: last)) ?? last).addingTimeInterval(-1)
+                default: end = calendar.date(byAdding: .year, value: 8, to: now) ?? now
+                }
                 if let due = nextPending(r, after: now, through: end) {
                     finite.append(Occurrence(reminder: r, due: due, end: end, orderKey: r.id.uuidString))
                 }
@@ -275,6 +280,8 @@ final class CoreDataReminderRepository: ReminderRepository {
     func save(_ reminder: Reminder) throws {
         let r = CDReminder.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", reminder.id as CVarArg)
         let existing = try ctx.fetch(r).first
+        if case .dailyWindow = reminder.repeatRule { throw MedicationCourseError.managedReminder }
+        if let existing, case .dailyWindow = Reminder(existing).repeatRule { throw MedicationCourseError.managedReminder }
         var updated = reminder
         if let existing {
             let previous = Reminder(existing)
@@ -293,6 +300,9 @@ final class CoreDataReminderRepository: ReminderRepository {
     func delete(id: UUID) throws {
         let r = CDReminder.fetchRequest(); r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         let items = try ctx.fetch(r)
+        if items.contains(where: { if case .dailyWindow = Reminder($0).repeatRule { return true }; return false }) {
+            throw MedicationCourseError.managedReminder
+        }
         let sourceIDs = items.compactMap(\.sourceRecordID)
         let records = CDRecord.fetchRequest(); records.predicate = NSPredicate(format: "id IN %@", sourceIDs)
         let sources = try ctx.fetch(records)

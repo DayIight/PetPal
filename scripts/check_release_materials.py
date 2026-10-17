@@ -46,7 +46,7 @@ else:
         print(f'{device}: {len(shots)} 张截图')
 for name in ['审核说明.md', '真机与TestFlight验收.md', 'README.md']:
     if not (pack / name).exists(): errors.append(f'缺 {name}')
-for name in ['report-standard.pdf', 'report-long.pdf', 'report-empty.pdf']:
+for name in ['report-standard.pdf', 'report-long.pdf', 'report-empty.pdf', 'care-card-standard.pdf', 'care-card-long.pdf']:
     path = root / 'output/pdf' / name
     if not path.exists() or not path.read_bytes().startswith(b'%PDF-'):
         errors.append(f'缺有效 PDF 样例 {name}')

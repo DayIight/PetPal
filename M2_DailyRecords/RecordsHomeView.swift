@@ -8,6 +8,7 @@ struct RecordsHomeView: View {
     @State private var segment: Segment = .timeline
     @State private var showTemplatePicker = false
     @State private var showReminder = false
+    @State private var searchFilter = RecordSearchFilter()
 
     private enum Segment: String, CaseIterable, Identifiable {
         case timeline = "时间轴", calendar = "日历"
@@ -18,13 +19,18 @@ struct RecordsHomeView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 petHeader
-                Picker("视图切换", selection: $segment) {
-                    ForEach(Segment.allCases) { Text($0.rawValue).tag($0) }
+                if currentPet.current != nil {
+                    RecordSearchControls(filter: $searchFilter)
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, DS.Spacing.md)
-                .padding(.vertical, DS.Spacing.sm)
-                .accessibilityIdentifier("records.segment")
+                if !searchFilter.isActive {
+                    Picker("视图切换", selection: $segment) {
+                        ForEach(Segment.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, DS.Spacing.md)
+                    .padding(.vertical, DS.Spacing.sm)
+                    .accessibilityIdentifier("records.segment")
+                }
                 content
             }
             .background(Color.pageBackground)
@@ -100,18 +106,22 @@ struct RecordsHomeView: View {
     }
 
     @ViewBuilder private var content: some View {
-        switch segment {
-        case .timeline:
-            if let pet = currentPet.current {
-                TimelineRecordsView(pet: pet).id(pet.id)
-            } else {
-                noPetPlaceholder
-            }
-        case .calendar:
-            if let pet = currentPet.current {
-                EmbeddedCalendarView(pet: pet).id(pet.id)
-            } else {
-                noPetPlaceholder
+        if searchFilter.isActive, let pet = currentPet.current {
+            FilteredRecordsView(pet: pet, filter: searchFilter).id(pet.id)
+        } else {
+            switch segment {
+            case .timeline:
+                if let pet = currentPet.current {
+                    TimelineRecordsView(pet: pet).id(pet.id)
+                } else {
+                    noPetPlaceholder
+                }
+            case .calendar:
+                if let pet = currentPet.current {
+                    EmbeddedCalendarView(pet: pet).id(pet.id)
+                } else {
+                    noPetPlaceholder
+                }
             }
         }
     }

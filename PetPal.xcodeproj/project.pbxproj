@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		09B22913034049919FCD6971 /* SelectWidgetPetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E635B0A52969F7A8A2E41 /* SelectWidgetPetIntent.swift */; };
+		0BA9291E20098494639EDFFC /* CareItemBackup.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D7A84102988B70AE1784D0 /* CareItemBackup.swift */; };
 		0CEF993F05F6BDDEEED3369F /* DashboardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A689F4688B2962236695DEBB /* DashboardTests.swift */; };
 		0DAEB95B72FCDE4B2B1D8D62 /* ReminderTasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F8D932C2610942F6815AEFF /* ReminderTasks.swift */; };
 		10D05575DDB772F205E8DE36 /* Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EEF5E7AB505A0234E0E88F6 /* Onboarding.swift */; };
@@ -18,40 +19,54 @@
 		1DA64933DD35F42173B19289 /* WeightFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E0D954C513BB1D6DE8B7C23 /* WeightFormView.swift */; };
 		212B388B7703C84A16ABDB71 /* PetProfileSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C21F0F43CDF0C0430E01969 /* PetProfileSkeleton.swift */; };
 		23209D76BEF78E7B27C8626A /* DatabaseBackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EEA6E5FB5C6B6E10C1D418D /* DatabaseBackupManager.swift */; };
+		297B3A6D9B7FAB256E417F4F /* CareItemStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA4118519315ACD6D89B9FA /* CareItemStoreTests.swift */; };
 		2B6287357F04B6D3710735BA /* ReminderSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A47EB955B85E196682B3EA9C /* ReminderSkeleton.swift */; };
 		311D8991C2E9C04CC9269970 /* CoreDataEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0305E31F2AD66A0E96335B6 /* CoreDataEntities.swift */; };
 		31A4A7E7EB21FFC65F87F9E4 /* PresetRecordFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D973295CF3382B4F15F21CCB /* PresetRecordFormView.swift */; };
 		3BBA2611DEB73FEA092AB762 /* RecordPhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81ECAB97E483399B52FBAEF2 /* RecordPhotoPicker.swift */; };
 		3DF0ECCC24C5E5688B72113E /* DailyRecordTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C23A0D052F0B5A5C31C2B290 /* DailyRecordTests.swift */; };
 		40A3912B6F22F4148154689B /* PetPalSocial.icon in Resources */ = {isa = PBXBuildFile; fileRef = 356CDE184AF9CA1B99B813CE /* PetPalSocial.icon */; };
+		43F3205BBDF7011A32EFCA97 /* QuickActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64FB5EDF499CC4B798A0ADB /* QuickActions.swift */; };
 		46447655F428F060811BC07C /* DashboardCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614FEEDCE9B4F0F53903033B /* DashboardCharts.swift */; };
 		4E3CFE01BDB0319A1F6937A2 /* ReminderFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1F057C078BFB07E5B81C25 /* ReminderFormView.swift */; };
+		52285030452008D2E016C1C1 /* CareBackupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8993B7789EE84ADC7B764133 /* CareBackupTests.swift */; };
+		55446CB8386421311F6FD8E1 /* CareInstructionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B39658E0B10187DAA22EDD2 /* CareInstructionsView.swift */; };
 		58F42671478340C3C2297E4C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1455F5DA037FC0F79B8720D9 /* Assets.xcassets */; };
+		5AA9735816CAA9D721DD978C /* MedicationCourse.swift in Sources */ = {isa = PBXBuildFile; fileRef = F950350711C78BEA85892725 /* MedicationCourse.swift */; };
 		5C6BB14CFCAF12F626D927A5 /* SelectWidgetPetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E635B0A52969F7A8A2E41 /* SelectWidgetPetIntent.swift */; };
+		60181F769FD36297946BABA8 /* CareToolsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D9135E06C34F235B91111E9 /* CareToolsTests.swift */; };
 		60575D06A98522EA76235052 /* ReminderListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C69716F59C3ED03ED3E6845A /* ReminderListView.swift */; };
+		60A98D90BEC9B854E2396F76 /* MedicationCourseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 357D49313FD6A1C11CEC94A1 /* MedicationCourseTests.swift */; };
 		64C257077947ED98AEA7B232 /* WidgetSnapshotSyncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36A66C873B7051E3AC7C421 /* WidgetSnapshotSyncer.swift */; };
 		6773BE93F8BB4DE15D1EE3C0 /* OnboardingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E602CBF2BA05B44CCFD80E76 /* OnboardingTests.swift */; };
 		768CBDEE9285DF87B06DA791 /* PrivacySupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6C3BD5E7C1F5D776C07AD03 /* PrivacySupportView.swift */; };
 		76C7347974A0B4E088001AEB /* MoodPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC9798564C3F1B615D1DD0FC /* MoodPicker.swift */; };
+		89518D31F8968E0370A13B23 /* CareFeaturesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A97B6FC95EC0FA69A73BE7BD /* CareFeaturesUITests.swift */; };
 		8BA20D6D782910E72EA65029 /* PrototypeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514280BD0DC1990D33E47F91 /* PrototypeUITests.swift */; };
 		8D658E8E5702F97F4823B591 /* ReminderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AF695281430122AC6C5CDB0 /* ReminderTests.swift */; };
 		8D9167D3B3A8290E38B353A6 /* MedicalReportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C58A46A409FB24E2DA445DA /* MedicalReportTests.swift */; };
 		9129A8B47DCA4BBC143F45A2 /* ReminderRecurrence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 231790B56363B77742DA3C42 /* ReminderRecurrence.swift */; };
 		96B00EC79DEEF5A4A036287A /* WidgetSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD8A854CB49467B0FB4D804 /* WidgetSnapshotTests.swift */; };
 		993C71EFE86F679D24B96FE1 /* RecordsHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3C32D44F582D8D1B4F76522 /* RecordsHomeView.swift */; };
+		9B2C59EDE90E5083E87DA504 /* MedicalDocumentViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40ED6A522B4E6787F70D3A4A /* MedicalDocumentViews.swift */; };
 		9B2D0BAC60818E05E77C6F7F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 36E1E2F657DE2AC0079966CE /* PrivacyInfo.xcprivacy */; };
 		9E1E4C00BF420D7323B626C9 /* WeightUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32FBF3AD85F341F72AE04D11 /* WeightUITests.swift */; };
 		9F8C9342A27226BDB9DA8E97 /* ReleaseFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B057A720A774FAD26D8222 /* ReleaseFlowUITests.swift */; };
 		A8014D081D786A8517083849 /* PetPal.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 7A475C7DCF4F5D2651ED771E /* PetPal.xcdatamodeld */; };
 		A8AD2DFFD47B2362263F3BFB /* DashboardPDF.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652C82DC03DB39748919918F /* DashboardPDF.swift */; };
+		AFD9075590BF21F5A2A97CC3 /* MedicalDocuments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64FC1CE05A6F101981B078C3 /* MedicalDocuments.swift */; };
 		B0185C77163B2CA553294972 /* LaunchFollowupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 882520852231F27F27775564 /* LaunchFollowupTests.swift */; };
 		B28C661163D7E257E0D8DBA3 /* PetFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 958F6C579A173F555594EE6E /* PetFormView.swift */; };
+		B4A58383A08EE2DA62037606 /* MedicationCourseViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E6DB7FF47FD7C802A74717 /* MedicationCourseViews.swift */; };
 		B64DE1B12D78D93A4E975B34 /* PetProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CFCFB4238402245EA584FB3 /* PetProfileTests.swift */; };
 		BC2870F1D8FB29ADC68D0292 /* WidgetPetPaging.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD349923AE20D8ACAB2D2A73 /* WidgetPetPaging.swift */; };
 		BC7C0F1C967A900961BACA8D /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CB9BB611812E16745808CB0 /* WidgetSnapshot.swift */; };
 		BFE7FACCC09847413729522F /* DesignSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B3F913B76568DA44CA203C /* DesignSkeleton.swift */; };
+		C14668F47F5A23E11A33BF22 /* QuickActionSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CC69D7F39CDC2D38498FB6B /* QuickActionSearchTests.swift */; };
 		C231810068067E00FF104722 /* RecordTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EC3B47DAD00D1284185815C /* RecordTaskTests.swift */; };
 		C7F8BD2DE1C7894FD1312C98 /* PetPalWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E865EEEFEC8FF4CFEEA25FF9 /* PetPalWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C8E92C140BE0E7F06B42D48C /* CareItemStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9F3A9F332954B5BD5DA7AA6 /* CareItemStore.swift */; };
+		C90C6AE843DCBB0D1FCF5310 /* CareInstructions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33BE650EE7594A44B098F341 /* CareInstructions.swift */; };
 		CE1258296DACEF7A1C89C8D3 /* PetPalWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8860B53A8CC4318ABB10963A /* PetPalWidget.swift */; };
 		D1AD010CBCE485C2F7B8F0BF /* RecordTemplatePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD61F5B1C0BFDE1DB7FD61BC /* RecordTemplatePickerView.swift */; };
 		D4EDDDD9F9ED411B590D78B0 /* WidgetPetPaging.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD349923AE20D8ACAB2D2A73 /* WidgetPetPaging.swift */; };
@@ -62,6 +77,7 @@
 		E8014AB4E92319319C13A979 /* MedicalReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 691488F6DAD29CAF1A21E578 /* MedicalReport.swift */; };
 		E81166DDD1AED9A81C7FE950 /* CustomTemplateViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95E1C208BFD299769C5A0659 /* CustomTemplateViews.swift */; };
 		EE24DBB45363EF8F219581FA /* LaunchReadinessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41F6BA29D5EF28BF4939F651 /* LaunchReadinessTests.swift */; };
+		F1F7306B5ED0CDF2B99F5E03 /* RecordSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C36DD7C07F2609C5F433E0A /* RecordSearch.swift */; };
 		F4EBA71490C24B057BC7482F /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5107971C455CCBD90CE5B14C /* DashboardView.swift */; };
 		F51DF5DF9021F45D17BA5242 /* PortableBackup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 287527DC73AE50968AC7F88B /* PortableBackup.swift */; };
 		F6AC0A5AFFDEDCE6B1C22B6D /* PetManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0649DDBC131857AC1B21534D /* PetManagementView.swift */; };
@@ -111,7 +127,9 @@
 		0535823BAD80F1189271D804 /* BackupManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupManagementView.swift; sourceTree = "<group>"; };
 		0649DDBC131857AC1B21534D /* PetManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetManagementView.swift; sourceTree = "<group>"; };
 		080694A79B7A09DB89C006DF /* PetPalV2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = PetPalV2.xcdatamodel; sourceTree = "<group>"; };
+		0CC69D7F39CDC2D38498FB6B /* QuickActionSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionSearchTests.swift; sourceTree = "<group>"; };
 		1455F5DA037FC0F79B8720D9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		1B39658E0B10187DAA22EDD2 /* CareInstructionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareInstructionsView.swift; sourceTree = "<group>"; };
 		1C21F0F43CDF0C0430E01969 /* PetProfileSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetProfileSkeleton.swift; sourceTree = "<group>"; };
 		1EC3B47DAD00D1284185815C /* RecordTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordTaskTests.swift; sourceTree = "<group>"; };
 		1EEA6E5FB5C6B6E10C1D418D /* DatabaseBackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseBackupManager.swift; sourceTree = "<group>"; };
@@ -120,9 +138,12 @@
 		26B057A720A774FAD26D8222 /* ReleaseFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseFlowUITests.swift; sourceTree = "<group>"; };
 		287527DC73AE50968AC7F88B /* PortableBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortableBackup.swift; sourceTree = "<group>"; };
 		32FBF3AD85F341F72AE04D11 /* WeightUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightUITests.swift; sourceTree = "<group>"; };
+		33BE650EE7594A44B098F341 /* CareInstructions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareInstructions.swift; sourceTree = "<group>"; };
 		356CDE184AF9CA1B99B813CE /* PetPalSocial.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = PetPalSocial.icon; sourceTree = "<group>"; };
+		357D49313FD6A1C11CEC94A1 /* MedicationCourseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationCourseTests.swift; sourceTree = "<group>"; };
 		36E1E2F657DE2AC0079966CE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		3C58A46A409FB24E2DA445DA /* MedicalReportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicalReportTests.swift; sourceTree = "<group>"; };
+		40ED6A522B4E6787F70D3A4A /* MedicalDocumentViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicalDocumentViews.swift; sourceTree = "<group>"; };
 		41F6BA29D5EF28BF4939F651 /* LaunchReadinessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchReadinessTests.swift; sourceTree = "<group>"; };
 		46197EDEEB9B441AB777C91F /* PrototypeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeApp.swift; sourceTree = "<group>"; };
 		4E0D954C513BB1D6DE8B7C23 /* WeightFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightFormView.swift; sourceTree = "<group>"; };
@@ -130,6 +151,7 @@
 		514280BD0DC1990D33E47F91 /* PrototypeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeUITests.swift; sourceTree = "<group>"; };
 		614FEEDCE9B4F0F53903033B /* DashboardCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCharts.swift; sourceTree = "<group>"; };
 		638FA20AFF53D669855AABB4 /* AvatarPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarPickerView.swift; sourceTree = "<group>"; };
+		64FC1CE05A6F101981B078C3 /* MedicalDocuments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicalDocuments.swift; sourceTree = "<group>"; };
 		652C82DC03DB39748919918F /* DashboardPDF.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardPDF.swift; sourceTree = "<group>"; };
 		691488F6DAD29CAF1A21E578 /* MedicalReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicalReport.swift; sourceTree = "<group>"; };
 		6F85A3A6A797D7CA6E00F5AD /* PetPal.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = PetPal.xcdatamodel; sourceTree = "<group>"; };
@@ -137,9 +159,13 @@
 		7AF695281430122AC6C5CDB0 /* ReminderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderTests.swift; sourceTree = "<group>"; };
 		7CB9BB611812E16745808CB0 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
 		7CFCFB4238402245EA584FB3 /* PetProfileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetProfileTests.swift; sourceTree = "<group>"; };
+		7D9135E06C34F235B91111E9 /* CareToolsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareToolsTests.swift; sourceTree = "<group>"; };
 		81ECAB97E483399B52FBAEF2 /* RecordPhotoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordPhotoPicker.swift; sourceTree = "<group>"; };
 		882520852231F27F27775564 /* LaunchFollowupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchFollowupTests.swift; sourceTree = "<group>"; };
 		8860B53A8CC4318ABB10963A /* PetPalWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetPalWidget.swift; sourceTree = "<group>"; };
+		8993B7789EE84ADC7B764133 /* CareBackupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareBackupTests.swift; sourceTree = "<group>"; };
+		8AA4118519315ACD6D89B9FA /* CareItemStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareItemStoreTests.swift; sourceTree = "<group>"; };
+		8C36DD7C07F2609C5F433E0A /* RecordSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordSearch.swift; sourceTree = "<group>"; };
 		8C4AC5B6D6CF0E52BD922895 /* DailyRecordSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyRecordSkeleton.swift; sourceTree = "<group>"; };
 		958F6C579A173F555594EE6E /* PetFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetFormView.swift; sourceTree = "<group>"; };
 		95E1C208BFD299769C5A0659 /* CustomTemplateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomTemplateViews.swift; sourceTree = "<group>"; };
@@ -148,9 +174,13 @@
 		A20BBBC2B27424CBDEACD6A2 /* PreviewFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewFixtures.swift; sourceTree = "<group>"; };
 		A47EB955B85E196682B3EA9C /* ReminderSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderSkeleton.swift; sourceTree = "<group>"; };
 		A689F4688B2962236695DEBB /* DashboardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardTests.swift; sourceTree = "<group>"; };
+		A97B6FC95EC0FA69A73BE7BD /* CareFeaturesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareFeaturesUITests.swift; sourceTree = "<group>"; };
 		AD0849DB35EEE7631A9BED42 /* PetPal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PetPal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B3B3F913B76568DA44CA203C /* DesignSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSkeleton.swift; sourceTree = "<group>"; };
 		B4F723769C5954A630E18C99 /* DashboardHealthTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardHealthTimeline.swift; sourceTree = "<group>"; };
+		B6032052564560165A84E366 /* PetPalV4.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = PetPalV4.xcdatamodel; sourceTree = "<group>"; };
+		B64FB5EDF499CC4B798A0ADB /* QuickActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActions.swift; sourceTree = "<group>"; };
+		B8E6DB7FF47FD7C802A74717 /* MedicationCourseViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationCourseViews.swift; sourceTree = "<group>"; };
 		BB6BA6E92B626506746EBEF0 /* PetPalUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PetPalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC9798564C3F1B615D1DD0FC /* MoodPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodPicker.swift; sourceTree = "<group>"; };
 		BD349923AE20D8ACAB2D2A73 /* WidgetPetPaging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetPetPaging.swift; sourceTree = "<group>"; };
@@ -159,6 +189,8 @@
 		C3C32D44F582D8D1B4F76522 /* RecordsHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsHomeView.swift; sourceTree = "<group>"; };
 		C40E635B0A52969F7A8A2E41 /* SelectWidgetPetIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectWidgetPetIntent.swift; sourceTree = "<group>"; };
 		C69716F59C3ED03ED3E6845A /* ReminderListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderListView.swift; sourceTree = "<group>"; };
+		C7D7A84102988B70AE1784D0 /* CareItemBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareItemBackup.swift; sourceTree = "<group>"; };
+		C9F3A9F332954B5BD5DA7AA6 /* CareItemStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareItemStore.swift; sourceTree = "<group>"; };
 		D6C3BD5E7C1F5D776C07AD03 /* PrivacySupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacySupportView.swift; sourceTree = "<group>"; };
 		D7964764097F2A08A435189C /* PetPalV3.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = PetPalV3.xcdatamodel; sourceTree = "<group>"; };
 		D973295CF3382B4F15F21CCB /* PresetRecordFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetRecordFormView.swift; sourceTree = "<group>"; };
@@ -167,6 +199,7 @@
 		E602CBF2BA05B44CCFD80E76 /* OnboardingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTests.swift; sourceTree = "<group>"; };
 		E865EEEFEC8FF4CFEEA25FF9 /* PetPalWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PetPalWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0305E31F2AD66A0E96335B6 /* CoreDataEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataEntities.swift; sourceTree = "<group>"; };
+		F950350711C78BEA85892725 /* MedicationCourse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationCourse.swift; sourceTree = "<group>"; };
 		FA805538E1D91758540E5791 /* DashboardSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardSkeleton.swift; sourceTree = "<group>"; };
 		FD61F5B1C0BFDE1DB7FD61BC /* RecordTemplatePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordTemplatePickerView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -186,6 +219,9 @@
 		17D753419DE02F3824307A6C /* M4_Reminders */ = {
 			isa = PBXGroup;
 			children = (
+				F950350711C78BEA85892725 /* MedicationCourse.swift */,
+				357D49313FD6A1C11CEC94A1 /* MedicationCourseTests.swift */,
+				B8E6DB7FF47FD7C802A74717 /* MedicationCourseViews.swift */,
 				1EC3B47DAD00D1284185815C /* RecordTaskTests.swift */,
 				DC1F057C078BFB07E5B81C25 /* ReminderFormView.swift */,
 				C69716F59C3ED03ED3E6845A /* ReminderListView.swift */,
@@ -210,6 +246,10 @@
 			children = (
 				638FA20AFF53D669855AABB4 /* AvatarPickerView.swift */,
 				0535823BAD80F1189271D804 /* BackupManagementView.swift */,
+				8993B7789EE84ADC7B764133 /* CareBackupTests.swift */,
+				C7D7A84102988B70AE1784D0 /* CareItemBackup.swift */,
+				C9F3A9F332954B5BD5DA7AA6 /* CareItemStore.swift */,
+				8AA4118519315ACD6D89B9FA /* CareItemStoreTests.swift */,
 				1EEA6E5FB5C6B6E10C1D418D /* DatabaseBackupManager.swift */,
 				882520852231F27F27775564 /* LaunchFollowupTests.swift */,
 				41F6BA29D5EF28BF4939F651 /* LaunchReadinessTests.swift */,
@@ -235,6 +275,7 @@
 		4449376F51275880F5E921A3 /* M7_Prototype */ = {
 			isa = PBXGroup;
 			children = (
+				A97B6FC95EC0FA69A73BE7BD /* CareFeaturesUITests.swift */,
 				A20BBBC2B27424CBDEACD6A2 /* PreviewFixtures.swift */,
 				46197EDEEB9B441AB777C91F /* PrototypeApp.swift */,
 				514280BD0DC1990D33E47F91 /* PrototypeUITests.swift */,
@@ -274,12 +315,17 @@
 		793829723E6FA99965F7D360 /* M5_Dashboard */ = {
 			isa = PBXGroup;
 			children = (
+				33BE650EE7594A44B098F341 /* CareInstructions.swift */,
+				1B39658E0B10187DAA22EDD2 /* CareInstructionsView.swift */,
+				7D9135E06C34F235B91111E9 /* CareToolsTests.swift */,
 				614FEEDCE9B4F0F53903033B /* DashboardCharts.swift */,
 				B4F723769C5954A630E18C99 /* DashboardHealthTimeline.swift */,
 				652C82DC03DB39748919918F /* DashboardPDF.swift */,
 				FA805538E1D91758540E5791 /* DashboardSkeleton.swift */,
 				A689F4688B2962236695DEBB /* DashboardTests.swift */,
 				5107971C455CCBD90CE5B14C /* DashboardView.swift */,
+				64FC1CE05A6F101981B078C3 /* MedicalDocuments.swift */,
+				40ED6A522B4E6787F70D3A4A /* MedicalDocumentViews.swift */,
 				691488F6DAD29CAF1A21E578 /* MedicalReport.swift */,
 				3C58A46A409FB24E2DA445DA /* MedicalReportTests.swift */,
 			);
@@ -294,8 +340,11 @@
 				C23A0D052F0B5A5C31C2B290 /* DailyRecordTests.swift */,
 				BC9798564C3F1B615D1DD0FC /* MoodPicker.swift */,
 				D973295CF3382B4F15F21CCB /* PresetRecordFormView.swift */,
+				B64FB5EDF499CC4B798A0ADB /* QuickActions.swift */,
+				0CC69D7F39CDC2D38498FB6B /* QuickActionSearchTests.swift */,
 				969BB8C2A81440E13248D107 /* RecordCalendarView.swift */,
 				81ECAB97E483399B52FBAEF2 /* RecordPhotoPicker.swift */,
+				8C36DD7C07F2609C5F433E0A /* RecordSearch.swift */,
 				C3C32D44F582D8D1B4F76522 /* RecordsHomeView.swift */,
 				FD61F5B1C0BFDE1DB7FD61BC /* RecordTemplatePickerView.swift */,
 			);
@@ -493,13 +542,18 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				52285030452008D2E016C1C1 /* CareBackupTests.swift in Sources */,
+				297B3A6D9B7FAB256E417F4F /* CareItemStoreTests.swift in Sources */,
+				60181F769FD36297946BABA8 /* CareToolsTests.swift in Sources */,
 				3DF0ECCC24C5E5688B72113E /* DailyRecordTests.swift in Sources */,
 				0CEF993F05F6BDDEEED3369F /* DashboardTests.swift in Sources */,
 				B0185C77163B2CA553294972 /* LaunchFollowupTests.swift in Sources */,
 				EE24DBB45363EF8F219581FA /* LaunchReadinessTests.swift in Sources */,
 				8D9167D3B3A8290E38B353A6 /* MedicalReportTests.swift in Sources */,
+				60A98D90BEC9B854E2396F76 /* MedicationCourseTests.swift in Sources */,
 				6773BE93F8BB4DE15D1EE3C0 /* OnboardingTests.swift in Sources */,
 				B64DE1B12D78D93A4E975B34 /* PetProfileTests.swift in Sources */,
+				C14668F47F5A23E11A33BF22 /* QuickActionSearchTests.swift in Sources */,
 				C231810068067E00FF104722 /* RecordTaskTests.swift in Sources */,
 				8D658E8E5702F97F4823B591 /* ReminderTests.swift in Sources */,
 				96B00EC79DEEF5A4A036287A /* WidgetSnapshotTests.swift in Sources */,
@@ -510,6 +564,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				89518D31F8968E0370A13B23 /* CareFeaturesUITests.swift in Sources */,
 				8BA20D6D782910E72EA65029 /* PrototypeUITests.swift in Sources */,
 				9F8C9342A27226BDB9DA8E97 /* ReleaseFlowUITests.swift in Sources */,
 				9E1E4C00BF420D7323B626C9 /* WeightUITests.swift in Sources */,
@@ -522,6 +577,10 @@
 			files = (
 				14C663209B5285D01065D5EA /* AvatarPickerView.swift in Sources */,
 				FAAF49F4861561A0D5616DD0 /* BackupManagementView.swift in Sources */,
+				C90C6AE843DCBB0D1FCF5310 /* CareInstructions.swift in Sources */,
+				55446CB8386421311F6FD8E1 /* CareInstructionsView.swift in Sources */,
+				0BA9291E20098494639EDFFC /* CareItemBackup.swift in Sources */,
+				C8E92C140BE0E7F06B42D48C /* CareItemStore.swift in Sources */,
 				311D8991C2E9C04CC9269970 /* CoreDataEntities.swift in Sources */,
 				E81166DDD1AED9A81C7FE950 /* CustomTemplateViews.swift in Sources */,
 				DF36CC2204BC51019B5120A7 /* DailyRecordSkeleton.swift in Sources */,
@@ -532,7 +591,11 @@
 				F4EBA71490C24B057BC7482F /* DashboardView.swift in Sources */,
 				23209D76BEF78E7B27C8626A /* DatabaseBackupManager.swift in Sources */,
 				BFE7FACCC09847413729522F /* DesignSkeleton.swift in Sources */,
+				9B2C59EDE90E5083E87DA504 /* MedicalDocumentViews.swift in Sources */,
+				AFD9075590BF21F5A2A97CC3 /* MedicalDocuments.swift in Sources */,
 				E8014AB4E92319319C13A979 /* MedicalReport.swift in Sources */,
+				5AA9735816CAA9D721DD978C /* MedicationCourse.swift in Sources */,
+				B4A58383A08EE2DA62037606 /* MedicationCourseViews.swift in Sources */,
 				76C7347974A0B4E088001AEB /* MoodPicker.swift in Sources */,
 				10D05575DDB772F205E8DE36 /* Onboarding.swift in Sources */,
 				B28C661163D7E257E0D8DBA3 /* PetFormView.swift in Sources */,
@@ -544,8 +607,10 @@
 				E5EAC8CF15E161A33BD9D5CE /* PreviewFixtures.swift in Sources */,
 				768CBDEE9285DF87B06DA791 /* PrivacySupportView.swift in Sources */,
 				1BBD4287F07A20D418965C7D /* PrototypeApp.swift in Sources */,
+				43F3205BBDF7011A32EFCA97 /* QuickActions.swift in Sources */,
 				E2FC5B0A614136653CDDB921 /* RecordCalendarView.swift in Sources */,
 				3BBA2611DEB73FEA092AB762 /* RecordPhotoPicker.swift in Sources */,
+				F1F7306B5ED0CDF2B99F5E03 /* RecordSearch.swift in Sources */,
 				D1AD010CBCE485C2F7B8F0BF /* RecordTemplatePickerView.swift in Sources */,
 				993C71EFE86F679D24B96FE1 /* RecordsHomeView.swift in Sources */,
 				4E3CFE01BDB0319A1F6937A2 /* ReminderFormView.swift in Sources */,
@@ -934,8 +999,9 @@
 				6F85A3A6A797D7CA6E00F5AD /* PetPal.xcdatamodel */,
 				080694A79B7A09DB89C006DF /* PetPalV2.xcdatamodel */,
 				D7964764097F2A08A435189C /* PetPalV3.xcdatamodel */,
+				B6032052564560165A84E366 /* PetPalV4.xcdatamodel */,
 			);
-			currentVersion = D7964764097F2A08A435189C /* PetPalV3.xcdatamodel */;
+			currentVersion = B6032052564560165A84E366 /* PetPalV4.xcdatamodel */;
 			path = PetPal.xcdatamodeld;
 			sourceTree = "<group>";
 			versionGroupType = wrapper.xcdatamodel;

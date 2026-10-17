@@ -1,6 +1,21 @@
 import CoreData
 import Foundation
 
+@objc(CDCareItem)
+public class CDCareItem: NSManagedObject {
+    @NSManaged public var id: UUID?
+    @NSManaged public var petID: UUID?
+    @NSManaged public var category: String?
+    @NSManaged public var payload: String?
+    @NSManaged public var createdAt: Date?
+}
+
+extension CDCareItem {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<CDCareItem> {
+        NSFetchRequest<CDCareItem>(entityName: "CDCareItem")
+    }
+}
+
 @objc(CDPet)
 public class CDPet: NSManagedObject {
     @NSManaged public var id: UUID?

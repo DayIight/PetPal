@@ -7,13 +7,17 @@ enum RepeatRule: Codable, Equatable {
     case monthly(day: Int)
     case yearly(month: Int, day: Int)
     case once(at: Date)
+    case dailyWindow(start: Date, end: Date)
 
     var usesRollingSchedule: Bool {
-        switch self { case .monthly, .yearly: return true; default: return false }
+        switch self { case .monthly, .yearly, .dailyWindow: return true; default: return false }
     }
     var label: String {
         switch self {
         case .daily: return "每日"
+        case .dailyWindow(let start, let end):
+            guard ReminderRecurrence.isSupportedDate(start), ReminderRecurrence.isSupportedDate(end) else { return "疗程日期无效" }
+            return "每日 · " + start.formatted(date: .abbreviated, time: .omitted) + " 至 " + end.formatted(date: .abbreviated, time: .omitted) + "（含首尾）"
         case .weekly(let days):
             let names = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
             return "每周" + days.sorted().filter { (1...7).contains($0) }.map { names[$0 - 1] }.joined(separator: "、")
@@ -54,6 +58,9 @@ enum ReminderRecurrence {
         guard (0...23).contains(hour), (0...59).contains(minute) else { return "提醒时间无效" }
         switch rule {
         case .daily: if advance.seconds > 3600 { return "每日提醒最多提前1小时" }
+        case .dailyWindow(let start, let end):
+            guard isSupportedDate(start), isSupportedDate(end), start <= end else { return "疗程起止日期无效" }
+            if advance != .none { return "疗程仅在指定服药时间提醒" }
         case .weekly(let days): if days.isEmpty || !days.allSatisfy({ (1...7).contains($0) }) { return "每周至少选择一天" }
         case .monthly(let day): if !(1...31).contains(day) { return "每月日期无效" }
         case .yearly(let month, let day):
@@ -70,6 +77,10 @@ enum ReminderRecurrence {
         let last = calendar.range(of: .day, in: .month, for: date)?.count ?? 31
         switch rule {
         case .daily: return true
+        case .dailyWindow(let start, let end):
+            guard isSupportedDate(start), isSupportedDate(end) else { return false }
+            let current = calendar.startOfDay(for: date)
+            return current >= calendar.startOfDay(for: start) && current <= calendar.startOfDay(for: end)
         case .weekly(let days): return days.contains(calendar.component(.weekday, from: date))
         case .monthly(let requested): return day == min(requested, last)
         case .yearly(let month, let requested): return calendar.component(.month, from: date) == month && day == min(requested, last)
@@ -84,13 +95,18 @@ enum ReminderRecurrence {
               validationError(rule: rule, hour: hour, minute: minute, advance: .none) == nil else { return [] }
         if case .once(let due) = rule { return due > start && due <= end ? [due] : [] }
         var day = calendar.startOfDay(for: start)
+        var searchEnd = end
         switch rule {
+        case .dailyWindow(let first, let last):
+            day = max(day, calendar.startOfDay(for: first))
+            guard let afterLast = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: last)) else { return [] }
+            searchEnd = min(end, afterLast.addingTimeInterval(-1))
         case .monthly: day = calendar.date(from: calendar.dateComponents([.year, .month], from: start)) ?? day
         case .yearly: day = calendar.date(from: calendar.dateComponents([.year], from: start)) ?? day
         default: break
         }
         var result: [Date] = []
-        while day <= end {
+        while day <= searchEnd {
             let occurrenceDay: Date?
             let stride: Calendar.Component
             switch rule {
@@ -106,7 +122,7 @@ enum ReminderRecurrence {
             if let occurrenceDay,
                let due = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: occurrenceDay,
                                        matchingPolicy: .nextTimePreservingSmallerComponents, repeatedTimePolicy: .first),
-               due > start, due <= end {
+               due > start, due <= searchEnd {
                 result.append(due)
                 if result.count == maximumCount { break }
             }
